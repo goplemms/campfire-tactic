@@ -1,0 +1,84 @@
+# Phase 3 — Combat (the iso grid)
+
+> Pipeline position: `Pre-deployment → Deployment → [COMBAT] → Resolution`
+> Related systems: [Action economy](systems/action-economy.md),
+> [Field entities & the trigger bus](systems/field-entities.md),
+> [Stats](systems/stats.md)
+
+## Description
+
+Combat is the isometric battle. It is, deliberately, a **solid genre-standard
+tactics fight** — the novelty of this game lives in the phases *around* it. What
+makes Combat distinctive is that it is the phase where all the **prep pays off**:
+the field entities placed in Deployment trigger here, and captured allies can be
+rescued here.
+
+Three pillars define Combat:
+
+### 1. An FFT-style continuous CT clock
+
+There are **no discrete rounds**. Every unit has a **Speed** stat and a hidden
+**Charge-Time (CT)** gauge. The clock ticks; each tick, every unit's `CT += Speed`;
+at `CT ≥ 100` that unit takes an **active turn** (**Move** and **Act**, either
+order); acting then spends its CT back down. Fast units act more often. Full
+mechanics, including **charged abilities** that resolve *later* on the timeline,
+are in [action-economy](systems/action-economy.md).
+
+Each side enters Combat with a **starting CT seed** set in
+[Deployment](02-deployment.md) — so prep gambles that got a unit captured cost the
+whole side early tempo.
+
+### 2. Field entities fire via a trigger bus
+
+Traps, nests, and runes placed in Deployment are **field entities** that register
+as **listeners on the battle trigger bus**. The Combat loop announces moments —
+`onUnitEnterTile`, `onTurnStart`, `onUnitDamaged`, etc. — and entities react. This
+is the architectural hook (decision **D4**) that M3 builds **before** any entity
+exists, so traps/nests/runes are later just listeners, not special cases. See
+[field-entities](systems/field-entities.md).
+
+- **Trap** → one-shot listener on `onUnitEnterTile` (enemy steps on it → damage).
+- **Defensive nest** → passive aura: whoever holds the tile gets cover / range /
+  elevation benefits.
+- **Ritual rune** → a **pre-paid charged ability** (the charge was bought in
+  Deployment, not spent as a battle turn). **Auto-trigger** = resolves on a
+  condition; **manual-trigger** = a unit spends its **Act** to detonate now.
+
+### 3. Rescue of captured allies
+
+A unit captured during Deployment is on the map, guarded. Freeing it mid-Combat
+converts the side's **−1 to +1**; an ally left captured at battle's end is lost in
+[Resolution](04-resolution.md).
+
+### Win/lose
+
+Standard objectives (defeat all enemies / survive N / reach a tile). The roguelike
+framing means **permadeath**: fallen and unrescued-captured units do not come back.
+
+## Pseudo-example
+
+> Continuing from Deployment: enemy holds the initiative seed; 2 traps at the
+> canyon mouth; 1 fire rune live; **Vale captured** on a ledge with 2 guards.
+> Illustrative Speeds — Rook 10, Ember 7, enemy Vanguard 9, guards 8.
+>
+> | Clock | Event |
+> |------:|-------|
+> | t=0 | Seeds applied. Because Vale was lost from the seed, the **enemy Vanguard starts warmer** and reaches 100 first. |
+> | t≈11 | **Vanguard turn:** advances through the canyon mouth → steps on a tile → **`onUnitEnterTile` fires Bram's trap.** Vanguard takes damage; a second enemy trips the **second trap** moments later. The greedy enemy tempo walked straight into the prep. |
+> | t≈14 | **Rook turn:** Rook sprints toward the ledge (Move) and strikes a guard (Act). CT spent. |
+> | t≈19 | **Ember turn:** Ember casts *Frost* — a **charged** spell — onto the cluster near the rune. It does **not** resolve yet; it schedules on the timeline. |
+> | t≈22 | **Rook's next turn:** he reaches **Vale** and **frees her** (`Act`). Side is now **4 active**; Vale re-enters the clock. |
+> | t≈23 | **Frost resolves** on the cluster (they didn't scatter in time). |
+> | t≈24 | **Vale turn:** freed, she spends her **Act** to **manually detonate the fire rune** on the frosted, clustered enemies — the pre-paid charge collapses to zero and erupts now. |
+>
+> The fight tips: prep placed an hour earlier (traps + rune) plus a rescue turned a
+> bad initiative seed into a win.
+
+## Open questions / future scope
+
+- Concrete combat stats beyond Speed (HP, attack, defense, range, move) are
+  defined alongside M3 implementation; see [Stats](systems/stats.md).
+- Exact CT spend-down costs for Move vs. Act, and per-ability charge times, are
+  tuning values (illustrative in these docs).
+- Enemy AI on a continuous clock is meaningfully harder than round-based AI; this
+  is an accepted cost of the FFT model (decision D5).

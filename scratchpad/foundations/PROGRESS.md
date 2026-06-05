@@ -8,9 +8,10 @@ Resume/survival file. If context is lost, this page alone should let work resume
 |-----------|-------|
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | done |
-| M3 — Turn-based battle loop | todo |
+| M3 — Turn-based battle loop (CT clock + trigger bus) | todo |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
+| M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
 
 States: `todo` → `in-progress` → `testable` → `done`
@@ -20,6 +21,13 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 - **Milestone:** M3 — Turn-based battle loop (next up). M2 is done — the
   in-browser click-to-move gate is confirmed.
+- **Design pass (2026-06-05):** captured the game's system vision in
+  [`docs/design/`](../../docs/design/) (flow + 4 phase docs + 4 subsystem docs)
+  and logged decisions **D4–D7**: field entities + trigger bus (D4), FFT CT clock +
+  charged abilities (D5), two-tier logistics pillar (D6), and the Deployment
+  push-your-luck gamble (D7). Added milestone **M5b** for the logistics pillar.
+  This reshapes M3's scope: it now builds the **CT clock** and a **trigger/event
+  bus + field-entity registry** (before any entity exists), not a round-based loop.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),
@@ -29,10 +37,10 @@ States: `todo` → `in-progress` → `testable` → `done`
   covering a straight path, routing around a blocked tile, no-path-exists, and
   start==goal); `npm run build` typechecks + bundles; `core/` verified free of
   Phaser/DOM imports.
-- **Next step:** confirm the M2 user-testable gate in a browser (`npm run dev`:
-  click a tile, the unit walks there routing around walls), then begin M3 —
-  turn/initiative order, action economy (move + act), attack/damage, win/lose,
-  an End Turn button, and a basic enemy AI.
+- **Next step:** begin M3 per the design pass — the **FFT CT clock** (per-unit CT
+  by Speed, turn at CT≥100, Move + Act, charged-ability scaffolding; D5), a
+  **trigger/event bus + field-entity registry** built before any entity exists
+  (D4), attack/damage, win/lose, an advance-clock control, and a basic enemy AI.
 - **Note:** npm "latest" is now Phaser 4; we deliberately pinned Phaser 3 (`^3.90.0`)
   to honor decision D1. Revisit as a tracked pivot if we ever want Phaser 4.
 - **Blockers:** none.

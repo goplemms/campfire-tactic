@@ -1,5 +1,9 @@
 # Plan: foundations
 
+> **Design vision** for the systems these milestones build lives in
+> [`docs/design/`](../../docs/design/) (game flow + per-phase/subsystem docs).
+> Architectural calls are logged in [`decisions.md`](decisions.md) (D1–D7).
+
 ## Goal (north star)
 
 A web-playable isometric roguelike tactics game whose identity is its
@@ -43,10 +47,16 @@ exercise in the browser.
 
 ### M3 — Turn-based battle loop (two sides, basic attack)
 
-- core: turn/initiative order, action economy (move + act), attack/damage,
-  win/lose detection. render: an End Turn button; a basic enemy AI takes its turn.
+- core: the **FFT-style CT clock** action economy (per-unit CT rises by Speed,
+  turn at CT≥100, Move + Act; charged-ability scaffolding) per **D5**; a
+  **trigger/event bus + field-entity registry** built *before any entity exists*
+  per **D4**; attack/damage; win/lose detection. render: an End Turn / advance-clock
+  control; a basic enemy AI takes its turn.
 - **User-testable gate:** play a tiny skirmish to victory or defeat in the
-  browser; turn-order and damage tests are green.
+  browser; CT-order, damage, and trigger-bus tests are green.
+- See [`docs/design/03-combat.md`](../../docs/design/03-combat.md),
+  [`action-economy.md`](../../docs/design/systems/action-economy.md),
+  [`field-entities.md`](../../docs/design/systems/field-entities.md).
 
 ### M4 — Data-driven jobs & skills + the phase pipeline
 
@@ -68,6 +78,28 @@ exercise in the browser.
   gold/storage in camp, the Chef buff is applied to the party, and a
   Survivalist-placed trap triggers during the following battle. Each job's effect
   has a green test.
+
+### M5b — Logistics pillar & the Deployment gamble (adjustment, per D6/D7)
+
+- *Adjustment (not a pivot): the north star is unchanged; this deepens the prep
+  loop the signature jobs act on, making logistics a headline pillar.*
+- core: a first-class **inventory/materials model** (storage cap, ammo, materials,
+  rations) per **D6**; the **provisioning constraint** linking Meta → Deployment
+  (place only what was carried; carry only what storage allows); **Deployment as a
+  per-unit push-your-luck gamble** per **D7** (transparent exposure meter, safe
+  allowance → overdraw, capture as a rescuable on-map sub-objective, initiative
+  seeding from deployed non-captured units); material **recovery in Resolution**.
+  render: a Meta loadout/world-menu screen and an on-map Deployment screen with the
+  exposure meter.
+- **User-testable gate:** in the browser, provision a loadout under a storage cap,
+  enter Deployment and over-prep a unit into the overdraw zone until it's captured,
+  then in the following battle rescue it and recover an unsprung material in
+  Resolution. Inventory, exposure/capture, initiative-seed, and recovery tests are
+  green.
+- See [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md),
+  [`01-pre-deployment.md`](../../docs/design/01-pre-deployment.md),
+  [`02-deployment.md`](../../docs/design/02-deployment.md),
+  [`04-resolution.md`](../../docs/design/04-resolution.md).
 
 ### M6 — Roguelike run loop (seeded procedural encounters, permadeath, meta)
 
