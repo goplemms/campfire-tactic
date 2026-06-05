@@ -71,8 +71,10 @@ States: `todo` → `in-progress` → `testable` → `done`
     stealth-as-trait deferred; new `systems/vision.md`). ✅ **forced movement → D19**
     (push/pull, banded, involuntary, target-agnostic; forced entry onto an entity tile
     fires it; stop at blockers + optional collision damage; vision rules apply).
-    Remaining: **Ammo** (LAST combat-core item; within the consumables family;
-    default-spell template eases empty-feels-bad).
+    ✅ **Ammo → D20** (basic arrows **infinite** = archer's default-spell twin; special
+    arrows are limited consumables; every consumable carries a **recovery keyword**
+    (N% on a win), Survivalist perk boosts it — refines D13/D17). **COMBAT-CORE BATCH
+    COMPLETE.**
   - *Open — run frame:* **branching mission select** + the **overworld↔camp**
     relationship; **recruitment** of party members; **intel pre-selection scope**
     (reveals comp + rewards + recruits across options).

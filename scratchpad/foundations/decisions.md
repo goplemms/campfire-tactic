@@ -407,3 +407,26 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/03-combat.md`](../../docs/design/03-combat.md) (Forced
   movement), [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md).
 - **Superseded by:** —
+
+## D20 — Ammo: infinite basics + special-arrow consumables; recovery keywords
+
+- **Status:** Decided (resolves the parked Ammo question; refines D13/D17 recovery)
+- **Context:** Ammo risks being trivial at either extreme (perpetually starved or
+  permanent surplus). Need scarcity that *matters* without ever making an archer feel
+  useless.
+- **Decision:** Split ammo into two layers, mirroring [magic](../../docs/design/systems/magic.md):
+  - **Basic arrows are infinite** — the at-will floor, the archer-side twin of the
+    mage's **default spell**. A ranged unit is **never useless**. (Fallback when out
+    of specials = basic shot + the option to close to melee, i.e. C.)
+  - **Special arrows are limited consumables** (fire, net/grounding, …) — the scarce
+    tactical layer, working like scrolls/traps; storage-slotted, party-wide (D14).
+  - Archers and mages thus share **one kit shape**: a free basic + a limited pool of
+    specials.
+  - **Recovery keyword (generalizes the consumables family):** every consumable
+    (special arrows, scrolls, reagents) carries its **own `recovery` keyword** — an
+    **N% chance to recover on a win** (net arrow ~50%, fire arrow 0%). This **refines**
+    D13/D17's flat "partially recovered" into a per-item roll; the **Survivalist
+    perk** boosts it.
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (Consumables), [`docs/design/systems/magic.md`](../../docs/design/systems/magic.md).
+- **Superseded by:** —

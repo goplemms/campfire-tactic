@@ -36,10 +36,12 @@ no artificial cap; the material spend and the capture risk are the limiters.
 
 ### The consumables family
 
-**Scrolls, reagents, and [ammo](logistics.md)** are one family with a shared rule
-set: **storage-slotted, expended on use, partially recovered on a win** (D13). The
-**default-spell** philosophy — always leave a free fallback — is the template for
-solving ammo's "empty feels bad" (its specific balance is its own discussion).
+**Scrolls, reagents, and special [arrows](logistics.md)** are one family (D17/D20):
+**storage-slotted, expended on use**, each with a **per-item recovery keyword** (its
+own **N% chance to recover** on a win; Survivalist perk boosts it). The
+**default-spell** floor has an exact ammo twin: **basic arrows are infinite**, so an
+archer — like a depleted mage — always contributes. Archers and mages share one kit
+shape: a **free basic** + a **limited pool of specials**.
 
 ## Pseudo-example
 

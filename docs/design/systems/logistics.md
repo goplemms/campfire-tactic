@@ -44,15 +44,17 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
   outcome-gated and whole-field: **win** → reclaim every unsprung, intact, surviving
   entity — *including the enemy's* (salvage); **flee/lose** → nothing. See
   [Resolution](../04-resolution.md).
-- **Consumables (ammo · scrolls · reagents)** — one family (D17): **storage-slotted,
-  expended on use, partially recovered on a win** (D13).
+- **Consumables (special arrows · scrolls · reagents)** — one family (D17/D20):
+  **storage-slotted, expended on use**, with a **per-item recovery keyword** — each
+  defines its own **N% chance of recovery** on a win (a net arrow ~50%, a fire arrow
+  0% "burned up"). The **Survivalist salvage perk** boosts the roll.
   - **Scrolls / reagents** power [Vancian magic](magic.md) (extra castings; rune
     builds).
-  - **Ammo** — **(Open — dedicated follow-up.)** Spent ammo should matter without a
-    ranged unit feeling *useless* once empty; the magic **default-spell** is the
-    template (always leave a free fallback). Per-unit vs. shared pool + that balance
-    are deferred; a possible **Survivalist salvage perk** (higher % return) rides on
-    the outcome.
+  - **Special arrows** are the scarce, tactical ammo layer (fire, net/grounding, …).
+- **Basic arrows are *infinite* (D20)** — the at-will floor and the archer-side twin
+  of the mage's **default spell**, so a ranged unit is **never useless**. Only
+  *special* arrows are a managed resource. (Archers and mages thus share one kit
+  shape: a free basic + a limited pool of specials.)
 - **Gold** — earned in Resolution (Merchant bonus), spent in Pre-deployment on
   provisioning **and Upkeep** (below).
 - **Upkeep** — the party's per-night maintenance, expressed as **one gold figure**
@@ -103,15 +105,18 @@ system.
 > night — a moderate morale hit and gear condition starts to slide, but food stays
 > covered (skipping *that* would gut morale immediately).
 >
-> **8 storage slots** (food isn't here — it's Upkeep). The player loads `2 × trap
-> kit`, `18 × arrow` (3 slots @6), `1 × rune reagent`, `1 × nest lumber` (2, bulky)
-> → **8/8 full**. They *wanted* a second rune but had no room — a direct cost of
-> skipping the Merchant's storage upgrade.
+> **8 storage slots** (food isn't here — it's Upkeep; *basic* arrows aren't either —
+> they're infinite). The player loads `2 × trap kit`, `18 × net arrow` (3 slots @6,
+> special ammo), `1 × rune reagent`, `1 × nest lumber` (2, bulky) → **8/8 full**.
+> They *wanted* a second rune but had no room — a direct cost of skipping the
+> Merchant's storage upgrade.
 >
 > - **Deployment:** both trap kits placed; rune placed (Vale captured doing it).
-> - **Combat:** Vale fires her arrows; both traps spring; the rune is detonated.
+> - **Combat:** Vale fires net arrows (then falls back to free basic shots); both
+>   traps spring; the rune is detonated.
 > - **Resolution:** party held the ground → the **intact nest** (and a salvaged
->   **enemy snare**) are **recovered**; spent materials are deducted; **+180 gold**.
+>   **enemy snare**) are **recovered**; spent consumables roll their **recovery
+>   keyword** (a few net arrows come back); **+180 gold**.
 >
 > Next Pre-deployment, the player can finally afford repairs *and* the **+2 storage
 > upgrade** — and now there's room for that second rune.

@@ -80,7 +80,7 @@ Key tensions a crunch player optimizes here:
 >    (300g → 294g.)
 > 3. **Loadout.** With 8 slots and a canyon ahead, the player loads:
 >    - `2 × trap kit` (2 slots) — chokepoints love traps,
->    - `18 × arrow` (3 slots @6) — Vale's ammo,
+>    - `18 × net arrow` (3 slots @6) — special ammo to ground the fliers,
 >    - `1 × fire-rune reagent` (1 slot),
 >    - `1 × nest lumber` (2 slots, bulky).
 >    Storage is now **full (8/8)**. The player *wanted* a second rune but has no
