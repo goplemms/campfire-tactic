@@ -73,9 +73,80 @@ export const SOLDIER: JobDef = {
   ],
 };
 
+/**
+ * The Survivalist — the signature **Deployment**-phase job (D3). Carries a
+ * placeable trap (the first real field entity, D4): placed before battle, it
+ * springs on an enemy in Combat.
+ */
+export const SURVIVALIST: JobDef = {
+  id: "survivalist",
+  name: "Survivalist",
+  description: "Field-craft specialist: lays traps before the fight begins.",
+  skills: [
+    {
+      id: "set-trap",
+      name: "Set Trap",
+      description: "Place a trap that deals 12 damage to the first enemy onto it.",
+      phase: "deployment",
+      target: "camp",
+      range: 0,
+      spend: "act",
+      effect: { kind: "placeTrap", damage: 12 },
+    },
+  ],
+};
+
+/**
+ * The Chef — the signature **Meta/camp**-phase job (D3). Cooking raises party
+ * morale (D8) and banks a between-battle heal applied to the party at the start
+ * of the next fight.
+ */
+export const CHEF: JobDef = {
+  id: "chef",
+  name: "Chef",
+  description: "Cooks for the party: lifts morale and banks a hearty heal.",
+  skills: [
+    {
+      id: "cook-stew",
+      name: "Cook Stew",
+      description: "Raise morale and bank +8 HP healing for each unit next battle.",
+      phase: "meta",
+      target: "party",
+      range: 0,
+      spend: "act",
+      effect: { kind: "morale", morale: 1, partyHeal: 8 },
+    },
+  ],
+};
+
+/**
+ * The Merchant — the signature **Meta/economy**-phase job (D3). Trading
+ * generates gold and expands storage (the master logistics cap, D6).
+ */
+export const MERCHANT: JobDef = {
+  id: "merchant",
+  name: "Merchant",
+  description: "Works the economy: generates gold and expands storage.",
+  skills: [
+    {
+      id: "trade",
+      name: "Trade",
+      description: "Earn +50 gold and add +2 storage slots.",
+      phase: "meta",
+      target: "camp",
+      range: 0,
+      spend: "act",
+      effect: { kind: "economy", gold: 50, storage: 2 },
+    },
+  ],
+};
+
 /** The job registry — the single source jobs are loaded from. */
 export const JOBS: Record<string, JobDef> = {
   [SOLDIER.id]: SOLDIER,
+  [SURVIVALIST.id]: SURVIVALIST,
+  [CHEF.id]: CHEF,
+  [MERCHANT.id]: MERCHANT,
 };
 
 /** Look up a job by id. */

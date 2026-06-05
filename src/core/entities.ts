@@ -13,6 +13,7 @@
 import type { Unit, Side } from "./units";
 import type { GridCoord } from "./iso";
 import type { EventBus } from "./events";
+import { applyDamage } from "./combat";
 
 /** Context handed to an entity's tile callbacks. */
 export interface EntityEnterContext {
@@ -84,4 +85,31 @@ export class EntityRegistry {
   at(tile: GridCoord): FieldEntity[] {
     return this.all().filter((e) => sameTile(e.pos, tile));
   }
+}
+
+/**
+ * The first data-defined field entity (D4): a **trap** the Survivalist places in
+ * Deployment. A one-shot listener on `onUnitEnterTile` — when a unit of the
+ * *opposing* side steps (or is pushed, D19) onto its tile, it deals `damage` once
+ * and is spent. This is the Deployment→Combat payoff the whole bus/registry seam
+ * was built for; later placeables (nests, runes) are the same shape with
+ * different effects.
+ */
+export function makeTrap(
+  id: string,
+  pos: GridCoord,
+  owner: Side,
+  damage: number,
+): FieldEntity {
+  let sprung = false;
+  return {
+    id,
+    pos: { col: pos.col, row: pos.row },
+    owner,
+    onUnitEnterTile: ({ unit, bus }) => {
+      if (sprung || unit.side === owner) return;
+      sprung = true;
+      applyDamage(unit, damage, bus);
+    },
+  };
 }

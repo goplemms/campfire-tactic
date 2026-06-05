@@ -31,6 +31,28 @@ export function computeDamage(
 }
 
 /**
+ * Apply raw damage to a unit, emitting `onUnitDamaged` and (on a kill)
+ * `onUnitDefeated`. `source` is the attacker if any — a trap or rune passes
+ * none. Returns the damage applied. This is the single mutation point so
+ * unit attacks and field-entity effects defeat units identically.
+ */
+export function applyDamage(
+  target: Unit,
+  amount: number,
+  bus?: EventBus,
+  source?: Unit,
+): number {
+  const damage = Math.max(0, Math.floor(amount));
+  target.hp = Math.max(0, target.hp - damage);
+  bus?.emit("unitDamaged", { unit: target, amount: damage, source });
+  if (target.hp <= 0 && target.alive) {
+    target.alive = false;
+    bus?.emit("unitDefeated", { unit: target, source });
+  }
+  return damage;
+}
+
+/**
  * Resolve a basic attack: apply damage, emit `onUnitDamaged`, and on a kill flip
  * `alive` and emit `onUnitDefeated`. Returns the damage dealt. `attackPower`
  * overrides the attacker's base attack (used by skills like Power Strike).
@@ -41,14 +63,7 @@ export function resolveAttack(
   bus?: EventBus,
   attackPower: number = attacker.attack,
 ): number {
-  const damage = computeDamage(attacker, defender, attackPower);
-  defender.hp = Math.max(0, defender.hp - damage);
-  bus?.emit("unitDamaged", { unit: defender, amount: damage, source: attacker });
-  if (defender.hp <= 0 && defender.alive) {
-    defender.alive = false;
-    bus?.emit("unitDefeated", { unit: defender, source: attacker });
-  }
-  return damage;
+  return applyDamage(defender, computeDamage(attacker, defender, attackPower), bus, attacker);
 }
 
 /** The result of a win/lose check. */

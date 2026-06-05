@@ -9,8 +9,8 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | done |
 | M3 — Turn-based battle loop (CT clock + trigger bus) | done |
-| M4 — Data-driven jobs & skills + phase pipeline | testable |
-| M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
+| M4 — Data-driven jobs & skills + phase pipeline | done |
+| M5 — Signature non-combat jobs (chef / survivalist / merchant) | testable |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
 
@@ -19,11 +19,33 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M4 — Data-driven jobs & skills + the phase pipeline. **Code
-  complete → `testable`** (developed on the same branch as M3): `npm test` is
-  **52/52 green**, `npm run build` typechecks + bundles, `core/` stays free of
-  Phaser/DOM. Awaiting the **in-browser gate** (a skill button appears on a
-  player unit's turn and visibly affects battle) to flip M4 → `done`.
+- **Milestone:** M5 — Signature non-combat jobs. **Code complete → `testable`**
+  (same branch as M3/M4): `npm test` is **61/61 green**, `npm run build`
+  typechecks + bundles, `core/` stays free of Phaser/DOM. Awaiting the
+  **in-browser gate** (run the mini-loop: Merchant adds gold/storage in camp,
+  Chef buff heals the party, a Survivalist-placed trap springs in the battle).
+  - **What landed (M5):** new `core/` modules — `camp.ts` (Meta state: gold,
+    storageCap, morale + `moraleTier` banding (D8), a banked `pendingHeal`;
+    `applyCampSkill` for Merchant `economy` / Chef `morale` effects;
+    `applyCampToParty` lands the Chef heal at battle start). `skills.ts` grew
+    non-combat effect kinds (`economy` / `morale` / `placeTrap`) and targets
+    (`camp` / `party`); `entities.ts` gained `makeTrap` — the **first real field
+    entity (D4)**: a one-shot `onUnitEnterTile` listener that damages an enemy and
+    is spent (ignores its owner; forced entry fires it too, D19). `combat.ts`
+    factored out `applyDamage` (sourceless damage for traps). `jobs.ts` added the
+    three signature jobs — **Survivalist** (deployment: Set Trap), **Chef** (meta:
+    Cook Stew → morale + party heal), **Merchant** (meta: Trade → gold + storage)
+    — each hooking a *different* phase, proving the D3 seam. Render: `BattleScene`
+    is now a **phase-driven mini-loop** (Camp → Deployment → Battle) on the
+    `PhasePipeline`, with camp job buttons, click-to-place trap markers (that flash
+    when sprung), and the Chef heal applied + animated at battle start.
+  - **Tests:** `camp.test.ts` (Merchant economy, Chef morale+bank, `applyCampToParty`
+    heals/caps/clears + `unitHealed`, morale bands), `events.test.ts` (+`makeTrap`
+    springs once on an enemy / ignores owner), `jobs.test.ts` (+three jobs register
+    under meta/deployment/battle). Each job's effect has a green test.
+  - **Note (M4 DONE):** the M4 skill-button gate was confirmed in-browser; a follow-up
+    fixed the skill-UI layout (hint line moved above the button band + hover-to-read
+    descriptions).
   - **What landed (M4):** new `core/` modules — `skills.ts` (skills as data: a
     `SkillDef` declares its `phase`/`target`/`range`/`spend` + a **declarative
     `SkillEffect`** union — `damage` / `status` / `heal` — interpreted by
@@ -49,6 +71,9 @@ States: `todo` → `in-progress` → `testable` → `done`
     [], `registerParty` buckets 2×3 into Battle), `phases.test.ts` (phase order,
     pipeline advance/clamp/reset, registry buckets by phase), and a `turn.test.ts`
     case (`Battle.useSkill` resolves Power Strike and spends Act CT).
+- **(prior) M4 — Data-driven jobs & skills + phase pipeline. DONE** (2026-06-05):
+  skills as declarative data, the D3 phase pipeline, the Soldier's Battle-phase
+  skills surfaced as working in-browser buttons.
 - **(prior) M3 — Turn-based battle loop. DONE** (2026-06-05): CT clock + trigger
   bus + all seams; in-browser skirmish reaches Victory on the clock.
   - **What landed (M3):** new `core/` modules — `units.ts` (data-driven unit +

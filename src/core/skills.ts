@@ -19,8 +19,12 @@ import { applyStatus } from "./status";
 /** The ordered phases of the game pipeline (D3). */
 export type Phase = "meta" | "deployment" | "battle" | "resolution";
 
-/** Who a skill may be aimed at. */
-export type SkillTarget = "self" | "enemy" | "ally";
+/**
+ * Who a skill is aimed at. `self`/`enemy`/`ally` are battle targets (a unit);
+ * `camp` (economy/morale) and `party` (a whole-party buff) are non-combat
+ * targets resolved by the meta/deployment phases, not against a single unit.
+ */
+export type SkillTarget = "self" | "enemy" | "ally" | "camp" | "party";
 
 /** A heavier strike: deal damage as if the caster's attack were `+bonusAttack`. */
 export interface DamageEffect {
@@ -38,8 +42,36 @@ export interface StatusEffect {
   status: Omit<StatusInstance, "data"> & { data?: Record<string, unknown> };
 }
 
+/** Meta/economy: the Merchant adds gold and storage to the camp. */
+export interface EconomyEffect {
+  kind: "economy";
+  gold: number;
+  storage: number;
+}
+/** Meta/camp: the Chef raises party morale and banks a between-battle heal. */
+export interface MoraleEffect {
+  kind: "morale";
+  morale: number;
+  /** HP healed to each unit at the start of the next battle. */
+  partyHeal: number;
+}
+/** Deployment: the Survivalist places a trap dealing `damage` when sprung. */
+export interface PlaceTrapEffect {
+  kind: "placeTrap";
+  damage: number;
+}
+
 /** The declarative effect a skill applies when it resolves. */
-export type SkillEffect = DamageEffect | HealEffect | StatusEffect;
+export type SkillEffect =
+  | DamageEffect
+  | HealEffect
+  | StatusEffect
+  | EconomyEffect
+  | MoraleEffect
+  | PlaceTrapEffect;
+
+/** Effect kinds resolved against a unit in the Battle phase. */
+export type BattleEffectKind = "damage" | "heal" | "status";
 
 /** A skill definition — pure data authored in a job file. */
 export interface SkillDef {
@@ -86,6 +118,8 @@ export function isValidSkillTarget(
         manhattan(caster.pos, target.pos) <= skill.range
       );
   }
+  // `camp` / `party` are non-combat targets — never a valid single-unit target.
+  return false;
 }
 
 /**
@@ -121,4 +155,7 @@ export function resolveSkill(
       return { status: effect.status.id };
     }
   }
+  // Non-combat effects (economy/morale/placeTrap) resolve in their own phase
+  // (see camp.ts / makeTrap), not against a single unit.
+  throw new Error(`resolveSkill: "${effect.kind}" is not a Battle-phase effect`);
 }

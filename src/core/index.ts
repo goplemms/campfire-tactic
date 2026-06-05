@@ -10,6 +10,7 @@ export * from "./events";
 export * from "./clock";
 export * from "./combat";
 export * from "./entities";
+export * from "./camp";
 export * from "./vision";
 export * from "./ai";
 export * from "./skills";

@@ -58,7 +58,7 @@ exercise in the browser.
   [`action-economy.md`](../../docs/design/systems/action-economy.md),
   [`field-entities.md`](../../docs/design/systems/field-entities.md).
 
-### M4 — Data-driven jobs & skills + the phase pipeline — *testable (code complete; awaiting in-browser gate)*
+### M4 — Data-driven jobs & skills + the phase pipeline — *done (in-browser gate confirmed 2026-06-05)*
 
 - core: define jobs and skills as **data** (not hard-coded classes); introduce
   the phase pipeline **Meta → Deployment → Battle → Resolution**. Ship one combat
@@ -67,7 +67,7 @@ exercise in the browser.
   visibly affects battle (a skill button appears and works); job-loading tests
   are green.
 
-### M5 — The signature non-combat jobs (the hook)
+### M5 — The signature non-combat jobs (the hook) — *testable (code complete; awaiting in-browser gate)*
 
 - Implement the three jobs that make this game itself, each deliberately hooking
   a *different* phase to prove the architecture:

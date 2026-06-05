@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EventBus } from "./events";
-import { EntityRegistry, type FieldEntity } from "./entities";
-import { createUnit, type Unit } from "./units";
+import { EntityRegistry, makeTrap, type FieldEntity } from "./entities";
+import { createUnit, type Side, type Unit } from "./units";
 
 function unit(id: string): Unit {
   return createUnit({
@@ -87,5 +87,49 @@ describe("EntityRegistry (the trivial trap seam)", () => {
     expect(forcedSeen).toBe(true);
 
     expect(registry.at({ col: 2, row: 3 })).toEqual([trap]);
+  });
+});
+
+describe("makeTrap (the first real field entity — Survivalist, D4)", () => {
+  function foe(id: string, side: Side): Unit {
+    return createUnit({
+      id,
+      side,
+      pos: { col: 5, row: 5 },
+      speed: 10,
+      maxHp: 20,
+      attack: 5,
+      defense: 2,
+      moveRange: 3,
+      sightRadius: 4,
+    });
+  }
+
+  it("springs once on an enemy entering the tile, dealing damage, then is spent", () => {
+    const bus = new EventBus();
+    const registry = new EntityRegistry(bus);
+    registry.register(makeTrap("trap", { col: 5, row: 5 }, "player", 12));
+
+    const damaged: number[] = [];
+    bus.on("unitDamaged", ({ amount }) => damaged.push(amount));
+
+    const enemy = foe("e", "enemy");
+    bus.emit("unitEnterTile", { unit: enemy, tile: { col: 5, row: 5 } });
+    expect(enemy.hp).toBe(8); // 20 - 12
+    expect(damaged).toEqual([12]);
+
+    // One-shot: a second entry does nothing.
+    bus.emit("unitEnterTile", { unit: enemy, tile: { col: 5, row: 5 } });
+    expect(enemy.hp).toBe(8);
+    expect(damaged).toEqual([12]);
+  });
+
+  it("ignores the owning side (your own units don't trip your trap)", () => {
+    const bus = new EventBus();
+    const registry = new EntityRegistry(bus);
+    registry.register(makeTrap("trap", { col: 5, row: 5 }, "player", 12));
+    const ally = foe("a", "player");
+    bus.emit("unitEnterTile", { unit: ally, tile: { col: 5, row: 5 } });
+    expect(ally.hp).toBe(20);
   });
 });

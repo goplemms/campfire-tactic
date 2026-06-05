@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { JOBS, getJob, unitSkills, registerParty, SOLDIER } from "./jobs";
 import { PhaseSkillRegistry } from "./phases";
-import { createUnit, type Unit } from "./units";
+import { createUnit, type Side, type Unit } from "./units";
 
 function soldier(id: string): Unit {
   return createUnit({
@@ -70,5 +70,43 @@ describe("jobs (data-driven loading)", () => {
       "hamstring",
       "second-wind",
     ]);
+  });
+
+  it("ships the three signature jobs, each hooking a different phase (D3)", () => {
+    expect(getJob("survivalist")!.skills[0].phase).toBe("deployment");
+    expect(getJob("chef")!.skills[0].phase).toBe("meta");
+    expect(getJob("merchant")!.skills[0].phase).toBe("meta");
+
+    // A mixed party registers each job's skill under its own phase.
+    const withJob = (id: string, job: string): Unit =>
+      createUnit({
+        id,
+        side: "player" as Side,
+        pos: { col: 0, row: 0 },
+        jobId: job,
+        speed: 10,
+        maxHp: 10,
+        attack: 5,
+        defense: 0,
+        moveRange: 3,
+        sightRadius: 4,
+      });
+    const party = [
+      withJob("Rook", "soldier"),
+      withJob("Vale", "survivalist"),
+      withJob("Pip", "chef"),
+      withJob("Coin", "merchant"),
+    ];
+    const registry = new PhaseSkillRegistry();
+    registerParty(party, registry);
+
+    expect(registry.forPhase("meta").map((h) => h.skill.id).sort()).toEqual([
+      "cook-stew",
+      "trade",
+    ]);
+    expect(registry.forPhase("deployment").map((h) => h.skill.id)).toEqual([
+      "set-trap",
+    ]);
+    expect(registry.forPhase("battle").length).toBe(3); // the soldier's 3
   });
 });
