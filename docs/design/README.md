@@ -96,6 +96,10 @@ reference them rather than re-explain:
 
 ## One run, end to end (pseudo-example)
 
+> A full, beat-by-beat annotated playthrough lives in
+> [`example-session.md`](example-session.md) — a living reference for sanity-checking
+> changes against. The sketch below is the short version.
+
 > **Meta.** The party has 8 storage slots (Merchant). The player buys 12 arrows,
 > 2 trap kits, and 1 fire-rune reagent, then has the Chef cook a hearty stew
 > (+morale, a small between-battle heal banked for the squad). Loadout locked.
