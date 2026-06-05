@@ -1,0 +1,122 @@
+import { describe, it, expect } from "vitest";
+import { Battle } from "./turn";
+import { TileGrid } from "./grid";
+import { createUnit, type Side, type Unit } from "./units";
+import type { FieldEntity } from "./entities";
+
+function at(
+  id: string,
+  side: Side,
+  col: number,
+  row: number,
+  overrides: Partial<Unit> = {},
+): Unit {
+  return {
+    ...createUnit({
+      id,
+      side,
+      pos: { col, row },
+      speed: 10,
+      maxHp: 12,
+      attack: 6,
+      defense: 1,
+      moveRange: 4,
+      sightRadius: 6,
+    }),
+    ...overrides,
+  };
+}
+
+describe("Battle orchestrator", () => {
+  it("emits onUnitEnterTile/onUnitLeaveTile for each step of a move", () => {
+    const grid = new TileGrid(8, 1);
+    const mover = at("m", "player", 0, 0);
+    const battle = new Battle(grid, [mover]);
+
+    const entered: number[] = [];
+    const left: number[] = [];
+    battle.bus.on("unitEnterTile", ({ tile }) => entered.push(tile.col));
+    battle.bus.on("unitLeaveTile", ({ tile }) => left.push(tile.col));
+
+    battle.moveUnit(mover, [
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ]);
+    expect(entered).toEqual([1, 2]);
+    expect(left).toEqual([0, 1]);
+    expect(mover.pos).toEqual({ col: 2, row: 0 });
+  });
+
+  it("fires a registered trap entity when a moving unit enters its tile", () => {
+    const grid = new TileGrid(8, 1);
+    const mover = at("m", "player", 0, 0);
+    const battle = new Battle(grid, [mover]);
+
+    let sprung = false;
+    const trap: FieldEntity = {
+      id: "trap",
+      pos: { col: 2, row: 0 },
+      onUnitEnterTile: () => (sprung = true),
+    };
+    battle.entities.register(trap);
+
+    battle.moveUnit(mover, [
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ]);
+    expect(sprung).toBe(true);
+  });
+
+  it("plays a tiny skirmish to a decisive outcome on the CT clock", () => {
+    const grid = new TileGrid(8, 1);
+    // A glass-cannon player vs. a fragile enemy: the player should win.
+    const hero = at("hero", "player", 0, 0, { attack: 20, maxHp: 40, hp: 40 });
+    const foe = at("foe", "enemy", 4, 0, { attack: 3, maxHp: 12, hp: 12 });
+    const battle = new Battle(grid, [hero, foe]);
+    battle.seed();
+
+    let guard = 0;
+    while (!battle.outcome().over && guard++ < 200) {
+      const actor = battle.nextActor();
+      if (!actor) break;
+      if (actor.side === "enemy") {
+        battle.runEnemyTurn(actor);
+      } else {
+        // Player AI for the test: same logic as the enemy, mirrored.
+        battle.runEnemyTurn(actor);
+      }
+    }
+
+    const outcome = battle.outcome();
+    expect(outcome.over).toBe(true);
+    expect(outcome.winner).toBe("player");
+    expect(foe.alive).toBe(false);
+  });
+
+  it("runs the BattleScene roster (both sides AI) to a decisive end, no stalemate", () => {
+    // Mirrors the in-browser starting roster + map so the playable gate can't
+    // deadlock. Both sides use the enemy AI as a stand-in for the human player.
+    const grid = new TileGrid(8, 6, [
+      { col: 3, row: 2 },
+      { col: 4, row: 2 },
+      { col: 4, row: 3 },
+    ]);
+    const units = [
+      at("Rook", "player", 0, 1, { speed: 12, maxHp: 30, hp: 30, attack: 9, defense: 3 }),
+      at("Vale", "player", 0, 4, { speed: 10, maxHp: 24, hp: 24, attack: 11, defense: 2 }),
+      at("Grunt", "enemy", 7, 1, { speed: 9, maxHp: 22, hp: 22, attack: 7, defense: 2 }),
+      at("Brute", "enemy", 7, 4, { speed: 7, maxHp: 30, hp: 30, attack: 8, defense: 3, moveRange: 3 }),
+    ];
+    const battle = new Battle(grid, units);
+    battle.seed();
+
+    let guard = 0;
+    while (!battle.outcome().over && guard++ < 500) {
+      const actor = battle.nextActor();
+      if (!actor) break;
+      battle.runEnemyTurn(actor);
+    }
+    expect(battle.outcome().over).toBe(true);
+    expect(guard).toBeLessThan(500);
+  });
+});

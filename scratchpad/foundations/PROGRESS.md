@@ -8,7 +8,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 |-----------|-------|
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | done |
-| M3 — Turn-based battle loop (CT clock + trigger bus) | todo |
+| M3 — Turn-based battle loop (CT clock + trigger bus) | testable |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
@@ -19,8 +19,35 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M3 — Turn-based battle loop (next up). M2 is done — the
-  in-browser click-to-move gate is confirmed.
+- **Milestone:** M3 — Turn-based battle loop. **Code complete → `testable`**:
+  the CT clock + trigger bus and all seams are built, `npm test` is **40/40
+  green**, `npm run build` typechecks + bundles, and `core/` is verified free of
+  Phaser/DOM. Awaiting the **in-browser gate** (play a skirmish to victory/defeat
+  on the clock) to flip M3 → `done`.
+  - **What landed (M3):** new `core/` modules — `units.ts` (data-driven unit +
+    stat block), `clock.ts` (CT clock: tick `ct += speed`, turn at `ct ≥ 100`,
+    act>move spend-down, `seedInitiative` from per-side avg Speed (D11), a
+    scheduled-effects queue with a `speed` gauge for charged/chained effects
+    (D5/D16)), `events.ts` (typed trigger bus, D4), `entities.ts` (field-entity
+    registry wired to the bus, D4), `combat.ts` (damage / defeat / win-lose),
+    `status.ts` (apply/tick/expire + Immobilized + per-unit counters = the
+    capture-meter shape, D12), `vision.ts` (per-side visible set + `canSee`,
+    LoS stubbed, D18), `ai.ts` (move-toward-and-attack nearest, occupancy-aware
+    A*), `turn.ts` (the `Battle` orchestrator the render layer drives). Render:
+    `game/scenes/BattleScene.ts` — both sides drawn with HP, a CT-order panel, an
+    **Advance Clock** control, move/attack animation, and a victory/defeat overlay.
+  - **Tests:** `clock.test.ts` (CT order, act/move spend-down, initiative seed,
+    scheduled effect resolves at the right CT + `chargeResolved`), `combat.test.ts`
+    (damage/defeat/win-lose), `events.test.ts` (emit→subscribe, unsubscribe, fault
+    isolation, the trivial trap entity reacts to `onUnitEnterTile`), `status.test.ts`
+    (apply/tick/expire + counter), `ai.test.ts` (legal move+attack toward nearest,
+    immobilized, no-enemy), `turn.test.ts` (bus enter/leave per step, trap fires on
+    move, and a full BattleScene-roster skirmish runs to a decisive end — no stalemate).
+  - **Seam status:** statuses+meters (D12), scheduled/charged effects (D5/D16), and
+    the vision layer (D18) are all present as thin hooks exercised by tests; full
+    behaviour is M4–M6 as scoped. `forced` flag on `onUnitEnterTile` lays the D19
+    forced-movement primitive (a pushed unit fires the tile's entity).
+- **(prior) Milestone:** M2 is done — the in-browser click-to-move gate is confirmed.
 - **Design pass (2026-06-05):** captured the game's system vision in
   [`docs/design/`](../../docs/design/) (flow + 4 phase docs + 6 subsystem docs)
   and logged decisions **D4–D9**: field entities + trigger bus (D4), FFT CT clock +
