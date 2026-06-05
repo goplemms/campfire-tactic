@@ -12,7 +12,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M4 — Data-driven jobs & skills + phase pipeline | done |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
-| M6 — Roguelike run loop (seeded, permadeath, meta) | testable (code complete, 121/121 green, build clean; awaiting in-browser gate) |
+| M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
@@ -20,10 +20,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 ## Current block
 
 - **Milestone:** M6 — Roguelike run loop (seeded, permadeath, the full phase loop).
-  **TESTABLE** (2026-06-05): code complete, `npm test` **121/121 green**, `npm run
-  build` clean, `core/` free of Phaser/DOM **and of `Math.random`** (a grep test
-  enforces it). **Awaiting the in-browser gate** (start a seeded run, play several
-  encounters, die, see the run-end screen; re-enter the seed to reproduce the run).
+  **DONE (gate)** (2026-06-05): `npm test` **121/121 green**, `npm run build` clean,
+  `core/` free of Phaser/DOM **and of `Math.random`** (a grep test enforces it), and
+  the **in-browser gate is confirmed** — started a seeded run, played encounters
+  through to a total-party loss / run-end screen, and the re-enterable seed
+  reproduces the run. (A follow-up pinned the seed bar at the top of the page so
+  it stays visible above the canvas.)
   - **What landed (M6 core, all pure/headless):**
     - `rng.ts` — deterministic **mulberry32** PRNG seeded from a string/number:
       `int`/`range`/`float`/`chance`/`pick`/`pickWeighted`/`shuffle`, `fork()`
