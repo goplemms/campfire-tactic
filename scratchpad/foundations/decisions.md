@@ -270,3 +270,24 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/04-resolution.md`](../../docs/design/04-resolution.md),
   [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md).
 - **Superseded by:** —
+
+## D14 — Inventory: party-wide slotted stacks; "wide logistics, micro at the unit"
+
+- **Status:** Decided
+- **Context:** How storage is measured shapes every provisioning decision; and where
+  the game asks for player micro-management needed articulating.
+- **Options considered:** (a) uniform slots / (b) **slotted stacks** / (c)
+  weight/volume.
+- **Decision:** **(b) slotted stacks, party-wide.** Storage is **one shared stash**
+  of discrete **slots**, sized by the Merchant in bands (`+2 slots`). Each material
+  has a `stackSize` (ammo stacks) and a `slotCost` (most 1; bulky items 2+). Honors
+  both crunch (packing decisions, bulky items) and the banding convention (legible,
+  Merchant-tunable). Per-unit carry is **not** used.
+- **Principle adopted:** **wide logistics, micro at the unit** — logistics is
+  party/macro (shared pools, provisioning); micro-management is unit-level
+  (positioning, action economy, placement, triage). This is *why* storage is shared,
+  and it pre-answers many "shared vs. per-unit" forks (e.g. it leans the parked ammo
+  question toward a shared pool).
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md),
+  [`docs/design/README.md`](../../docs/design/README.md) (Conventions).
+- **Superseded by:** —

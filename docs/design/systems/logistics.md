@@ -11,6 +11,13 @@ the **point**. Logistics is the connective tissue that makes the signature jobs
 matter and gives the crunch player a deep optimization loop that spans the whole
 run, not just the grid.
 
+> **Design principle — wide logistics, micro at the unit.** Logistics lives at the
+> **party/macro** level: broad, shared pools and provisioning decisions. The
+> fine-grained, turn-to-turn micro-management lives at **unit control** (positioning,
+> action economy, deployment placement, recovery triage). This split is *why*
+> storage is one shared stash rather than per-unit bags, and it pre-answers many
+> "shared vs. per-unit" forks.
+
 ### Two tiers of logistics
 
 | Tier | Phase | Nature |
@@ -24,8 +31,12 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
 
 ### Core nouns
 
-- **Storage** — the master cap on everything carried, set by the **Merchant**.
-  Scarce by design; the central tension is *what competes for slots*.
+- **Storage** — the master cap on everything carried: **one party-wide shared
+  stash** of discrete **slots**, sized by the **Merchant** in clean bands (`+2
+  slots`). Items pack by **slotted stacks (D14)**: each material defines a
+  `stackSize` (arrows stack, e.g. 6/slot) and a `slotCost` (most items 1 slot; bulky
+  ones like nest lumber may cost 2). Scarce by design; the central tension is *what
+  competes for slots*.
 - **Materials** — the build inputs for [field entities](field-entities.md):
   `trap kit`, `rune reagent`, nest lumber, etc. Each has **durability**: multi-use
   **charges** (a rope snare fires a few times) and whether its material **survives**
@@ -74,10 +85,12 @@ system.
 
 ## Open questions / future scope
 
-- Slot model: uniform slots vs. weight/volume vs. per-item stacks — TBD (docs
-  assume simple slots for now).
-- Whether ammo is per-unit or a shared pool: TBD.
+- Slot model is **resolved** (D14): party-wide shared stash of slotted stacks
+  (`slotCost` + `stackSize`), Merchant sizes it in bands.
+- **Ammo** (per-unit vs. shared pool + the "empty ranged feels bad" balance) is
+  parked for a **dedicated follow-up** (the wide-logistics principle leans it toward
+  a shared pool, but the balance question stays open).
 - Whether materials degrade/spoil over a run (a logistics-pressure lever) is an
-  attractive option, noted and deferred.
+  attractive option — **Q8, up next.**
 - First real implementation: the inventory/materials model is its own milestone
   (see the build plan), targeted around M5.

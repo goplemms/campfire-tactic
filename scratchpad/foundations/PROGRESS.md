@@ -38,12 +38,13 @@ States: `todo` → `in-progress` → `testable` → `done`
   **Q4** (enemy-prep symmetry: A3 fortified encounters, Intel/Awareness
   detection, Act-cost disarm, and the Snare → unified in-combat capture → D12), and
   **Q5** (material recovery: outcome-gated whole-field win-recovers-all incl. enemy
-  salvage + entity durability → D13). **Next: Q6 — inventory slot model** (uniform
-  slots vs weight/volume vs stacks). Remaining after: material spoilage, entity
-  stacking. **Parked for a dedicated discussion: Ammo** (per-unit vs pool + the
-  "empty ranged feels bad" balance; carries the conditional Survivalist salvage
-  perk). Also logged as future: in-combat fog-of-war/vision; Snare
-  adjacency-accelerator variant.
+  salvage + entity durability → D13), and **Q6** (inventory: party-wide slotted
+  stacks + the "wide logistics, micro at the unit" principle → D14). **Next: Q8 —
+  material spoilage** (do materials degrade over a run?), then **Q9 — entity
+  stacking** (can placeables combine?). **Parked for a dedicated discussion: Ammo**
+  (per-unit vs pool + the "empty ranged feels bad" balance; carries the conditional
+  Survivalist salvage perk). Also logged as future: in-combat fog-of-war/vision;
+  Snare adjacency-accelerator variant.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),

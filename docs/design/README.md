@@ -21,6 +21,10 @@ who enjoys *crunch*: legible systems with deep, interacting decisions.
 - **Banding.** Many number systems are expressed as discrete **bands / breakpoints**
   rather than smooth curves (intel tiers, morale tiers, Awareness allowance, …).
   Bands are legible to the player and give us clean, isolated knobs to tune balance.
+- **Wide logistics, micro at the unit.** Resource/logistics decisions live at the
+  **party/macro** level (shared pools, provisioning); the turn-to-turn
+  micro-management lives at **unit control** (positioning, action economy, placement,
+  triage). Pre-answers many "shared vs. per-unit" forks.
 
 ## The loop
 
