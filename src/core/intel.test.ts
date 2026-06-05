@@ -9,7 +9,11 @@ import {
   readEncounter,
   clampTier,
   MAX_TIER,
+  previewNode,
+  rewardBand,
 } from "./intel";
+import { createRun } from "./run";
+import { getNode } from "./overworld";
 
 function member(id: string, intelligence = 0): Unit {
   return createUnit({
@@ -72,5 +76,74 @@ describe("intel — banded reveals (D10)", () => {
     expect(readEncounter(def, 3).grantsVision).toBe(true);
     expect(readEncounter(def, 2).grantsVision).toBe(false);
     expect(clampTier(99)).toBe(MAX_TIER);
+  });
+});
+
+describe("intel — node preview for the overworld (D24)", () => {
+  function party(intelligence: number): Unit[] {
+    return [member("Scout", intelligence), member("Pal", 0)];
+  }
+  function runWith(intelligence: number) {
+    return createRun("preview-seed", { party: party(intelligence), difficultyId: "normal", gold: 100 });
+  }
+  function firstCombatNodeId(run: ReturnType<typeof runWith>): string {
+    return run.map.order.map((id) => getNode(run.map, id)).find((n) => n.kind === "combat")!.id;
+  }
+
+  it("always shows kind + encounter type; rest nodes show a recovery hint", () => {
+    const run = runWith(0);
+    const combatId = firstCombatNodeId(run);
+    const combat = previewNode(run, combatId);
+    expect(combat.kind).toBe("combat");
+    expect(combat.encounterType).toBeDefined();
+
+    const restId = run.map.order.map((id) => getNode(run.map, id)).find((n) => n.kind === "rest")!.id;
+    const rest = previewNode(run, restId);
+    expect(rest.kind).toBe("rest");
+    expect(rest.restHint).toBeTruthy();
+    expect(rest.encounterType).toBeUndefined();
+  });
+
+  it("is banded by the party's intel floor and reveals more at higher tiers", () => {
+    const low = runWith(0); // floor tier 0
+    const mid = runWith(6); // floor tier 2
+    const high = runWith(9); // floor tier 3
+    const id = firstCombatNodeId(low);
+
+    const p0 = previewNode(low, id);
+    const p2 = previewNode(mid, id);
+    const p3 = previewNode(high, id);
+
+    // Tier 0: type known (always), but no enemy read, no reward figure.
+    expect(p0.intel?.types).toBeUndefined();
+    expect(p0.rewardHint).toBeUndefined();
+    // Tier 2: types + count + an approximate reward.
+    expect(p2.intel?.types && p2.intel.types.length).toBeGreaterThan(0);
+    expect(p2.intel?.count).toBeGreaterThan(0);
+    expect(p2.rewardHint).toMatch(/g$/);
+    // Tier 3: positions + starting vision; strictly more than tier 2.
+    expect(p3.intel?.positions && p3.intel.positions.length).toBeGreaterThan(0);
+    expect(p3.intel?.grantsVision).toBe(true);
+  });
+
+  it("a bought/divined bump raises the read above the floor", () => {
+    const run = runWith(0); // floor tier 0
+    const id = firstCombatNodeId(run);
+    expect(previewNode(run, id).intel?.types).toBeUndefined();
+    expect(previewNode(run, id, 1).intel?.types).toBeDefined(); // bumped to tier 1
+  });
+
+  it("reachable-node previews are stable for a seed", () => {
+    const a = runWith(6);
+    const b = runWith(6);
+    for (const next of [...a.map.order]) {
+      expect(previewNode(a, next)).toEqual(previewNode(b, next));
+    }
+  });
+
+  it("reward bands are ordered (modest → good → rich)", () => {
+    expect(rewardBand(10)).toBe("modest");
+    expect(rewardBand(100)).toBe("good");
+    expect(rewardBand(200)).toBe("rich");
   });
 });

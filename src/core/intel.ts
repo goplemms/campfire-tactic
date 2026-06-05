@@ -22,7 +22,9 @@
 
 import type { Unit } from "./units";
 import type { Rng } from "./rng";
-import type { EncounterDef } from "./generation";
+import type { EncounterDef, EncounterType } from "./generation";
+import { getNode, nodeEncounter, type NodeKind } from "./overworld";
+import type { RunState } from "./run";
 
 /** Banded intel tier (D10). 0 = nothing known. */
 export type IntelTier = 0 | 1 | 2 | 3;
@@ -109,4 +111,70 @@ export function readEncounter(def: EncounterDef, tier: IntelTier): IntelReport {
     }));
   }
   return report;
+}
+
+// --- Node pre-selection preview (D24, the overworld) ------------------------
+
+/** Coarse reward bands, by gold (the Tier-1 reward hint, D24). */
+export const REWARD_BANDS: readonly { min: number; label: string }[] = [
+  { min: 140, label: "rich" },
+  { min: 80, label: "good" },
+  { min: 0, label: "modest" },
+];
+
+/** The reward band label for a gold figure. */
+export function rewardBand(gold: number): string {
+  for (const b of REWARD_BANDS) if (gold >= b.min) return b.label;
+  return REWARD_BANDS[REWARD_BANDS.length - 1].label;
+}
+
+/**
+ * A banded reward hint, gated by intel tier (D24): Tier 0 reveals nothing, Tier 1
+ * a coarse **band**, Tier 2 an **approximate** figure, Tier 3 the **exact** gold.
+ */
+export function rewardHint(gold: number, tier: IntelTier): string | undefined {
+  if (tier <= 0) return undefined;
+  if (tier === 1) return rewardBand(gold);
+  if (tier === 2) return `~${Math.round(gold / 10) * 10}g`;
+  return `${gold}g`;
+}
+
+/** What the overworld shows about a candidate node before the player commits. */
+export interface NodePreview {
+  nodeId: string;
+  kind: NodeKind;
+  layer: number;
+  /** Combat only: the encounter shape — **always** shown (D24). */
+  encounterType?: EncounterType;
+  /** Combat only: the banded intel read at the party's floor (+ any bump). */
+  intel?: IntelReport;
+  /** Combat only: a banded reward hint (see {@link rewardHint}). */
+  rewardHint?: string;
+  /** Rest only: a recovery hint (no enemies to read). */
+  restHint?: string;
+}
+
+/**
+ * Preview a reachable map node for the selection screen (D24, extends D10). The
+ * node **kind** is always shown; for a **combat** node its **encounter type** is
+ * always shown, and the party's **intel floor** reveals more about its
+ * contents — banded exactly as {@link readEncounter} (types → numbers →
+ * positions) — plus a banded {@link rewardHint}. A **rest** node previews a
+ * recovery hint. A pure projection of the seed-built map + the deterministic
+ * per-node encounter + the party's floor, so previews are **stable for a seed**
+ * (no live RNG). `extraTier` models a bought/divined bump over the floor.
+ */
+export function previewNode(run: RunState, nodeId: string, extraTier = 0): NodePreview {
+  const node = getNode(run.map, nodeId);
+  const preview: NodePreview = { nodeId, kind: node.kind, layer: node.layer };
+  if (node.kind === "rest") {
+    preview.restHint = "A safe camp — rest and recover. No fight.";
+    return preview;
+  }
+  const def = nodeEncounter(run.seed, node);
+  preview.encounterType = def.type;
+  const tier = clampTier(intelFloor(run.party) + extraTier);
+  preview.intel = readEncounter(def, tier);
+  preview.rewardHint = rewardHint(def.reward.gold, tier);
+  return preview;
 }

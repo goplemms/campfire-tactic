@@ -26,5 +26,6 @@ export * from "./turn";
 export * from "./mortality";
 export * from "./upkeep";
 export * from "./intel";
+export * from "./overworld";
 export * from "./run";
 export * from "./runloop";

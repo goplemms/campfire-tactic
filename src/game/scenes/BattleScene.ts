@@ -12,7 +12,6 @@ import {
   unitSkills,
   isValidSkillTarget,
   makeTrap,
-  createUnit,
   // M5b — logistics / deployment gamble
   addItem,
   removeItem,
@@ -29,8 +28,6 @@ import {
   moraleTier,
   moraleModifiers,
   // M6 — the run loop
-  createRun,
-  RunLoop,
   combatRoster,
   runDifficulty,
   currentEncounter,
@@ -38,12 +35,14 @@ import {
   triageHeal,
   chunkHp,
   type RunState,
+  type RunLoop,
   type IntelReport,
   type DeployExposure,
   type GridCoord,
   type Unit,
   type SkillDef,
 } from "../../core";
+import type { RunHandoff } from "./OverworldScene";
 
 /** A small text button with a hover highlight. */
 interface TextButton {
@@ -52,12 +51,13 @@ interface TextButton {
 }
 
 /**
- * The M6 run driver: wraps the phase loop in a **seeded, permadeath roguelike
- * run**. It owns no rules — a {@link RunLoop} generates each encounter, stages the
- * battle, applies Upkeep/recovery/rewards/mortality between fights, and reports
- * when the run is over. This scene walks the loop encounter-to-encounter
- * (Camp → Deployment → Battle → Resolution → next), and on a wipe shows a
- * **run-end screen with the seed** so the run can be replayed by re-entering it.
+ * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
+ * run the {@link "./OverworldScene"} hands it. It owns no rules — the
+ * {@link RunLoop} (already positioned at the chosen node) stages the encounter and
+ * applies Upkeep/recovery/rewards/mortality. This scene walks the chosen node's
+ * Camp → Deployment → Battle → Resolution, then **returns to the overworld** so the
+ * player can pick the next node; the overworld owns the run-end / run-complete
+ * terminals. The run + loop are passed in (and back) so map position persists.
  */
 export class BattleScene extends Phaser.Scene {
   private run!: RunState;
@@ -107,21 +107,13 @@ export class BattleScene extends Phaser.Scene {
     super("BattleScene");
   }
 
+  /** Receive the run + loop (already positioned at the chosen combat node). */
+  init(data: RunHandoff): void {
+    this.run = data.run;
+    this.loop = data.loop;
+  }
+
   create(): void {
-    // Seed: read the re-enterable field; default to a timestamp (render layer
-    // only — core randomness still flows through the run's seeded RNG).
-    const seedInput = document.getElementById("seed") as HTMLInputElement | null;
-    let seed = seedInput?.value.trim() ?? "";
-    if (!seed) {
-      seed = `run-${Date.now()}`;
-      if (seedInput) seedInput.value = seed;
-    }
-    const newRunBtn = document.getElementById("newrun") as HTMLButtonElement | null;
-    if (newRunBtn) newRunBtn.onclick = () => this.scene.restart();
-
-    this.run = createRun(seed, { party: this.startingRoster(), difficultyId: "normal", gold: 120, storageCap: 6 });
-    this.loop = new RunLoop(this.run);
-
     // Persistent UI.
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
@@ -132,31 +124,26 @@ export class BattleScene extends Phaser.Scene {
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
 
-    this.startNight();
+    this.startCombatNode();
   }
 
-  /** The starting party: two fighters + camp-only Chef and Merchant (D3). */
-  private startingRoster(): Unit[] {
-    return [
-      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", jobId: "soldier", awareness: 4, intelligence: 4, speed: 12, maxHp: 30, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", jobId: "survivalist", awareness: 2, intelligence: 2, speed: 10, maxHp: 24, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Pip", side: "player", pos: { col: -1, row: -1 }, name: "Pip", jobId: "chef", speed: 8, maxHp: 18, attack: 3, defense: 1, moveRange: 3, sightRadius: 4 }),
-      createUnit({ id: "Coin", side: "player", pos: { col: -1, row: -1 }, name: "Coin", jobId: "merchant", speed: 8, maxHp: 16, attack: 2, defense: 1, moveRange: 3, sightRadius: 4 }),
-    ];
-  }
+  // --- Combat node lifecycle (one chosen mission) ---------------------------
 
-  // --- Night / encounter lifecycle ------------------------------------------
-
-  private startNight(): void {
+  /**
+   * Stage the chosen combat node: run the **Meta/camp** phase (Upkeep, RP, dying
+   * clocks — D3/D9/D15), build the board for the node's seeded encounter, read
+   * intel (D10), and enter Camp. If a dying clock runs out at camp and wipes the
+   * party, return straight to the overworld's run-end.
+   */
+  private startCombatNode(): void {
     for (const o of this.overlay) o.destroy();
     this.overlay = [];
-    if (this.loop.isOver()) return this.runEnd();
 
     // Between-battle camp: pay Upkeep, bank RP, tick dying clocks (D9/D15).
     const camp = this.loop.camp();
-    if (this.loop.isOver()) return this.runEnd();
+    if (this.loop.isOver()) return this.returnToOverworld();
 
-    // Stage the next seeded encounter and (re)build the board.
+    // Stage the chosen node's seeded encounter and build the board.
     this.battle = this.loop.startEncounter();
     this.grid = this.battle.grid;
     this.over = false;
@@ -194,7 +181,8 @@ export class BattleScene extends Phaser.Scene {
 
   private enterCamp(camp: { upkeep: { paid: number; underfunded: string[] }; rpAdded: number }): void {
     this.phase = "camp";
-    this.titleText.setText(`Camp — Night ${this.run.night + 1} (Encounter ${this.run.encounterIndex + 1})`);
+    const node = this.run.map.nodes[this.run.mapNodeId];
+    this.titleText.setText(`Camp — Night ${this.run.night + 1} (Mission ${node.id}, layer ${node.layer})`);
     this.refreshCampText();
     this.refreshIntelText();
 
@@ -481,7 +469,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.phase === "camp") this.enterDeploy();
     else if (this.phase === "deployment") this.startBattle();
     else if (this.phase === "battle") this.onAdvance();
-    else if (this.phase === "resolution") this.startNight();
+    else if (this.phase === "resolution") this.returnToOverworld();
   }
 
   private onAdvance(): void {
@@ -665,39 +653,21 @@ export class BattleScene extends Phaser.Scene {
       lines.push(res.recovered.length ? `Recovered ${res.recovered.length} unsprung trap kit(s).` : "No unsprung materials.");
       if (res.downed.length) lines.push(`Downed: ${res.downed.map((d) => `${d.unitId} (${d.resolution})`).join(", ")}.`);
       if (res.permadeaths.length) lines.push(`Lost forever: ${res.permadeaths.join(", ")}.`);
+      if (this.loop.isComplete()) lines.push("The final mission is cleared — the run is complete!");
     } else {
       lines.push("The party was overwhelmed.");
     }
 
-    if (res.over) {
-      this.runEnd(title, lines);
-      return;
-    }
     this.showOverlay(title, lines.join("\n"), won);
     this.setHint(`Resolution — ${lines.join("  ")}`);
-    this.setPrimary("Next Encounter");
+    // On any terminal (wipe / loss / run-complete) the overworld shows the end
+    // screen; otherwise the player returns to the map to pick the next node.
+    this.setPrimary(res.over ? (this.loop.isComplete() ? "See Results" : "Run Over") : "Return to Map");
   }
 
-  // --- Run end ---------------------------------------------------------------
-
-  private runEnd(title = "Run Over", extra: string[] = []): void {
-    this.phase = "resolution";
-    this.clearActionButtons();
-    this.setPrimary("", false);
-    this.highlightTile(null);
-
-    const won = this.run.history.filter((h) => h.winner === "player").length;
-    const lines = [
-      ...extra,
-      "",
-      `Survived ${this.run.night} night(s), won ${won} encounter(s).`,
-      `Final gold ${this.run.camp.gold}.`,
-      "",
-      `Seed:  ${this.run.seed}`,
-      "Re-enter the seed above and press New Run to replay this run.",
-    ];
-    this.showOverlay(title, lines.join("\n"), false, 520, 240);
-    this.setHint("Run over. Re-enter the seed above and press New Run to replay the same run.");
+  /** Hand the run back to the overworld so the player can pick the next node. */
+  private returnToOverworld(): void {
+    this.scene.start("OverworldScene", { run: this.run, loop: this.loop } as RunHandoff);
   }
 
   private showOverlay(title: string, body: string, good: boolean, w = 480, h = 170): void {

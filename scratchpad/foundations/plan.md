@@ -119,6 +119,39 @@ exercise in the browser.
   jobs, die, and see the run end; replaying the same seed reproduces the run;
   generation and run-state tests are green.
 
+### M7 — The overworld (seeded branching run map) — *done (gate confirmed 2026-06-05; terminal-ending **design** deferred — endings ship functional, their meaning/rewards revisited next)*
+
+- *Adjustment (not a pivot): the north star is unchanged; this replaces the linear
+  encounter chain with a navigable **run frame** the existing loop plays through.*
+- core: `overworld.ts` — pure, **seed-driven** map generation (`streamFor(seed,
+  "map")`): a layered node **DAG** of `MapNode`s (`id`, `layer`, `kind:
+  "combat" | "rest"`, forward `edges`), per **D22**; reachability/edge helpers; and
+  `nodeEncounter` deriving a combat node's encounter via `streamFor(seed,
+  "node:<id>")` so `generation.ts` is reused unchanged (layer = difficulty index).
+  `run.ts` swaps the linear `encounterIndex` for **map position** (`mapNodeId` +
+  the chosen `path`), adds `reachableNodes`/`chooseNode`, keeps permadeath/RNG/camp,
+  and adds a **run-complete** terminal for clearing the final layer. `runloop.ts`
+  gains an overworld step (present map → choose → play a **combat** node through
+  Camp→…→Resolution, **or** a **rest** node recovery with no battle, D23) plus an
+  `autoTraverse` headless helper. `intel.ts` adds `previewNode` — a **banded node
+  preview** (kind + intel-gated type/count/reward hint) for the selection screen
+  (**D24**).
+- render: an **overworld map screen** (draw the layered graph + forward edges,
+  highlight reachable nodes, show each candidate's intel preview, commit a choice);
+  hand a combat node to the existing BattleScene flow; show a **rest** recovery
+  screen; return to the map between nodes; add a **run-complete** screen alongside
+  the M6 run-end/seed screen.
+- **User-testable gate:** `npm run dev` → start a seeded run, see the overworld
+  map, choose among reachable nodes (intel preview visible), play a node to
+  resolution, return to the map, take a **rest** node to recover, continue, and
+  either reach a final node (**run complete**) or die (**run end**). Replaying the
+  same seed reproduces the **same map** (layout, node kinds, each node's
+  encounter/rewards) and the same reachable choices. Overworld-generation
+  determinism, map-structure (reachability/edges), node-select/advance,
+  permadeath-through-the-map, and same-seed-replay tests are green.
+- See [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
+  (D22–D24), referenced from [`docs/design/README.md`](../../docs/design/README.md).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).
