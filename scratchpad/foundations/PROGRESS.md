@@ -6,7 +6,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 
 | Milestone | State |
 |-----------|-------|
-| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | todo |
+| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | testable |
 | M2 — Isometric grid + a unit that moves | todo |
 | M3 — Turn-based battle loop | todo |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
@@ -18,10 +18,17 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M1 — Walking skeleton
-- **Last green sha:** none yet (project scaffolded, no code committed)
-- **Next step:** scaffold Vite + TypeScript + Phaser 3 with the `core/` (pure
-  logic) vs `game/` (render) split and a passing Vitest core test.
+- **Milestone:** M1 — Walking skeleton (code complete; awaiting in-browser gate
+  confirmation).
+- **Last green sha:** committed in this change (Vite + TS + Phaser 3 + Vitest,
+  `core/` iso math with 3 passing tests, `game/` IsoScene draws a 6×6 grid).
+- **What landed:** `npm test` → 3/3 green; `npm run build` typechecks + bundles;
+  `npm run dev` serves the page; `core/` verified free of Phaser/DOM imports.
+- **Next step:** confirm the user-testable gate in a browser (`npm run dev` shows
+  the isometric tiles), then begin M2 — iso grid + a unit that moves
+  (A* pathfinding in `core`, click-to-move in `game`).
+- **Note:** npm "latest" is now Phaser 4; we deliberately pinned Phaser 3 (`^3.90.0`)
+  to honor decision D1. Revisit as a tracked pivot if we ever want Phaser 4.
 - **Blockers:** none.
 
 ## Closeout
