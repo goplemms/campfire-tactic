@@ -17,10 +17,23 @@ that don't act on the map do their work:
 
 - **Merchant** — buy/sell equipment, generate gold, and (crucially) **set how
   much storage** the party has. Storage is the master cap on everything carried.
-- **Chef** — **cook**, converting rations into party **morale** and a banked
-  between-battle **heal/buff** that the squad carries into the next fight.
+- **Chef** — **cook**, converting rations into party **morale** (see
+  [morale](systems/morale.md)) and a banked between-battle **heal/buff** that the
+  squad carries into the next fight.
 - **Quartermaster role (any unit)** — **load the loadout**: distribute ammo, trap
   kits, rune reagents, and rations into limited storage slots.
+
+### Camp: recovery & revival
+
+Between battles (each **night**), the camp is also where units heal and the gravely
+wounded are saved — both detailed in
+[mortality-recovery](systems/mortality-recovery.md):
+
+- **Recovery** — support roles (Chef, Medic, Bard, …) bank **Rest Points** that the
+  player spends by **triage** to heal chosen units. Scarce, so someone often rides
+  into the next fight hurt.
+- **Cleric (Hard mode)** — paying a local cleric is **emergency life-saving** for a
+  *dying* unit; it costs gold, a deliberate **economy sink** alongside the Merchant.
 
 The output of this phase is a **locked loadout**: the concrete set of consumables
 and equipment the party carries into Deployment. Once you commit and head to the
@@ -59,7 +72,8 @@ Key tensions a crunch player optimizes here:
 
 ## Open questions / future scope
 
-- Exact morale model (what morale *does* mechanically) is TBD.
+- Morale's mechanical effect is **resolved** — see [morale](systems/morale.md)
+  (D8); only its exact effect magnitudes remain as tuning.
 - Equipment depth (weapon types, slots, upgrades) is deferred — this phase
   establishes the *logistics frame*, not a full RPG inventory yet.
 - Whether scouting/intel is a purchasable action here or a passive of Awareness is

@@ -122,3 +122,54 @@ trail of reasoning stays intact.
   prep, no risk, ready). Spec:
   [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md).
 - **Superseded by:** —
+
+## D8 — Morale: passive, tiered, asymmetric modifier bundle
+
+- **Status:** Decided
+- **Context:** The Chef produces morale and Resolution nudges it, but morale had
+  no mechanical meaning. The player wants it to *avoid* being another active meter
+  to manage, and to never "kick a player while they're down."
+- **Options considered:** (a) per-unit combat stat with routing/fleeing at low
+  morale / (b) **passive, tiered party-wide bundle of minor modifiers** / (c) a
+  spendable resource pool.
+- **Decision:** **(b).** Morale is **passive** (always-on, nothing to spend) and
+  applies a **bundle of small modifiers by tier**. Deliberately **asymmetric**:
+  Neutral is baseline, High tiers *add* modest bonuses, the Low tier applies only
+  *marginal* penalties (mostly the absence of bonuses) — so the floor is shallow.
+  The specific effect list is an **open menu** (deployment safe allowance,
+  initiative seed, capture exposure, crit, slight HP, accuracy/evasion, loot/gold
+  find), biased toward effects that reinforce existing systems. **Speed is a
+  caution** — it compounds in the CT clock, so any morale→speed effect must be the
+  smallest of the bundle or omitted. Spec:
+  [`docs/design/systems/morale.md`](../../docs/design/systems/morale.md).
+- **Superseded by:** —
+
+## D9 — Mortality, recovery & difficulty consequence policy
+
+- **Status:** Decided
+- **Context:** A roguelike needs stakes, but the player's philosophy is **punish
+  choices, not execution**. Units leave the run via two vectors — falling in combat
+  (HP→0) and being captured-and-unrescued — and how harsh each is should be a
+  *difficulty* dial, not a fixed rule.
+- **Decision:** A **data-driven consequence policy, one per difficulty**, the core
+  consults when resolving a downed or captured unit (swappable, headlessly
+  testable). The universal time unit is **a night**.
+  - **Combat down (HP→0):** Easy = full heal on rest; Normal = redeploy at ½ HP, no
+    permadeath; Hard = "dying," pay a **local cleric** (gold, an economy sink)
+    within N nights or permadeath; Hardest = permadeath at 0, flat.
+  - **Captured & unrescued:** resolves into a **rescue follow-up quest**, not flat
+    death. Easy = guaranteed, no timer; Normal = must be earned, no timer; Hard =
+    narrow night-window + **reduced Deployment** (enemy is ready — an "ambush-in-
+    reverse" scenario modifier); Hardest = tight window + heavily reduced
+    Deployment. Abandoning the quest past its window loses the unit (option **b**
+    from the discussion: a grace window to grind resources, then real loss).
+  - **Recovery (between nights):** a **Rest-Point (RP)** meter. Support roles
+    (Chef/Medic/Bard/…) add RP per night (data-driven). RP converts to healing at
+    **`RP_PER_CHUNK` → one chunk of `CHUNK_FRACTION` of max HP** (default `1/8`,
+    every constant configurable). **Difficulty scales `RP_PER_CHUNK` only** (one
+    dial for the whole gradient). RP is spent by **triage** — allocated to chosen
+    units each night — which gives the Hard-mode dying clock real teeth.
+- **Open sub-points (tuning):** exact tier/threshold numbers; whether difficulty
+  scales anything *beyond* mortality (scoped **out** for this pass). Spec:
+  [`docs/design/systems/mortality-recovery.md`](../../docs/design/systems/mortality-recovery.md).
+- **Superseded by:** —

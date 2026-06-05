@@ -16,15 +16,19 @@ It resolves four things:
    **recovered** to storage for reuse. Lose/retreat and they're forfeit. This makes
    over-provisioning recoverable but holding the field rewarding — see
    [logistics](systems/logistics.md).
-2. **Capture outcomes.** Allies **rescued** during Combat return to the roster
-   normally. An ally **still captured at battle's end is lost** (permadeath). This
-   is the final settling of the Deployment gamble.
+2. **Capture & downed outcomes.** Allies **rescued** during Combat return to the
+   roster normally. An ally **still captured at battle's end** opens a **rescue
+   follow-up quest** rather than dying outright; a unit downed to 0 is resolved by
+   the difficulty's consequence policy (dying timer, ½-HP redeploy, etc.). Both —
+   and the **cleric** revive and **Rest-Point** recovery that follow in camp — are
+   defined in [mortality-recovery](systems/mortality-recovery.md) (D9).
 3. **Rewards.** Loot, gold (boosted by the **Merchant**), and any encounter-specific
    spoils. Consumables actually spent (arrows fired, traps sprung) are deducted —
    the fight's true logistics cost is realized here.
-4. **Morale & state.** Outcomes adjust party **morale** (a clean rescue lifts it; a
-   lost unit drops it), and the **Chef's** banked buffs are reconciled. Run state
-   (survivors, inventory, gold, seed position) advances.
+4. **Morale & state.** Outcomes adjust party **morale** (a clean rescue lifts it;
+   *abandoning* an ally drops it more than a hard-fought loss — see
+   [morale](systems/morale.md)), and the **Chef's** banked buffs are reconciled. Run
+   state (survivors, inventory, gold, seed position) advances.
 
 The output is an updated **run state** that becomes the starting condition for the
 next Meta/Pre-deployment phase, until the run ends in victory or death.
@@ -51,7 +55,7 @@ next Meta/Pre-deployment phase, until the run ends in victory or death.
 
 - Whether recovery is all-or-nothing on "held the ground" or partial/percentage:
   TBD.
-- How morale concretely feeds back (buffs? unit availability? shop prices?) is
-  tied to the morale model, still open.
+- Morale's feedback is **resolved** — passive tiered modifiers, see
+  [morale](systems/morale.md) (D8); magnitudes remain tuning.
 - Full run-state persistence, seeding, and the death screen come with the
   roguelike run loop (milestone M6).

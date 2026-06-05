@@ -96,16 +96,23 @@ exercise in the browser.
   then in the following battle rescue it and recover an unsprung material in
   Resolution. Inventory, exposure/capture, initiative-seed, and recovery tests are
   green.
+- Also lands the camp consequence systems (D8/D9): **morale** (passive tiered
+  modifiers) and **between-night recovery** (Rest-Point triage healing + cleric
+  revive as an economy sink).
 - See [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md),
   [`01-pre-deployment.md`](../../docs/design/01-pre-deployment.md),
   [`02-deployment.md`](../../docs/design/02-deployment.md),
-  [`04-resolution.md`](../../docs/design/04-resolution.md).
+  [`04-resolution.md`](../../docs/design/04-resolution.md),
+  [`systems/morale.md`](../../docs/design/systems/morale.md),
+  [`systems/mortality-recovery.md`](../../docs/design/systems/mortality-recovery.md).
 
 ### M6 — Roguelike run loop (seeded procedural encounters, permadeath, meta)
 
 - core: seeded RNG, procedural encounter/map generation, run state, permadeath,
-  a between-battle camp where the non-combat jobs act. render: drive a full run
-  Camp → Deployment → Battle → Resolution → next, until death.
+  a between-battle camp where the non-combat jobs act, and the **difficulty
+  consequence policy** (D9) governing downed/captured units (dying timer, ½-HP
+  redeploy, rescue follow-up quests as reduced-Deployment battles). render: drive a
+  full run Camp → Deployment → Battle → Resolution → next, until death.
 - **User-testable gate:** start a seeded run, play several encounters using the
   jobs, die, and see the run end; replaying the same seed reproduces the run;
   generation and run-state tests are green.

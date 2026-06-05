@@ -66,6 +66,11 @@ reference them rather than re-explain:
   Combat (decision D4).
 - **[Logistics & inventory](systems/logistics.md)** — ammo, materials, rations,
   and storage; the game's headline pillar (decision D6).
+- **[Morale](systems/morale.md)** — a passive, tiered bundle of minor modifiers
+  the Chef feeds (decision D8).
+- **[Mortality, recovery & difficulty](systems/mortality-recovery.md)** — how units
+  leave the run, between-night Rest-Point healing, and the per-difficulty
+  consequence policy (decision D9).
 - **[Stats](systems/stats.md)** — the stats committed so far (Speed, Awareness)
   and what each governs.
 

@@ -22,12 +22,20 @@ States: `todo` → `in-progress` → `testable` → `done`
 - **Milestone:** M3 — Turn-based battle loop (next up). M2 is done — the
   in-browser click-to-move gate is confirmed.
 - **Design pass (2026-06-05):** captured the game's system vision in
-  [`docs/design/`](../../docs/design/) (flow + 4 phase docs + 4 subsystem docs)
-  and logged decisions **D4–D7**: field entities + trigger bus (D4), FFT CT clock +
-  charged abilities (D5), two-tier logistics pillar (D6), and the Deployment
-  push-your-luck gamble (D7). Added milestone **M5b** for the logistics pillar.
-  This reshapes M3's scope: it now builds the **CT clock** and a **trigger/event
-  bus + field-entity registry** (before any entity exists), not a round-based loop.
+  [`docs/design/`](../../docs/design/) (flow + 4 phase docs + 6 subsystem docs)
+  and logged decisions **D4–D9**: field entities + trigger bus (D4), FFT CT clock +
+  charged abilities (D5), two-tier logistics pillar (D6), the Deployment
+  push-your-luck gamble (D7), **morale as passive tiered modifiers (D8)**, and
+  **mortality/recovery/difficulty consequence policy (D9)**. Added milestone **M5b**
+  for the logistics pillar (now also carrying camp morale + recovery). This reshapes
+  M3's scope: it now builds the **CT clock** and a **trigger/event bus +
+  field-entity registry** (before any entity exists), not a round-based loop.
+- **Open-questions pass (in progress):** working through the design docs' open
+  questions one by one. **Resolved Q1** (morale + mortality/recovery/difficulty →
+  D8/D9). **Next: Q2 — intel/scouting** (passive of Awareness vs. purchasable
+  action). Remaining: exposure curve shape, enemy-prep symmetry, material recovery
+  all-or-nothing vs partial, inventory slot model, ammo per-unit vs pool, material
+  spoilage, entity stacking.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),

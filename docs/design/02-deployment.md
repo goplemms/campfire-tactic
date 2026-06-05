@@ -34,6 +34,9 @@ Two stats drive the gamble (see [Stats](systems/stats.md)):
 | **Awareness** | **Safety.** Bigger safe allowance; lower exposure added per overdraw placement. (You spot the scouts coming.) |
 | **Speed** | **Throughput.** More placements fit in the window before it closes. (Also the unit's Combat CT stat.) |
 
+High party **morale** can nudge the safe allowance upward (confident troops set up
+bolder) — see [morale](systems/morale.md).
+
 A unit may instead **hold position**: place nothing, take **zero risk**, and be
 **ready** (well-positioned, full kit) when Combat starts. Deployment is therefore
 opt-in per unit: *prep (more setup, more risk)* vs. *hold (safe, no setup)*.
@@ -49,9 +52,17 @@ If an overdraw gamble fails, the unit is **captured**. A captured unit:
 - may be **out of position / underequipped** from whatever it half-finished.
 
 Capture is **recoverable**: a captured unit is a **rescue sub-objective** on the
-map. Reaching and freeing them mid-Combat turns the **−1 back into +1**. Only a
-unit **still captured when the battle ends** is truly lost (permadeath, per the
-roguelike run). This keeps the gamble dramatic without being a blind death roll.
+map. Reaching and freeing them mid-Combat turns the **−1 back into +1**. A unit
+**still captured when the battle ends** is *not* instantly lost — it becomes a
+**rescue follow-up quest** whose harshness scales with difficulty (see
+[mortality-recovery](systems/mortality-recovery.md), D9). This keeps the gamble
+dramatic without being a blind death roll, and only *abandoning* the rescue
+ultimately loses the unit.
+
+> **Scenario modifier — ambush in reverse.** A rescue mission is a *disadvantaged*
+> battle: the enemy knows you're coming, so the rescuing party fights with
+> **reduced Deployment**. This "reduced-Deployment" modifier is reusable for any
+> encounter where you're the one caught out.
 
 > Emergent payoff: your *own* greedy prep authors the battle's objectives. A
 > captured ally is a fight you created by overreaching.
