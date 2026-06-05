@@ -364,3 +364,25 @@ trail of reasoning stays intact.
     discussion).
 - **Spec:** [`docs/design/systems/magic.md`](../../docs/design/systems/magic.md).
 - **Superseded by:** —
+
+## D18 — Vision & fog of war (the in-battle twin of Intel)
+
+- **Status:** Decided
+- **Context:** The play-trace promoted in-combat vision from "future" to load-bearing
+  (Rogue hides in fog; Archer fires only at what it "has visual of").
+- **Decision:** **Symmetric fog of war** on a **banded information ladder**:
+  - **Hidden** (nothing, or a **last-seen ghost**) → **Pinged** (presence/location,
+    *no identity*) → **Seen** (full info).
+  - **Two senses:** **Sight** = per-unit **radius + line-of-sight** (terrain/elevation
+    block) → Seen. **Awareness ping** = a radius that **ignores LoS** → Pinged; this is
+    Awareness's **in-combat** role (was deployment-only).
+  - **Hides** enemy units + undetected enemy entities; terrain shape always known.
+  - **Concealment payoff:** breaking from Hidden = **ambush bonus**; being **Pinged
+    partially defuses** it, **Seen** removes it (Awareness = ambush defense).
+  - **Targeting:** direct attack/cast needs **Seen**; **AoE** can hit any perceived
+    (incl. Pinged) tile.
+  - **Intel tie-in:** a **Tier-3** read grants **starting vision** of enemy deployment.
+  - **Stat:** adds **sight radius** to the combat block (M3).
+  - **Deferred:** stealth as a stat/trait (player to mull).
+- **Spec:** [`docs/design/systems/vision.md`](../../docs/design/systems/vision.md).
+- **Superseded by:** —

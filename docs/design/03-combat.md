@@ -58,6 +58,15 @@ same captured state. So capture is **one mechanic with two entry points** —
 pre-battle overreach and in-combat helplessness — both resolving through the
 [D9](systems/mortality-recovery.md) policy.
 
+### Vision & fog of war
+
+Combat is fought under **symmetric fog of war** (see [vision](systems/vision.md), D18):
+each side perceives enemies on a banded ladder — **Hidden → Pinged** (Awareness sense,
+location not identity, ignores LoS) **→ Seen** (sight + line-of-sight, full info), with
+**ghost markers** for spotted-then-lost foes. **Direct** attacks/casts need **Seen**;
+**AoE** can hit a perceived (incl. Pinged) tile. A unit breaking from **Hidden** lands
+an **ambush bonus**. A **Tier-3 [intel](systems/intel.md)** read grants starting vision.
+
 ### Win/lose
 
 Standard objectives (defeat all enemies / survive N / reach a tile). The roguelike

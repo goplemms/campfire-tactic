@@ -24,9 +24,11 @@ so they don't overlap.
 
 #### Awareness
 
-- **Deployment:** **safety** — a bigger **safe allowance** (placements with zero
-  risk) and **less exposure added** per overdraw placement. The high-Awareness unit
-  is the one who can prep heavily without getting captured.
+- **Deployment:** **safety** — a longer **safe period** and **gentler retreat odds**
+  (D11). The high-Awareness unit preps deep without getting captured.
+- **Combat:** **ping** — a sense radius (ignores line-of-sight) that reveals enemy
+  **presence/location without identity** (the **Pinged** state, see
+  [vision](vision.md), D18). High Awareness = harder to ambush.
 
 #### Intelligence *(working name)*
 
@@ -44,7 +46,7 @@ Two prep stats that deliberately don't overlap, plus the clock stat:
 |---|---|---|---|
 | Deployment | *how safely* you prep | — | *how much* you prep |
 | Pre-battle | — | *how much you see* (intel floor) | — |
-| Combat | — | — | turn frequency + charge speed |
+| Combat | **ping** (sense enemies; ambush defense) | — | turn frequency + charge speed |
 
 This gives real archetype spread: a **Survivalist** is high-Awareness (preps
 safely) but modest-Intelligence; a **Diplomat / Noble** is high-Intelligence (great
@@ -69,7 +71,8 @@ edge of capture.
 
 ## Open questions / future scope
 
-- The full combat stat block (HP/attack/defense/range/move) is defined with M3.
+- The full combat stat block (HP/attack/defense/range/move/**sight radius**) is
+  defined with M3. (Sight radius drives the **Seen** state, [vision](vision.md).)
 - Intel is **resolved** — it is its own stat (Intelligence) feeding the three intel
   lanes; see [intel](intel.md) (D10). The stat *name* remains provisional.
 - Stat growth/leveling across a run: deferred to the run-loop milestone (M6).

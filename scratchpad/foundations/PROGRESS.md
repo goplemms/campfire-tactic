@@ -65,9 +65,12 @@ States: `todo` → `in-progress` → `testable` → `done`
     Vancian ⟂ charge-time; **consumables family** = ammo+scrolls+reagents, partial
     recovery on win). Still to record: **relics/special items**; **currency
     denominations** (gold + silver); **XP/leveling** exists.
-  - *Open — combat-core (touch M3):* **fog-of-war/vision** (NEXT); **forced movement**
-    (push/displacement, combos with entities); **Ammo** (within the consumables
-    family; default-spell template eases empty-feels-bad).
+  - *Open — combat-core (touch M3):* ✅ **fog-of-war/vision → D18** (symmetric;
+    Hidden→Pinged→Seen ladder; sight=radius+LoS, Awareness ping=presence-no-identity
+    ignoring LoS; ghosts; ambush from Hidden; Tier-3 intel grants starting vision;
+    stealth-as-trait deferred; new `systems/vision.md`). Remaining: **forced movement**
+    (push/displacement, combos with entities; **NEXT**); **Ammo** (within the
+    consumables family; default-spell template eases empty-feels-bad).
   - *Open — run frame:* **branching mission select** + the **overworld↔camp**
     relationship; **recruitment** of party members; **intel pre-selection scope**
     (reveals comp + rewards + recruits across options).

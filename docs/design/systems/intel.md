@@ -78,5 +78,6 @@ or gamble on a gifted reader.
 
 - Exact breakpoint thresholds and what each tier costs (gold/ration/reagent): tuning.
 - The "Intelligence" stat name (collision with a magic stat): provisional.
-- **In-combat fog-of-war / vision** is a *separate* system from pre-battle intel and
-  is logged as its own future question — not folded in here.
+- **In-combat fog-of-war / vision** is its **in-battle twin** — now designed in
+  [vision](vision.md) (D18). A Tier-3 intel read grants **starting vision** of the
+  enemy's deployment, bridging the two.

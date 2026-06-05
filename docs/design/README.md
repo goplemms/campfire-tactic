@@ -84,6 +84,8 @@ reference them rather than re-explain:
   and storage; the game's headline pillar (decision D6).
 - **[Intel](systems/intel.md)** — banded pre-battle knowledge via three lanes
   (Intelligence stat / scouting / the Seer's divination) (decision D10).
+- **[Vision & fog of war](systems/vision.md)** — symmetric in-battle fog on a
+  Hidden→Pinged→Seen ladder; the in-battle twin of Intel (decision D18).
 - **[Morale](systems/morale.md)** — a passive, tiered bundle of minor modifiers
   the Chef feeds (decision D8).
 - **[Mortality, recovery & difficulty](systems/mortality-recovery.md)** — how units
