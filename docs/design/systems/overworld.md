@@ -129,6 +129,12 @@ live RNG, fully replayable.
 
 ## Open questions / future scope (the **next** batch, out of M7 scope)
 
+- **Route endings (deferred at the M7 gate).** M7 ships **functional** terminals —
+  a *run-complete* screen on clearing the final node and a *run-over* screen on a
+  wipe, both surfacing the replay seed — but *what an ending should **mean*** is an
+  open design question: end-of-run **rewards**, any **meta-progression** carried
+  between runs, and the **framing** of victory vs. defeat. The complete-vs-wipe
+  *mechanics* are settled (and tested); their content/payoff is the next pass.
 - **More node kinds:** shops/merchants-as-nodes, **recruitment** of new party
   members, **event** nodes (random encounters with choices), narrative beats.
 - **Map shape tuning:** layer count / width / fan-out / rest frequency as a

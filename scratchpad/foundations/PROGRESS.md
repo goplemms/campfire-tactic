@@ -13,20 +13,26 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
-| M7 — The overworld (seeded branching run map) | testable (147 tests green, build clean; awaiting in-browser gate) |
+| M7 — The overworld (seeded branching run map) | done (gate confirmed 2026-06-05; terminal-ending *design* deferred) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
 
-- **Milestone:** M7 — The overworld (seeded branching run map). **TESTABLE**
+- **Milestone:** M7 — The overworld (seeded branching run map). **DONE (gate)**
   (2026-06-05): `npm test` **147/147 green**, `npm run build` clean, `core/` free of
-  Phaser/DOM **and** `Math.random` (grep test still enforces it), and the dev server
-  boots + transforms every module without error. **Awaiting the in-browser gate
-  confirmation** (start a seeded run → pick reachable nodes with intel previews →
-  play a combat node to resolution → return to map → take a rest node → reach a
-  final node *or* die → re-enter the seed to reproduce the map). **Why:** through M6
+  Phaser/DOM **and** `Math.random` (grep test still enforces it). **In-browser gate
+  confirmed:** started a seeded run, picked reachable nodes with intel previews
+  visible, played a combat node through Camp→Deployment→Battle→Resolution and
+  returned to the map (node marked visited), took a rest node to recover with no
+  fight, and re-entering the seed reproduced the same map + reachable choices.
+  **Deferred (own follow-up):** the **terminal-ending design** — *what* reaching the
+  final node (run-complete) or dying (run-over) should **mean** (rewards, meta-
+  progression, framing) is an open design question the player wants to revisit; M7
+  ships **functional** run-complete / run-over screens (with the replay seed), and
+  the complete-vs-wipe terminal *mechanics* are covered headlessly by tests — only
+  their visual/in-browser confirmation + design polish are deferred. **Why:** through M6
   a run was a *linear* chain (`encounterIndex` + `streamFor(seed,"enc:N")`); M7 wraps
   it in a **seeded branching map** the player navigates — choosing the next mission,
   informed by intel — keeping permadeath, determinism, and the core/render split
@@ -85,8 +91,11 @@ States: `todo` → `in-progress` → `testable` → `done`
     difficulty index** — never off a live-mutated draw order — so replay is exact
     regardless of player choices. `generation.ts`, the camp/deploy/battle/resolution
     flow, mortality/upkeep/intel/morale all stay; M7 only adds the *frame*.
-  - **Next:** confirm the in-browser gate, then PROGRESS M7 → done + the M7 row in
-    plan.md (testable → done); (on go-ahead) open + merge the PR.
+  - **Next:** (on go-ahead) open + merge the PR. **Then — the run-frame's next
+    batch:** the deferred **terminal-ending design** (what run-complete / run-over
+    mean: rewards, meta-progression, framing), plus the rest of the queued run frame
+    — **recruitment**, **shops/merchants-as-nodes**, and **event nodes** (D24's
+    "next batch", out of M7 scope).
 
 - **Milestone:** M6 — Roguelike run loop (seeded, permadeath, the full phase loop).
   **DONE (gate)** (2026-06-05): `npm test` **121/121 green**, `npm run build` clean,

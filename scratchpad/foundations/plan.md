@@ -119,7 +119,7 @@ exercise in the browser.
   jobs, die, and see the run end; replaying the same seed reproduces the run;
   generation and run-state tests are green.
 
-### M7 — The overworld (seeded branching run map) — *testable (D22–D24; 147 tests green, build clean; awaiting in-browser gate)*
+### M7 — The overworld (seeded branching run map) — *done (gate confirmed 2026-06-05; terminal-ending **design** deferred — endings ship functional, their meaning/rewards revisited next)*
 
 - *Adjustment (not a pivot): the north star is unchanged; this replaces the linear
   encounter chain with a navigable **run frame** the existing loop plays through.*
