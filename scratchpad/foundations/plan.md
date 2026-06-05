@@ -45,7 +45,7 @@ exercise in the browser.
 - **User-testable gate:** open the page, click a tile, and the unit walks to it
   along a valid path; pathfinding tests are green.
 
-### M3 — Turn-based battle loop (two sides, basic attack)
+### M3 — Turn-based battle loop (two sides, basic attack) — *done (in-browser gate confirmed 2026-06-05)*
 
 - core: the **FFT-style CT clock** action economy (per-unit CT rises by Speed,
   turn at CT≥100, Move + Act; charged-ability scaffolding) per **D5**; a
@@ -58,7 +58,7 @@ exercise in the browser.
   [`action-economy.md`](../../docs/design/systems/action-economy.md),
   [`field-entities.md`](../../docs/design/systems/field-entities.md).
 
-### M4 — Data-driven jobs & skills + the phase pipeline
+### M4 — Data-driven jobs & skills + the phase pipeline — *done (in-browser gate confirmed 2026-06-05)*
 
 - core: define jobs and skills as **data** (not hard-coded classes); introduce
   the phase pipeline **Meta → Deployment → Battle → Resolution**. Ship one combat
@@ -67,7 +67,7 @@ exercise in the browser.
   visibly affects battle (a skill button appears and works); job-loading tests
   are green.
 
-### M5 — The signature non-combat jobs (the hook)
+### M5 — The signature non-combat jobs (the hook) — *done (in-browser gate confirmed 2026-06-05)*
 
 - Implement the three jobs that make this game itself, each deliberately hooking
   a *different* phase to prove the architecture:
@@ -79,7 +79,7 @@ exercise in the browser.
   Survivalist-placed trap triggers during the following battle. Each job's effect
   has a green test.
 
-### M5b — Logistics pillar & the Deployment gamble (adjustment, per D6/D7)
+### M5b — Logistics pillar & the Deployment gamble (adjustment, per D6/D7) — *done: gate confirmed in-browser 2026-06-05 (inventory/exposure-capture/seed/recovery + on-board deploy + auto-rescue D21); D9-RP & D10-intel deferred to M6*
 
 - *Adjustment (not a pivot): the north star is unchanged; this deepens the prep
   loop the signature jobs act on, making logistics a headline pillar.*

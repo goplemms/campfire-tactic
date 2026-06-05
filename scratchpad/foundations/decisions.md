@@ -430,3 +430,26 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
   (Consumables), [`docs/design/systems/magic.md`](../../docs/design/systems/magic.md).
 - **Superseded by:** —
+
+## D21 — Victory auto-rescues captured allies (refines D7/D9)
+
+- **Status:** Decided (M5b implementation refinement)
+- **Context:** D7/D9 said an ally **still captured at battle's end** becomes a
+  **rescue follow-up quest** rather than dying. In play that felt punishing when you
+  had *already won the battle* — you control the field, so why is your bound ally
+  still gone?
+- **Decision:** **A win auto-rescues every still-captured ally.** Victory = control
+  of the field (the same principle as D13 whole-field **material** recovery), so
+  captured allies are **freed and returned to the roster** in Resolution at no extra
+  cost. The **rescue follow-up quest** (D9) now applies only to **non-win** outcomes
+  (flee/lose with a captured unit) or **abandoning** the rescue mid-battle — capture
+  is still dramatic (lost tempo, a −1 during the fight, the risk of *not* winning),
+  but winning brings your people home.
+- **Also (M5b):** **Deployment plays on the board** — units are selected and **walk
+  the grid (A*)** like combat, placing entities where they stand; exposure is now
+  **spatial** (a banded safe **depth** from your edge; placing deeper raises the
+  meter), a closer fit to D11 than an abstract placement counter. The full D11
+  auto-retreat-with-per-step-roll remains a later tuning pass over this seam.
+- **Spec:** [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md),
+  [`docs/design/04-resolution.md`](../../docs/design/04-resolution.md).
+- **Superseded by:** —

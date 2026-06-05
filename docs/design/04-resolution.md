@@ -19,11 +19,14 @@ It resolves four things:
    *survives* use — rune dust is "wiped away" and gone even on a win); see
    [logistics](systems/logistics.md).
 2. **Capture & downed outcomes.** Allies **rescued** during Combat return to the
-   roster normally. An ally **still captured at battle's end** opens a **rescue
-   follow-up quest** rather than dying outright; a unit downed to 0 is resolved by
-   the difficulty's consequence policy (dying timer, ½-HP redeploy, etc.). Both —
-   and the **cleric** revive and **Rest-Point** recovery that follow in camp — are
-   defined in [mortality-recovery](systems/mortality-recovery.md) (D9).
+   roster normally. **On a win, any still-captured ally is auto-rescued (D21)** —
+   victory means you control the field, so your bound people come home (the same
+   "control the field" principle as material recovery below). The **rescue
+   follow-up quest** applies only to **non-win** outcomes (flee/lose with a captured
+   unit) or **abandoning** the rescue; a unit downed to 0 is resolved by the
+   difficulty's consequence policy (dying timer, ½-HP redeploy, etc.). The **cleric**
+   revive and **Rest-Point** recovery that follow in camp are defined in
+   [mortality-recovery](systems/mortality-recovery.md) (D9).
 3. **Rewards.** Loot, gold (boosted by the **Merchant**), and any encounter-specific
    spoils. Consumables actually spent (arrows fired, traps sprung) are deducted —
    the fight's true logistics cost is realized here.
