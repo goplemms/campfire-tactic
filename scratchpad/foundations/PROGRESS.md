@@ -7,7 +7,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | Milestone | State |
 |-----------|-------|
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
-| M2 — Isometric grid + a unit that moves | testable |
+| M2 — Isometric grid + a unit that moves | done |
 | M3 — Turn-based battle loop | todo |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
@@ -18,8 +18,8 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M3 — Turn-based battle loop (next up). M2 is code complete and
-  awaiting its in-browser gate confirmation.
+- **Milestone:** M3 — Turn-based battle loop (next up). M2 is done — the
+  in-browser click-to-move gate is confirmed.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),
