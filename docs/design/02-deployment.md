@@ -89,6 +89,20 @@ ultimately loses the unit.
 > Emergent payoff: your *own* greedy prep authors the battle's objectives. A
 > captured ally is a fight you created by overreaching.
 
+### Enemy prep — fortified encounters (D12)
+
+Prep isn't only yours. **Fortified encounters** (an enemy camp, a defended
+chokepoint, *every rescue mission*) have the enemy pre-place hazards too — while
+open-field scraps and ambushes don't. This makes enemy prep a *flavor of encounter*
+rather than a universal tax, and it gives your **Intel/Awareness** a defensive job:
+
+- **Detection** of enemy entities is gated by [Intel](systems/intel.md) / Awareness
+  (Tier-3 or high Awareness reveals them; otherwise hidden until sprung).
+- **Disarm** costs an **Act** (the Survivalist's defensive side) — or just route
+  around what you've spotted.
+- The exemplar enemy entity is the **Snare**, which can drag a unit into **capture
+  mid-battle** — see [field-entities](systems/field-entities.md).
+
 ### Initiative seeding (link to the CT clock)
 
 Combat uses a per-unit [CT clock](systems/action-economy.md), but each **side**
@@ -135,7 +149,8 @@ seed** for both sides.
   danger gradient), banded, shown on the board, immediate per-placement resolution;
   Awareness lengthens the safe period *and* pushes the gradient out. Only exact band
   %s and distances are tuning.
-- Whether enemies also pre-place hazards (symmetry) and whether Awareness lets you
-  **detect** them during your own Deployment: **Q4, in progress.**
+- Enemy-prep symmetry is **resolved** (D12): A3 fortified-encounter type;
+  Intel/Awareness-gated detection; Act-cost disarm or route-around; the Snare drags
+  units into in-combat capture. See [field-entities](systems/field-entities.md).
 - Guard composition for captured units (how hard a rescue is) is encounter-driven;
   generation rules come with the run loop (M6).

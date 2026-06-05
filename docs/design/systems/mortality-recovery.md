@@ -42,6 +42,12 @@ instant death. Abandoning that quest (declining it, or letting its window expire
 Hard/Hardest) is what finally loses the unit — a **grace window** to grind
 resources before the big save, with real loss only as the back-stop.
 
+> **Capture has two entry points**, both resolving through this same policy:
+> **pre-battle** (a Deployment overreach, D11) and **in-combat** (an enemy **Snare**
+> runs its capture countdown out, D12 — see
+> [field-entities](field-entities.md)). Either way the unit enters the rescuable
+> captured state above.
+
 ### Recovery — the Rest-Point (RP) meter
 
 Between-battle healing is **not flat**; it scales with the party's support

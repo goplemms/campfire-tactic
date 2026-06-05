@@ -34,12 +34,13 @@ States: `todo` → `in-progress` → `testable` → `done`
   questions one by one. **Resolved Q1** (morale + mortality/recovery/difficulty →
   D8/D9) and **Q2** (intel: three lanes, banded tiers, new Intelligence stat, Seer
   job, banding convention → D10; new `systems/intel.md`), and **Q3** (Deployment
-  exposure: two-stage spatial danger gradient, banded + shown on the board → D11).
-  **Next: Q4 — enemy-prep symmetry** (do enemies pre-place hazards; can you
-  detect/disarm them?). Remaining after: material recovery all-or-nothing vs partial,
-  inventory slot model, ammo per-unit vs pool, material spoilage, entity stacking.
-  Also logged as future: in-combat fog-of-war/vision (distinct from pre-battle
-  intel).
+  exposure: two-stage spatial danger gradient, banded + shown on the board → D11),
+  and **Q4** (enemy-prep symmetry: A3 fortified encounters, Intel/Awareness
+  detection, Act-cost disarm, and the Snare → unified in-combat capture → D12).
+  **Next: Q5 — material recovery** (all-or-nothing on "held the ground" vs partial).
+  Remaining after: inventory slot model, ammo per-unit vs pool, material spoilage,
+  entity stacking. Also logged as future: in-combat fog-of-war/vision (distinct from
+  pre-battle intel); Snare adjacency-accelerator variant.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),

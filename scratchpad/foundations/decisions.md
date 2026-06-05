@@ -222,3 +222,30 @@ trail of reasoning stays intact.
     bites hardest, making placement safer/smarter.
 - **Spec:** [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md).
 - **Superseded by:** —
+
+## D12 — Enemy-prep symmetry + unified in-combat capture
+
+- **Status:** Decided
+- **Context:** Deployment prep was player-only. Should the enemy play the same game,
+  and how do you deal with *their* hazards?
+- **Options considered:** A1 asymmetric (player-only) / A2 fully symmetric / A3
+  **fortified-encounter type** (only some encounters are prepped).
+- **Decision:** **A3.** Enemy hazards appear in **fortified encounters** (enemy
+  camps, defended chokepoints, *every rescue mission* — reusing the
+  reduced-Deployment scenario), not in open scraps/ambushes — so symmetry is a
+  *flavor*, not a tax, and the workload scales to encounters that want it.
+  - **Detection** of enemy entities is gated by **Intel/Awareness** (Tier-3 or high
+    Awareness reveals; else hidden until sprung). **Disarm** costs an **Act** (the
+    Survivalist's defensive mirror); or **route around**.
+  - **The Snare** is the exemplar enemy entity: **Immobilized X turns + a banded
+    capture countdown** (abstracting enemy reinforcements reaching the spot — option
+    **a**, timer-alone; adjacency-accelerator is a noted future upgrade). Expire
+    while held → **captured**. This makes **capture one mechanic with two entry
+    points** — pre-battle overreach (D11) and in-combat helplessness — both feeding
+    the D9 captured state/rescue/policy.
+  - Implementation: the M3 trigger bus must carry **status effects** (Immobilized)
+    and tick a **per-unit capture meter** on `onTurnStart`.
+- **Spec:** [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md),
+  [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md),
+  [`docs/design/03-combat.md`](../../docs/design/03-combat.md).
+- **Superseded by:** —

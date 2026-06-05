@@ -37,6 +37,32 @@ adding a new placeable is adding **data**, not a new system.
   - **Auto:** resolves when a condition is met (enemy enters AoE).
   - **Manual:** a unit spends its **Act** to detonate now.
 
+### Enemy-owned entities & counterplay (D12)
+
+The `owner` field means entities can belong to the **enemy** too. In **fortified
+encounters** (an enemy camp, a defended chokepoint, *any rescue mission* — see
+[Deployment](../02-deployment.md)), the enemy pre-places hazards just like you do.
+This gives **Intel** and **Awareness** a *defensive* job, not only an offensive one:
+
+- **Detection** — gated by [Intel](intel.md) / Awareness. A **Tier-3** read or high
+  Awareness **reveals** enemy entities up front; otherwise they're **hidden until
+  sprung** (you find them the hard way).
+- **Disarm / avoid** — once seen, a unit may spend an **Act** to **disarm** (the
+  Survivalist's defensive mirror of trapping), or simply **route around** it.
+
+**Exemplar enemy entity — the Snare.** Triggers on enter-tile and applies
+**Immobilized** for X turns *plus* a **capture countdown** (banded). The countdown
+abstracts *enemy reinforcements reaching that spot* — it ticks on its own, no
+specific captor modeled. Free the unit (ally **Act** to cut loose, or destroy the
+snare) before it expires, or they are **captured** — the *same* captured state as a
+Deployment overreach (rescuable sub-objective, [D9](mortality-recovery.md) policy).
+This makes **capture a unified mechanic with two entry points**: pre-battle
+overreach and in-combat helplessness.
+
+> Implementation note: the snare shows the bus needs to carry **status effects**
+> (Immobilized) and tick a **per-unit capture meter** on `onTurnStart` — both cheap
+> to account for when M3 builds the bus.
+
 ### The trigger bus (the architectural hook)
 
 Combat is built around an **event/trigger bus**. The loop announces moments and
@@ -78,12 +104,16 @@ Deployment: build entity from a provisioned material, place it, register listene
 > `state = charging`. It sits idle until, in Combat, freed-Vale spends her **Act**
 > to detonate it on the clustered enemies — the charge collapses to zero and fires
 > immediately.
+>
+> **Snare (enemy-owned, in-combat capture).** In a fortified fight, an
+> enemy snare sits on a path tile, **undetected** because the party skipped Tier-3
+> intel. Rook steps on it → `Immobilized (3)` + a 3-tick **capture countdown**
+> starts. Bram spends his next **Act** to cut Rook loose on tick 2 — one turn later
+> and Rook would have been **captured**, turning the fight into a rescue.
 
 ## Open questions / future scope
 
 - Whether entities can be **stacked/combined** (a rune *inside* a nest?) is a
   tempting depth lever, deferred.
-- Detection/disarming of **enemy** field entities (symmetry) is noted in
-  [Deployment](../02-deployment.md), deferred.
 - The first real implementation lands the **bus + registry** in M3 and the first
   data-defined entity (the Survivalist trap) in M4–M5.

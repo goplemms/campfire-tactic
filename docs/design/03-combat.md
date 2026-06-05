@@ -50,6 +50,14 @@ A unit captured during Deployment is on the map, guarded. Freeing it mid-Combat
 converts the side's **−1 to +1**; an ally left captured at battle's end is lost in
 [Resolution](04-resolution.md).
 
+Capture can *also begin during combat*: an enemy **Snare** (a fortified-encounter
+[field entity](systems/field-entities.md)) applies **Immobilized** plus a banded
+**capture countdown** — the abstraction being enemy reinforcements closing on that
+spot. Fail to free the unit (an ally **Act**) before it expires and they enter the
+same captured state. So capture is **one mechanic with two entry points** —
+pre-battle overreach and in-combat helplessness — both resolving through the
+[D9](systems/mortality-recovery.md) policy.
+
 ### Win/lose
 
 Standard objectives (defeat all enemies / survive N / reach a tile). The roguelike
