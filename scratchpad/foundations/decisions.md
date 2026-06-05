@@ -386,3 +386,24 @@ trail of reasoning stays intact.
   - **Deferred:** stealth as a stat/trait (player to mull).
 - **Spec:** [`docs/design/systems/vision.md`](../../docs/design/systems/vision.md).
 - **Superseded by:** —
+
+## D19 — Forced movement (push / pull)
+
+- **Status:** Decided
+- **Context:** The play-trace's Whirlwind shoved enemies into net traps — forced
+  movement exists and shines when combined with placed entities.
+- **Decision:** Effects can **push** (away) or **pull** (toward) a banded number of
+  tiles.
+  - **Involuntary:** costs the target no CT, doesn't consume their turn.
+  - **Target-agnostic:** usable on enemies (shove into hazards) *and* allies (pull to
+    safety — a support tool).
+  - **Combo:** a forced move **onto a field-entity tile fires that entity** (push into
+    trap/net/snare) via the bus's `onUnitEnterTile` — the unit-driven sibling of D16
+    chaining.
+  - **Collisions:** stop at a wall/blocker/unit, with **optional collision damage**
+    (tuning).
+  - **Vision (D18):** AoE push can catch a **Pinged** tile; single-target push needs
+    **Seen**.
+- **Spec:** [`docs/design/03-combat.md`](../../docs/design/03-combat.md) (Forced
+  movement), [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md).
+- **Superseded by:** —

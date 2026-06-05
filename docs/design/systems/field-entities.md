@@ -99,6 +99,10 @@ erupts a few ticks later — combos with real timing texture, and **zero new sys
 (just a listener that schedules a CT event). This is the lowest-confidence design
 call so far; expect to **revisit it** once the bus and clock are real code.
 
+**Forced entry also fires entities (D19).** A unit **pushed/pulled** onto an entity's
+tile triggers it via the same `onUnitEnterTile` event — so shoving an enemy into a
+trap/net/snare is the unit-driven version of chaining.
+
 ### Lifecycle across phases
 
 ```

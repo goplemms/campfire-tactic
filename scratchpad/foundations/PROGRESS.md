@@ -68,9 +68,11 @@ States: `todo` → `in-progress` → `testable` → `done`
   - *Open — combat-core (touch M3):* ✅ **fog-of-war/vision → D18** (symmetric;
     Hidden→Pinged→Seen ladder; sight=radius+LoS, Awareness ping=presence-no-identity
     ignoring LoS; ghosts; ambush from Hidden; Tier-3 intel grants starting vision;
-    stealth-as-trait deferred; new `systems/vision.md`). Remaining: **forced movement**
-    (push/displacement, combos with entities; **NEXT**); **Ammo** (within the
-    consumables family; default-spell template eases empty-feels-bad).
+    stealth-as-trait deferred; new `systems/vision.md`). ✅ **forced movement → D19**
+    (push/pull, banded, involuntary, target-agnostic; forced entry onto an entity tile
+    fires it; stop at blockers + optional collision damage; vision rules apply).
+    Remaining: **Ammo** (LAST combat-core item; within the consumables family;
+    default-spell template eases empty-feels-bad).
   - *Open — run frame:* **branching mission select** + the **overworld↔camp**
     relationship; **recruitment** of party members; **intel pre-selection scope**
     (reveals comp + rewards + recruits across options).

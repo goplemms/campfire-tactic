@@ -67,6 +67,19 @@ location not identity, ignores LoS) **→ Seen** (sight + line-of-sight, full in
 **AoE** can hit a perceived (incl. Pinged) tile. A unit breaking from **Hidden** lands
 an **ambush bonus**. A **Tier-3 [intel](systems/intel.md)** read grants starting vision.
 
+### Forced movement — push / pull (D19)
+
+Effects can **push** (away) or **pull** (toward) a unit a banded number of tiles. It's
+**involuntary** — costs the target no CT and doesn't consume their turn — and
+**target-agnostic** (shove an enemy *or* pull an ally out of danger, a clean
+support tool). The payoff is the **combo**: a forced move **onto a field-entity tile
+fires that entity** (push an enemy into a trap → it springs; into a net → Grounded;
+into a snare → capture countdown) — just the [trigger bus](systems/field-entities.md)
+emitting `onUnitEnterTile` for the forced move. A pushed unit **stops** at a
+wall/blocker/another unit, with **optional collision damage** (a tuning knob). Vision
+applies (D18): an **AoE** push can catch a **Pinged** tile; a single-target push needs
+**Seen**.
+
 ### Win/lose
 
 Standard objectives (defeat all enemies / survive N / reach a tile). The roguelike
