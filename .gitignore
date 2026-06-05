@@ -1,0 +1,26 @@
+# --- memento workflow kit ---
+# Feature work in scratchpad/ stays local by default. We intentionally track the
+# `foundations` workspace so the plan is visible in the repo (per workflow-init's
+# note: "adjust negations if a repo wants to track specific workspaces").
+scratchpad/*
+!scratchpad/.gitkeep
+!scratchpad/archive/
+scratchpad/archive/*
+!scratchpad/archive/.gitkeep
+!scratchpad/foundations/
+
+# --- web / node (for the upcoming Vite + Phaser + TypeScript project) ---
+node_modules/
+dist/
+.vite/
+*.local
+.env
+.env.*
+!.env.example
+
+# --- editor / OS noise ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
