@@ -38,9 +38,12 @@ export class Battle {
     this.entities = new EntityRegistry(this.bus);
   }
 
-  /** Apply the per-side initiative seed (D11). Call once before the first turn. */
-  seed(): void {
-    this.clock.seedInitiative();
+  /**
+   * Apply the per-side initiative seed (D11). Call once before the first turn.
+   * `moraleBonus` warms the player's seed per the D8 morale bundle.
+   */
+  seed(moraleBonus = 0): void {
+    this.clock.seedInitiative(moraleBonus ? { player: moraleBonus } : {});
   }
 
   /**

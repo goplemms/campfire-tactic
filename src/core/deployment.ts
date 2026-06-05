@@ -41,17 +41,24 @@ export function createExposure(): DeployExposure {
  * risk** — banded by Awareness (D11). A high-Awareness unit ranges further
  * before the meter moves.
  */
-export function safeDepth(unit: Unit): number {
-  return 2 + Math.floor(unit.awareness / 2);
+export function safeDepth(unit: Unit, moraleDepthBonus = 0): number {
+  return 2 + Math.floor(unit.awareness / 2) + moraleDepthBonus;
 }
 
 /**
  * Exposure a placement at the given `depth` (tiles from the safe edge) would
  * add — zero within the safe depth, then {@link EXPOSURE_PER_DEPTH} per tile
- * deeper.
+ * deeper. Morale (D8) feeds two knobs: a wider `safeDepthBonus` and an
+ * `exposureMultiplier` (<1 = confident units expose themselves less).
  */
-export function placementCost(unit: Unit, depth: number): number {
-  return Math.max(0, depth - safeDepth(unit)) * EXPOSURE_PER_DEPTH;
+export function placementCost(
+  unit: Unit,
+  depth: number,
+  morale: { safeDepthBonus?: number; exposureMultiplier?: number } = {},
+): number {
+  const safe = safeDepth(unit, morale.safeDepthBonus ?? 0);
+  const raw = Math.max(0, depth - safe) * EXPOSURE_PER_DEPTH;
+  return Math.round(raw * (morale.exposureMultiplier ?? 1));
 }
 
 /** Current exposure as a 0..1 fraction, for the board meter. */
@@ -68,8 +75,9 @@ export function recordPlacement(
   state: DeployExposure,
   unit: Unit,
   depth: number,
+  morale: { safeDepthBonus?: number; exposureMultiplier?: number } = {},
 ): { exposureAdded: number; captured: boolean } {
-  const cost = placementCost(unit, depth);
+  const cost = placementCost(unit, depth, morale);
   state.placements += 1;
   state.exposure += cost;
   if (!state.captured && state.exposure >= CAPTURE_THRESHOLD) {

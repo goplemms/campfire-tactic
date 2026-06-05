@@ -41,6 +41,11 @@ export interface UnitSpec extends UnitStats {
   jobId?: string;
   /** Deployment safety stat (D7/D11); defaults to 0. Higher = preps deeper safely. */
   awareness?: number;
+  /**
+   * Intel-gathering stat (D10); defaults to 0. Higher raises the party's passive
+   * intel floor (how much it sees before a fight). Distinct from awareness.
+   */
+  intelligence?: number;
 }
 
 /**
@@ -62,6 +67,8 @@ export interface Unit extends UnitStats {
   alive: boolean;
   /** Deployment safety stat (D7/D11): bigger safe allowance, gentler exposure. */
   awareness: number;
+  /** Intel-gathering stat (D10): raises the party's passive intel floor. */
+  intelligence: number;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -86,6 +93,7 @@ export function createUnit(spec: UnitSpec): Unit {
     ct: 0,
     alive: true,
     awareness: spec.awareness ?? 0,
+    intelligence: spec.intelligence ?? 0,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,

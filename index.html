@@ -13,17 +13,57 @@
         color: #c9d1d9;
         font-family: system-ui, sans-serif;
       }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
       #app {
+        flex: 1;
         display: grid;
         place-items: center;
-        min-height: 100%;
+        min-height: 0;
       }
       canvas {
         display: block;
       }
+      #runbar {
+        flex: none;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        font-size: 14px;
+      }
+      #runbar input {
+        background: #1b2030;
+        color: #e8eefc;
+        border: 1px solid #3d4b6e;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font: inherit;
+        width: 220px;
+      }
+      #runbar button {
+        background: #2f6b46;
+        color: #eafff0;
+        border: 1px solid #57b07a;
+        border-radius: 4px;
+        padding: 5px 12px;
+        font: inherit;
+        cursor: pointer;
+      }
+      #runbar button:hover {
+        background: #3a8257;
+      }
     </style>
   </head>
   <body>
+    <div id="runbar">
+      <label for="seed">Seed</label>
+      <input id="seed" type="text" placeholder="enter a seed to replay a run" />
+      <button id="newrun">New Run</button>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

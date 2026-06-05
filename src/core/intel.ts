@@ -1,0 +1,112 @@
+/**
+ * Intel (D10) — banded pre-battle knowledge via three lanes.
+ *
+ * You provision **blind-ish**; intel lifts the fog. It is **per-encounter,
+ * party-wide, and banded** into tiers separated by breakpoints:
+ *
+ *   Tier 1 — **types** (what to pack) → Tier 2 — **numbers** (what to counter) →
+ *   Tier 3 — **positions** (exactly how to deploy).
+ *
+ * Three complementary lanes climb the ladder:
+ *   1. **Passive** — the **Intelligence** stat sets a free floor.
+ *   2. **Scouting** — spend gold/a ration to buy a tier (risk lane omitted here).
+ *   3. **Divination** — the **Seer** jumps a breakpoint (reagent) or, at master
+ *      rank, reads free with a chance to jump multiple.
+ *
+ * A **Tier-3** read grants **starting vision** of the enemy's deployment, bridging
+ * to the in-battle fog-of-war seam (D18) — surfaced here as a flag the runloop
+ * wires to vision.
+ *
+ * Pure logic: no Phaser, no DOM.
+ */
+
+import type { Unit } from "./units";
+import type { Rng } from "./rng";
+import type { EncounterDef } from "./generation";
+
+/** Banded intel tier (D10). 0 = nothing known. */
+export type IntelTier = 0 | 1 | 2 | 3;
+
+/** The highest, position-revealing tier — grants starting vision (D18). */
+export const MAX_TIER: IntelTier = 3;
+
+/** What an intel read reveals about an encounter, gated by tier. */
+export interface IntelReport {
+  tier: IntelTier;
+  /** Tier ≥ 1: the *kinds* of enemies present. */
+  types?: string[];
+  /** Tier ≥ 2: how *many*. */
+  count?: number;
+  /** Tier ≥ 3: *where* they start. */
+  positions?: { name: string; col: number; row: number }[];
+  /** Tier 3 ⇒ true: the party starts the battle seeing enemy deployment (D18). */
+  grantsVision: boolean;
+}
+
+/** Intelligence breakpoints → the free passive floor tier (D10 banding). */
+export const INTEL_BREAKPOINTS: readonly { minIntelligence: number; tier: IntelTier }[] = [
+  { minIntelligence: 9, tier: 3 },
+  { minIntelligence: 6, tier: 2 },
+  { minIntelligence: 3, tier: 1 },
+  { minIntelligence: 0, tier: 0 },
+];
+
+/**
+ * Lane 1 — the passive **Intelligence** floor (D10): the free baseline tier the
+ * party reads, from its highest-Intelligence member.
+ */
+export function intelFloor(party: readonly Unit[]): IntelTier {
+  const best = party.reduce((m, u) => Math.max(m, u.intelligence ?? 0), 0);
+  for (const bp of INTEL_BREAKPOINTS) {
+    if (best >= bp.minIntelligence) return bp.tier;
+  }
+  return 0;
+}
+
+/** Clamp any number into a valid {@link IntelTier}. */
+export function clampTier(t: number): IntelTier {
+  return Math.max(0, Math.min(MAX_TIER, Math.round(t))) as IntelTier;
+}
+
+/**
+ * Lane 2 — **scouting**: spend a resource to raise the read one tier (D10). The
+ * caller owns the gold/ration cost; this just bumps the tier.
+ */
+export function scout(tier: IntelTier): IntelTier {
+  return clampTier(tier + 1);
+}
+
+/**
+ * Lane 3 — **divination** via the Seer (D10). Low rank spends a reagent to jump
+ * **one** breakpoint (reliable). Master rank reads **free** with a chance to jump
+ * **multiple** breakpoints (a variable windfall). Returns the new tier; pulls its
+ * jump from the run's deterministic `rng`.
+ */
+export function seerDivine(tier: IntelTier, rng: Rng, masterRank = false): IntelTier {
+  if (!masterRank) return clampTier(tier + 1); // reagent: reliable +1
+  const jump = rng.chance(0.4) ? 2 : 1; // free, occasionally doubles
+  return clampTier(tier + jump);
+}
+
+/**
+ * Read an encounter at a given tier (D10): reveal types → numbers → positions as
+ * the tier rises. Tier 3 sets `grantsVision`. Pure projection of the (already
+ * deterministic) encounter — adds no randomness.
+ */
+export function readEncounter(def: EncounterDef, tier: IntelTier): IntelReport {
+  const report: IntelReport = { tier, grantsVision: tier >= MAX_TIER };
+  if (tier >= 1) {
+    report.types = [...new Set(def.enemies.map((e) => e.name ?? e.id))];
+  }
+  if (tier >= 2) {
+    report.count = def.enemies.length;
+  }
+  if (tier >= 3) {
+    report.positions = def.enemies.map((e) => ({
+      name: e.name ?? e.id,
+      col: e.pos.col,
+      row: e.pos.row,
+    }));
+  }
+  return report;
+}
