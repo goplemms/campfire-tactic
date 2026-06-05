@@ -16,47 +16,50 @@ It is **not** a free setup phase. It is a **per-unit push-your-luck time gamble.
 The enemy has advance scouts; the longer a unit lingers preparing, the greater the
 chance it is caught out of position.
 
-### The exposure model — two-stage and spatial (D11)
+### The exposure model — safe period, then a retreat gamble (D11)
 
-Risk has **two axes — *how many* you place and *where* you place them** — unified
-into a two-stage model. It is fully **banded and shown on the board** (no hidden
-rolls):
+Deployment is a spatial gamble about **how far you range**, resolved as a **race
+home**. It stays **banded and shown on the board** (no hidden surprises):
 
-**Stage 1 — the safe period.** Your first placements (the **safe allowance**, sized
-in bands by Awareness) carry **zero risk**, anywhere on your side. The enemy's
-scouts haven't arrived yet.
+**Stage 1 — the safe period.** Units range out and place entities **freely, at zero
+risk** (the safe period's length is sized in bands by Awareness). The enemy's scouts
+haven't arrived yet, so where you place during this window is safe.
 
-**Stage 2 — the danger gradient.** Once the safe period ends, every tile shows a
-**banded danger reading** that grows with **distance from camp**:
+**Stage 2 — the retreat.** When the safe period closes, every still-exposed unit
+**auto-retreats** toward its nearest **safe zone** (within X tiles of your edge) —
+the player doesn't micro the walk-back; it plays out. A **capture roll fires at the
+end of each retreat step**, with per-step odds set by a **tug-of-war**:
+
+- **Proximity ↓** — each step *toward* safety lowers the chance (the distance band
+  shrinks as you near home):
 
 ```
-   CAMP ░░░░  Safe       (near home — still ~0%)
-        ▒▒▒▒  Exposed    (low %)
-        ▓▓▓▓  Hunted     (medium %)
-   ENEMY████  Cornered   (high % — out by the enemy approach)
+   CAMP ░░░░  Safe       (in the safe zone — ~0%)
+        ▒▒▒▒  Exposed    (low)
+        ▓▓▓▓  Hunted     (medium)
+   ENEMY████  Cornered   (high — out by the enemy approach)
 ```
 
-A placement's capture risk = the **band of the tile it sits on**, read right off the
-grid before you commit. So a trap by your own line stays nearly free even late,
-while a trap at the enemy's mouth is a real gamble. Resolution is **immediate, per
-placement**: put a kit on a *Hunted* tile and the roll happens then and there
-(clean feedback, no end-of-phase save-scum).
+- **Time ↑** — each step that *passes* raises the chance ("the enemy is upon you" —
+  the net closing in).
 
-This unifies the two axes cleanly: **how many** you place spends the window and ends
-the safe period (**Speed** = throughput), and **where** you place sets the risk once
-you're past safe (**distance bands**).
+So a unit caught **deep** faces both *more steps to survive* **and** a *rising* clock
+— compounding odds. A unit near home snaps back to ~0 before the clock bites. The
+**decision** was how greedy to be during the safe period; the **retreat** is the dice.
+The board shows each forward unit's **projected total retreat risk** from where it
+stands, so you commit with eyes open — you just can't un-roll it once the buzzer goes.
 
 Two stats drive the gamble (see [Stats](systems/stats.md)):
 
 | Stat | Role in Deployment |
 |---|---|
-| **Awareness** | **Safety, two ways:** a longer **safe period** *and* it pushes the danger gradient **farther out** (gentler bands for that unit). You spot the scouts coming. |
-| **Speed** | **Throughput.** More placements / more range before the window closes. (Also the unit's Combat CT stat.) |
+| **Awareness** | **Safety, two ways:** a longer **safe period** *and* gentler retreat odds (lower proximity bands / slower time pressure). You spot the scouts coming. |
+| **Speed** | **Range & throughput.** How far you can venture *and still get home*, and how many placements fit before the buzzer. (Also the unit's Combat CT stat.) |
 
 High party **morale** can nudge the safe period longer (confident troops set up
 bolder) — see [morale](systems/morale.md). And a **Tier-3 [intel](systems/intel.md)**
 read (enemy *positions*) reveals where the gradient bites hardest — so investing in
-intel makes placement safer and smarter, a deliberate cross-reinforcement of the
+intel makes ranging out safer and smarter, a deliberate cross-reinforcement of the
 prep systems.
 
 A unit may instead **hold position**: place nothing, take **zero risk**, and be
@@ -65,7 +68,8 @@ opt-in per unit: *prep (more setup, more risk)* vs. *hold (safe, no setup)*.
 
 ### Capture — the cost of overreach
 
-If a Stage-2 placement gamble fails, the unit is **captured**. A captured unit:
+If a retreat-step roll fails, the unit is **captured** (and is **repositioned into
+the enemy's safe zone** to start the battle). A captured unit:
 
 - still **appears on the battlefield**, but **bound/guarded** under enemy control;
 - does **not** count toward your **active fielded count** (effective **−1**);
@@ -124,16 +128,15 @@ seed** for both sides.
 > The canyon map from Pre-deployment loads. The party has `2 × trap kit`,
 > `1 × fire-rune reagent`, and Vale's arrows already on her.
 >
-> 1. **Bram** (Survivalist, **high Awareness**) has a **long safe period** and his
->    Awareness pushes the gradient outward. He plants **both trap kits** on the two
->    chokepoint tiles while still in his safe period — both read **Safe (~0%)**. No
->    risk taken, two traps armed.
-> 2. **Vale** (Scout, **high Speed**, modest Awareness) wants to pre-place the
->    **fire rune** deep near the enemy approach *and* move to a ledge. Her short
->    safe period ends after the move; the **rune** would sit on a **Hunted** tile
->    reading **35% capture**. The player gambles for the value. ✗ — Vale is
->    **captured**.
->    - She starts Combat **bound on a ledge tile**, guarded by 2 enemies.
+> 1. **Bram** (Survivalist, **high Awareness**) has a **long safe period**. He plants
+>    **both trap kits** on the chokepoint tiles, all within his safe window, and ends
+>    it **near home**. At the buzzer his short retreat reads **~0%** — both traps
+>    armed, no risk taken.
+> 2. **Vale** (Scout, **high Speed**, modest Awareness) ranges **deep** near the
+>    enemy approach to pre-place the **fire rune**. The board warns her projected
+>    retreat risk is **~35%**. The player gambles for the value. When the buzzer
+>    goes, Vale auto-retreats — and **fails a step roll partway home**. ✗ —
+>    **captured**, repositioned into the **enemy's safe zone**.
 >    - The side is now **3 active + 1 captured**.
 >    - Vale's Speed is dropped from the **initiative seed** → the **enemy side
 >      will act first**.
@@ -145,10 +148,11 @@ seed** for both sides.
 
 ## Open questions / future scope
 
-- Exposure model is **resolved** (D11): two-stage (safe period → distance-from-camp
-  danger gradient), banded, shown on the board, immediate per-placement resolution;
-  Awareness lengthens the safe period *and* pushes the gradient out. Only exact band
-  %s and distances are tuning.
+- Exposure model is **resolved** (D11, refined): safe period (free placement) →
+  **auto-retreat** at the buzzer with a **per-step capture roll** whose odds are
+  proximity↓ vs. time↑; banded, board shows projected retreat risk; Awareness
+  lengthens the safe period *and* softens retreat odds; Speed = range + throughput.
+  Only exact band %s, time-pressure curve, and safe-zone size are tuning.
 - Enemy-prep symmetry is **resolved** (D12): A3 fortified-encounter type;
   Intel/Awareness-gated detection; Act-cost disarm or route-around; the Snare drags
   units into in-combat capture. See [field-entities](systems/field-entities.md).

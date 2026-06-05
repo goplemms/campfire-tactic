@@ -47,10 +47,22 @@ States: `todo` → `in-progress` → `testable` → `done`
   COMPLETE — decisions D1–D16 recorded; design spine done.** **Parked for a dedicated
   discussion: Ammo** (per-unit vs pool + the "empty ranged feels bad" balance; the
   wide-logistics principle leans it toward a shared pool; carries the conditional
-  Survivalist salvage perk). Future-tagged: in-combat fog-of-war/vision; Snare
-  adjacency-accelerator variant; per-unit morale lever; the "Intelligence" stat
-  rename. **Next concrete build step is M3** (CT clock + trigger/event bus +
-  field-entity registry), now well-specified by D4/D5/D11/D12/D16.
+  Survivalist salvage perk). Future-tagged: Snare adjacency-accelerator variant;
+  per-unit morale lever; the "Intelligence" stat rename. **Next concrete build step
+  is M3** (CT clock + trigger/event bus + field-entity registry), now well-specified
+  by D4/D5/D11/D12/D16.
+- **Session play-trace (in progress):** walking a full game session to stress-test
+  the spine. Verdict so far: systems interlock cleanly (intel→provision→deploy;
+  upkeep-grace→morale; the capture→infiltrate→rescue arc). It **refined D11** (capture
+  is now a per-step **auto-retreat** gamble, proximity↓ vs time↑ — superseding the
+  old immediate-per-placement clause) and is **surfacing a new batch of open
+  questions to design** once the trace finishes: (1) **run structure** (branching
+  mission select), (2) **intel pre-selection scope** (preview the option set, extends
+  D10), (3) **recruitment** of party members mid-run, (4) **enemy traits ↔ counters**
+  (flying/Grounded, grounding nets-runes), (5) **class deploy abilities** (Rogue
+  infiltration past the safe zone), (6) **fog-of-war / vision** — promoted from
+  future to load-bearing (stealth deploys + targeting), and the already-parked
+  **Ammo** (now active in the trace).
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),

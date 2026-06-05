@@ -200,26 +200,31 @@ trail of reasoning stays intact.
   [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md).
 - **Superseded by:** —
 
-## D11 — Deployment exposure: two-stage spatial danger gradient
+## D11 — Deployment exposure: safe period + retreat-gamble (refined)
 
-- **Status:** Decided (details the D7 gamble)
+- **Status:** Decided (details the D7 gamble) · **refined 2026-06-05** per play-trace
 - **Context:** D7 set the *experience* (visible safe allowance → escalating risk) but
-  not the curve. Player added a spatial dimension: danger should also depend on
-  *where* you place, not just how many.
-- **Options considered:** (a) smooth accelerating % per overdraw placement /
-  (b) **banded risk tiers** / (c) deterministic threshold (no roll).
-- **Decision:** **(b), made spatial and two-stage.**
-  - **Stage 1 — safe period:** the first placements (safe allowance, banded by
-    Awareness) are zero-risk anywhere on your side.
-  - **Stage 2 — danger gradient:** once safe ends, every tile shows a **banded**
-    danger reading (Safe → Exposed → Hunted → Cornered) that grows with **distance
-    from camp**; a placement's risk = its tile's band. **Shown on the board**,
-    resolved **immediately per placement** (no end-of-phase save-scum).
-  - Axes unify: **how many** ends the safe period (Speed = throughput); **where**
-    sets the risk (distance bands). **Awareness does both** — longer safe period
-    *and* pushes the gradient farther out.
-  - Cross-tie: a **Tier-3 intel** read (enemy positions) reveals where the gradient
-    bites hardest, making placement safer/smarter.
+  not the curve. Player added a spatial dimension, then refined *how* it resolves.
+- **Options considered:** (a) smooth accelerating % / (b) **banded risk tiers** /
+  (c) deterministic threshold. Resolution: immediate-per-placement *vs.* a positional
+  **retreat** at the buzzer.
+- **Decision:** **(b), banded + spatial, resolved as a retreat race.**
+  - **Stage 1 — safe period:** units range out and place **freely, zero-risk** (its
+    length banded by Awareness).
+  - **Stage 2 — retreat:** at the buzzer every exposed unit **auto-retreats** to its
+    nearest **safe zone**; a **capture roll fires at the end of each step**, odds a
+    tug-of-war of **proximity↓** (distance band Safe→Exposed→Hunted→Cornered shrinks
+    toward home) and **time↑** ("the enemy is upon you"). Deep units face more steps
+    *and* a rising clock → compounding odds; near-home units snap to ~0. The board
+    shows each unit's **projected total retreat risk** (transparent; can't un-roll).
+    A failed roll → captured, **repositioned into the enemy's safe zone**.
+  - **Stats:** **Awareness** = longer safe period + gentler retreat odds; **Speed** =
+    range (venture *and get home*) + throughput.
+  - Cross-tie: a **Tier-3 intel** read reveals where the gradient bites hardest.
+- **Refinement note:** the original "immediate per-placement roll" clause is
+  **superseded** by the per-step **auto-retreat** model above (never built; refined
+  at design stage from the session play-trace). The banded/transparent/spatial
+  *spirit* is unchanged.
 - **Spec:** [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md).
 - **Superseded by:** —
 
