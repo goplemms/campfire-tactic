@@ -45,7 +45,7 @@ exercise in the browser.
 - **User-testable gate:** open the page, click a tile, and the unit walks to it
   along a valid path; pathfinding tests are green.
 
-### M3 — Turn-based battle loop (two sides, basic attack) — *testable (code complete; awaiting in-browser gate)*
+### M3 — Turn-based battle loop (two sides, basic attack) — *done (in-browser gate confirmed 2026-06-05)*
 
 - core: the **FFT-style CT clock** action economy (per-unit CT rises by Speed,
   turn at CT≥100, Move + Act; charged-ability scaffolding) per **D5**; a

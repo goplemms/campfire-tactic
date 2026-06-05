@@ -8,7 +8,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 |-----------|-------|
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | done |
-| M3 — Turn-based battle loop (CT clock + trigger bus) | testable |
+| M3 — Turn-based battle loop (CT clock + trigger bus) | done |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
@@ -19,11 +19,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M3 — Turn-based battle loop. **Code complete → `testable`**:
-  the CT clock + trigger bus and all seams are built, `npm test` is **40/40
-  green**, `npm run build` typechecks + bundles, and `core/` is verified free of
-  Phaser/DOM. Awaiting the **in-browser gate** (play a skirmish to victory/defeat
-  on the clock) to flip M3 → `done`.
+- **Milestone:** M3 — Turn-based battle loop. **DONE** (2026-06-05): the CT clock
+  + trigger bus and all seams are built, `npm test` is **40/40 green**, `npm run
+  build` typechecks + bundles, `core/` is verified free of Phaser/DOM, and the
+  **in-browser gate is confirmed** — movement + clock play correctly and a
+  skirmish reaches the Victory screen. **Next up: M4** (data-driven jobs & skills
+  + the Meta→Deployment→Battle→Resolution phase pipeline).
   - **What landed (M3):** new `core/` modules — `units.ts` (data-driven unit +
     stat block), `clock.ts` (CT clock: tick `ct += speed`, turn at `ct ≥ 100`,
     act>move spend-down, `seedInitiative` from per-side avg Speed (D11), a
