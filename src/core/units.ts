@@ -38,6 +38,8 @@ export interface UnitSpec extends UnitStats {
   name?: string;
   /** Starting HP; defaults to `maxHp`. */
   hp?: number;
+  /** Optional job id (see {@link "./jobs"}); grants the unit its skills. */
+  jobId?: string;
 }
 
 /**
@@ -49,6 +51,8 @@ export interface Unit extends UnitStats {
   readonly id: string;
   readonly side: Side;
   readonly name: string;
+  /** The unit's job, if any — the data that grants its skills. */
+  readonly jobId?: string;
   /** Current tile. Replaced wholesale on a move (never mutated in place). */
   pos: GridCoord;
   hp: number;
@@ -67,6 +71,7 @@ export function createUnit(spec: UnitSpec): Unit {
     id: spec.id,
     side: spec.side,
     name: spec.name ?? spec.id,
+    jobId: spec.jobId,
     pos: { col: spec.pos.col, row: spec.pos.row },
     hp: spec.hp ?? spec.maxHp,
     maxHp: spec.maxHp,

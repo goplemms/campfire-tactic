@@ -10,9 +10,12 @@ import {
   TILE_HEIGHT,
   Battle,
   createUnit,
+  unitSkills,
+  isValidSkillTarget,
   type GridCoord,
   type Unit,
   type Side,
+  type SkillDef,
 } from "../../core";
 
 /**
@@ -48,6 +51,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** The unit currently awaiting player input (null otherwise). */
   private waitingFor: Unit | null = null;
+  /** A skill armed and awaiting a target click (null otherwise). */
+  private armedSkill: SkillDef | null = null;
+  /** Live skill-button game objects for the current player turn. */
+  private skillButtons: Phaser.GameObjects.GameObject[] = [];
   /** True while an animation plays — input is locked. */
   private busy = false;
   private over = false;
@@ -89,8 +96,8 @@ export class BattleScene extends Phaser.Scene {
   /** The starting roster — pure data (D4 ethos). */
   private makeUnits(): Unit[] {
     return [
-      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", speed: 12, maxHp: 30, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", speed: 10, maxHp: 24, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
+      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", jobId: "soldier", speed: 12, maxHp: 30, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
+      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", jobId: "soldier", speed: 10, maxHp: 24, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
       createUnit({ id: "Grunt", side: "enemy", pos: { col: 7, row: 1 }, name: "Grunt", speed: 9, maxHp: 22, attack: 7, defense: 2, moveRange: 4, sightRadius: 5 }),
       createUnit({ id: "Brute", side: "enemy", pos: { col: 7, row: 4 }, name: "Brute", speed: 7, maxHp: 30, attack: 8, defense: 3, moveRange: 3, sightRadius: 4 }),
     ];
@@ -243,8 +250,77 @@ export class BattleScene extends Phaser.Scene {
       this.runEnemyTurn(actor);
     } else {
       this.waitingFor = actor;
-      this.setHint(`${actor.name}'s turn — click a tile to move, or an adjacent foe to attack.`);
+      this.setHint(`${actor.name}'s turn — move, attack, or use a skill.`);
+      this.showSkillButtons(actor);
     }
+  }
+
+  // --- Skill UI (M4) ---------------------------------------------------------
+
+  /** Draw a button per Battle-phase skill the acting unit's job grants. */
+  private showSkillButtons(actor: Unit): void {
+    this.clearSkillButtons();
+    const skills = unitSkills(actor, "battle");
+    const y = this.scale.height - 64;
+    const gap = 150;
+    const startX = this.scale.width / 2 - ((skills.length - 1) * gap) / 2;
+    skills.forEach((skill, i) => {
+      const x = startX + i * gap;
+      const bg = this.add
+        .rectangle(x, y, 140, 26, 0x394063)
+        .setStrokeStyle(2, 0x6f7bb0)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(12);
+      const label = this.add
+        .text(x, y, skill.name, { color: "#dfe6ff", fontSize: "13px" })
+        .setOrigin(0.5)
+        .setDepth(13);
+      bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () =>
+        this.onSkillButton(actor, skill),
+      );
+      this.skillButtons.push(bg, label);
+    });
+  }
+
+  private clearSkillButtons(): void {
+    for (const obj of this.skillButtons) obj.destroy();
+    this.skillButtons = [];
+  }
+
+  private onSkillButton(actor: Unit, skill: SkillDef): void {
+    if (this.busy || this.waitingFor !== actor) return;
+    if (skill.target === "self") {
+      // Resolve immediately — no target needed.
+      this.commitSkill(actor, skill, actor);
+      return;
+    }
+    // Arm it; the next valid target click resolves it.
+    this.armedSkill = skill;
+    this.setHint(`${skill.name}: click a valid target (or click ${actor.name} to cancel).`);
+  }
+
+  /** Apply a skill through the core, then animate it and end the turn. */
+  private commitSkill(actor: Unit, skill: SkillDef, target: Unit): void {
+    this.armedSkill = null;
+    this.waitingFor = null;
+    this.busy = true;
+    this.clearSkillButtons();
+    this.highlightTile(null);
+    const outcome = this.battle.useSkill(actor, skill, target);
+    if (skill.target === "self") {
+      this.flashHeal(target);
+    } else {
+      this.flashAttack(actor, target);
+    }
+    const verb = outcome.healed
+      ? `heals ${outcome.healed}`
+      : outcome.damage
+        ? `hits for ${outcome.damage}`
+        : outcome.status
+          ? `applies ${outcome.status}`
+          : "acts";
+    this.afterTurn();
+    if (!this.over) this.setHint(`${actor.name} used ${skill.name} — ${verb}. Advance Clock.`);
   }
 
   private runEnemyTurn(actor: Unit): void {
@@ -263,13 +339,28 @@ export class BattleScene extends Phaser.Scene {
     const tile = this.worldToTile(pointer.worldX, pointer.worldY);
     if (!this.grid.inBounds(tile)) return;
 
-    const foe = this.battle.units.find(
-      (u) => u.alive && u.side !== actor.side && u.pos.col === tile.col && u.pos.row === tile.row,
+    const clicked = this.battle.units.find(
+      (u) => u.alive && u.pos.col === tile.col && u.pos.row === tile.row,
     );
 
-    if (foe) {
-      this.playerAttackOrApproach(actor, foe);
-    } else if (this.grid.isWalkable(tile)) {
+    // A skill is armed: the next click picks its target (or cancels on self).
+    if (this.armedSkill) {
+      if (clicked === actor) {
+        this.armedSkill = null;
+        this.setHint(`${actor.name}'s turn — move, attack, or use a skill.`);
+        return;
+      }
+      if (clicked && isValidSkillTarget(this.armedSkill, actor, clicked)) {
+        this.commitSkill(actor, this.armedSkill, clicked);
+      } else {
+        this.setHint("Not a valid target for that skill.");
+      }
+      return;
+    }
+
+    if (clicked && clicked.side !== actor.side) {
+      this.playerAttackOrApproach(actor, clicked);
+    } else if (!clicked && this.grid.isWalkable(tile)) {
       this.playerMove(actor, tile);
     }
   }
@@ -304,7 +395,9 @@ export class BattleScene extends Phaser.Scene {
   /** Apply a player action through the core, then animate it. */
   private commitPlayer(actor: Unit, path: GridCoord[], target: Unit | null): void {
     this.waitingFor = null;
+    this.armedSkill = null;
     this.busy = true;
+    this.clearSkillButtons();
     this.highlightTile(null);
     if (path.length > 0) this.battle.moveUnit(actor, path);
     if (target && target.alive) this.battle.attack(actor, target);
@@ -349,6 +442,18 @@ export class BattleScene extends Phaser.Scene {
     if (tv) {
       this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true });
     }
+  }
+
+  private flashHeal(unit: Unit): void {
+    const view = this.views.get(unit.id);
+    if (!view) return;
+    this.tweens.add({
+      targets: view.container,
+      scale: 1.25,
+      duration: 130,
+      yoyo: true,
+      ease: "Quad.easeOut",
+    });
   }
 
   /** Common post-turn bookkeeping: refresh HUD, check win/lose, re-arm. */

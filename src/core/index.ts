@@ -12,4 +12,7 @@ export * from "./combat";
 export * from "./entities";
 export * from "./vision";
 export * from "./ai";
+export * from "./skills";
+export * from "./phases";
+export * from "./jobs";
 export * from "./turn";

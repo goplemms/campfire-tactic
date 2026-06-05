@@ -21,6 +21,7 @@ import { resolveAttack, battleOutcome, type BattleOutcome } from "./combat";
 import { tickStatuses } from "./status";
 import { computeVisibleTiles } from "./vision";
 import { planEnemyTurn, type AIPlan } from "./ai";
+import { resolveSkill, type SkillDef, type SkillOutcome } from "./skills";
 
 export class Battle {
   readonly grid: TileGrid;
@@ -70,6 +71,17 @@ export class Battle {
   /** Resolve a basic attack, firing damage/defeat events. Returns damage dealt. */
   attack(attacker: Unit, target: Unit): number {
     return resolveAttack(attacker, target, this.bus);
+  }
+
+  /**
+   * Resolve a job skill against a target (firing its bus events) and end the
+   * caster's turn, spending CT per the skill's cost. The single entry the render
+   * layer uses for the skill buttons.
+   */
+  useSkill(caster: Unit, skill: SkillDef, target: Unit): SkillOutcome {
+    const outcome = resolveSkill(skill, caster, target, this.bus);
+    this.endTurn(caster, { acted: skill.spend === "act", moved: skill.spend === "move" });
+    return outcome;
   }
 
   /** End a unit's turn: fire `turnEnd` and spend its CT (act costs more). */

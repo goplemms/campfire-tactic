@@ -119,4 +119,19 @@ describe("Battle orchestrator", () => {
     expect(battle.outcome().over).toBe(true);
     expect(guard).toBeLessThan(500);
   });
+
+  it("resolves a job skill and spends the caster's CT (Act cost)", () => {
+    const grid = new TileGrid(8, 1);
+    const hero = at("hero", "player", 0, 0, { attack: 8, jobId: "soldier" } as Partial<Unit>);
+    const foe = at("foe", "enemy", 1, 0, { defense: 2, hp: 30, maxHp: 30 });
+    const battle = new Battle(grid, [hero, foe]);
+    hero.ct = 100;
+
+    const powerStrike = { id: "ps", name: "PS", description: "", phase: "battle", target: "enemy", range: 1, spend: "act", effect: { kind: "damage", bonusAttack: 6 } } as const;
+    const out = battle.useSkill(hero, powerStrike, foe);
+
+    expect(out.damage).toBe(12); // (8+6) - 2
+    expect(foe.hp).toBe(18);
+    expect(hero.ct).toBe(0); // 100 - ACT_COST
+  });
 });

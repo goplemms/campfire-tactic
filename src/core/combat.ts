@@ -22,20 +22,26 @@ export function isAdjacent(a: GridCoord, b: GridCoord): boolean {
 }
 
 /** Damage a basic attack would deal: attack minus defense, floored at 1. */
-export function computeDamage(attacker: Unit, defender: Unit): number {
-  return Math.max(1, attacker.attack - defender.defense);
+export function computeDamage(
+  attacker: Unit,
+  defender: Unit,
+  attackPower: number = attacker.attack,
+): number {
+  return Math.max(1, attackPower - defender.defense);
 }
 
 /**
  * Resolve a basic attack: apply damage, emit `onUnitDamaged`, and on a kill flip
- * `alive` and emit `onUnitDefeated`. Returns the damage dealt.
+ * `alive` and emit `onUnitDefeated`. Returns the damage dealt. `attackPower`
+ * overrides the attacker's base attack (used by skills like Power Strike).
  */
 export function resolveAttack(
   attacker: Unit,
   defender: Unit,
   bus?: EventBus,
+  attackPower: number = attacker.attack,
 ): number {
-  const damage = computeDamage(attacker, defender);
+  const damage = computeDamage(attacker, defender, attackPower);
   defender.hp = Math.max(0, defender.hp - damage);
   bus?.emit("unitDamaged", { unit: defender, amount: damage, source: attacker });
   if (defender.hp <= 0 && defender.alive) {

@@ -9,7 +9,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | done |
 | M3 — Turn-based battle loop (CT clock + trigger bus) | done |
-| M4 — Data-driven jobs & skills + phase pipeline | todo |
+| M4 — Data-driven jobs & skills + phase pipeline | testable |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
@@ -19,12 +19,38 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M3 — Turn-based battle loop. **DONE** (2026-06-05): the CT clock
-  + trigger bus and all seams are built, `npm test` is **40/40 green**, `npm run
-  build` typechecks + bundles, `core/` is verified free of Phaser/DOM, and the
-  **in-browser gate is confirmed** — movement + clock play correctly and a
-  skirmish reaches the Victory screen. **Next up: M4** (data-driven jobs & skills
-  + the Meta→Deployment→Battle→Resolution phase pipeline).
+- **Milestone:** M4 — Data-driven jobs & skills + the phase pipeline. **Code
+  complete → `testable`** (developed on the same branch as M3): `npm test` is
+  **52/52 green**, `npm run build` typechecks + bundles, `core/` stays free of
+  Phaser/DOM. Awaiting the **in-browser gate** (a skill button appears on a
+  player unit's turn and visibly affects battle) to flip M4 → `done`.
+  - **What landed (M4):** new `core/` modules — `skills.ts` (skills as data: a
+    `SkillDef` declares its `phase`/`target`/`range`/`spend` + a **declarative
+    `SkillEffect`** union — `damage` / `status` / `heal` — interpreted by
+    `resolveSkill`, plus `isValidSkillTarget`), `phases.ts` (the **D3 pipeline**:
+    `PHASES` Meta→Deployment→Battle→Resolution, a `PhasePipeline` cursor, and a
+    `PhaseSkillRegistry` that buckets each unit's skills under the phase they
+    hook), `jobs.ts` (the **data file**: the `Soldier` job with three Battle-phase
+    skills — Power Strike / Hamstring / Second Wind — a `JOBS` registry, `getJob`,
+    `unitSkills(unit, phase?)`, and `registerParty`). `Unit` gained an optional
+    `jobId` link; `combat.resolveAttack` gained an optional attack-power override
+    (for Power Strike); a `unitHealed` bus event was added. `turn.ts` gained
+    `Battle.useSkill(caster, skill, target)` — the single entry the render layer
+    drives. Render: `BattleScene` now reads `unitSkills(actor, "battle")` and draws
+    a **skill button per skill**; self-skills resolve immediately, targeted skills
+    arm-then-click-a-target, with damage/heal/status feedback and HP refresh.
+  - **Why it's a clean seam:** Hamstring's Immobilized reuses the M3 status layer
+    and the AI's `isImmobilized` check (a *visible* battle effect with zero new
+    combat branches); the phase registry is the hook the Chef (Meta) / Survivalist
+    (Deployment) plug into unchanged in M5.
+  - **Tests:** `skills.test.ts` (damage > basic, heal caps at maxHp + `unitHealed`,
+    status applies, target validity by side/range/self), `jobs.test.ts` (load
+    Soldier by id, skills are data hooking Battle, `unitSkills` by phase, jobless →
+    [], `registerParty` buckets 2×3 into Battle), `phases.test.ts` (phase order,
+    pipeline advance/clamp/reset, registry buckets by phase), and a `turn.test.ts`
+    case (`Battle.useSkill` resolves Power Strike and spends Act CT).
+- **(prior) M3 — Turn-based battle loop. DONE** (2026-06-05): CT clock + trigger
+  bus + all seams; in-browser skirmish reaches Victory on the clock.
   - **What landed (M3):** new `core/` modules — `units.ts` (data-driven unit +
     stat block), `clock.ts` (CT clock: tick `ct += speed`, turn at `ct ≥ 100`,
     act>move spend-down, `seedInitiative` from per-side avg Speed (D11), a

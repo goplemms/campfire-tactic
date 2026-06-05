@@ -58,7 +58,7 @@ exercise in the browser.
   [`action-economy.md`](../../docs/design/systems/action-economy.md),
   [`field-entities.md`](../../docs/design/systems/field-entities.md).
 
-### M4 — Data-driven jobs & skills + the phase pipeline
+### M4 — Data-driven jobs & skills + the phase pipeline — *testable (code complete; awaiting in-browser gate)*
 
 - core: define jobs and skills as **data** (not hard-coded classes); introduce
   the phase pipeline **Meta → Deployment → Battle → Resolution**. Ship one combat

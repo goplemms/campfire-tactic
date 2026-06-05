@@ -24,6 +24,7 @@ export interface BattleEvents {
   unitEnterTile: { unit: Unit; tile: GridCoord; forced?: boolean };
   unitLeaveTile: { unit: Unit; tile: GridCoord };
   unitDamaged: { unit: Unit; amount: number; source?: Unit };
+  unitHealed: { unit: Unit; amount: number; source?: Unit };
   unitDefeated: { unit: Unit; source?: Unit };
   /** A scheduled/charged effect resolved on the timeline (D5/D16). */
   chargeResolved: { id: string };
