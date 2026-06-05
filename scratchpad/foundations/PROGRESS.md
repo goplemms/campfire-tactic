@@ -6,7 +6,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 
 | Milestone | State |
 |-----------|-------|
-| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | testable |
+| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
 | M2 — Isometric grid + a unit that moves | todo |
 | M3 — Turn-based battle loop | todo |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
@@ -18,15 +18,14 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M1 — Walking skeleton (code complete; awaiting in-browser gate
-  confirmation).
-- **Last green sha:** committed in this change (Vite + TS + Phaser 3 + Vitest,
-  `core/` iso math with 3 passing tests, `game/` IsoScene draws a 6×6 grid).
-- **What landed:** `npm test` → 3/3 green; `npm run build` typechecks + bundles;
-  `npm run dev` serves the page; `core/` verified free of Phaser/DOM imports.
-- **Next step:** confirm the user-testable gate in a browser (`npm run dev` shows
-  the isometric tiles), then begin M2 — iso grid + a unit that moves
-  (A* pathfinding in `core`, click-to-move in `game`).
+- **Milestone:** M2 — Isometric grid + a unit that moves (not started).
+- **Last green sha:** M1 merged to `main` as `e359e73` (merge of `f7412ee`);
+  in-browser gate confirmed (iso tiles render). `npm test` 3/3 green.
+- **Next step:** M2 — `core`: tile-grid model, iso/grid coordinate math (have
+  the projection from M1), A* pathfinding (pure, unit-tested). `game`: draw the
+  iso grid, place one unit, click-to-move along a valid path.
+- **Workflow note:** this session can only push to its own branch, not `main`
+  directly (branch-ownership gate). Land each milestone via branch → PR → merge.
 - **Note:** npm "latest" is now Phaser 4; we deliberately pinned Phaser 3 (`^3.90.0`)
   to honor decision D1. Revisit as a tracked pivot if we ever want Phaser 4.
 - **Blockers:** none.
