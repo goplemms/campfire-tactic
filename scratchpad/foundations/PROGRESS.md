@@ -10,7 +10,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M2 — Isometric grid + a unit that moves | done |
 | M3 — Turn-based battle loop (CT clock + trigger bus) | done |
 | M4 — Data-driven jobs & skills + phase pipeline | done |
-| M5 — Signature non-combat jobs (chef / survivalist / merchant) | testable |
+| M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
 
@@ -19,11 +19,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M5 — Signature non-combat jobs. **Code complete → `testable`**
-  (same branch as M3/M4): `npm test` is **61/61 green**, `npm run build`
-  typechecks + bundles, `core/` stays free of Phaser/DOM. Awaiting the
-  **in-browser gate** (run the mini-loop: Merchant adds gold/storage in camp,
-  Chef buff heals the party, a Survivalist-placed trap springs in the battle).
+- **Milestone:** M5 — Signature non-combat jobs. **DONE** (2026-06-05): `npm test`
+  **61/61 green**, `npm run build` clean, `core/` free of Phaser/DOM, and the
+  **in-browser gate is confirmed** — the camp→deploy→battle mini-loop ran: the
+  Chef's cooking buff healed the party and a Survivalist-placed trap sprang in the
+  following battle. **Next up: a contributor guide for adding new abilities**
+  (requested), then M5b / M6.
   - **What landed (M5):** new `core/` modules — `camp.ts` (Meta state: gold,
     storageCap, morale + `moraleTier` banding (D8), a banked `pendingHeal`;
     `applyCampSkill` for Merchant `economy` / Chef `morale` effects;

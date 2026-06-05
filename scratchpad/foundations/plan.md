@@ -67,7 +67,7 @@ exercise in the browser.
   visibly affects battle (a skill button appears and works); job-loading tests
   are green.
 
-### M5 — The signature non-combat jobs (the hook) — *testable (code complete; awaiting in-browser gate)*
+### M5 — The signature non-combat jobs (the hook) — *done (in-browser gate confirmed 2026-06-05)*
 
 - Implement the three jobs that make this game itself, each deliberately hooking
   a *different* phase to prove the architecture:
