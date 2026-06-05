@@ -55,6 +55,8 @@ export class BattleScene extends Phaser.Scene {
   private armedSkill: SkillDef | null = null;
   /** Live skill-button game objects for the current player turn. */
   private skillButtons: Phaser.GameObjects.GameObject[] = [];
+  /** The current turn prompt, restored after a transient hover description. */
+  private lastHint = "";
   /** True while an animation plays — input is locked. */
   private busy = false;
   private over = false;
@@ -79,7 +81,7 @@ export class BattleScene extends Phaser.Scene {
       .text(12, 12, "", { color: "#cdd7ee", fontSize: "13px", lineSpacing: 3 })
       .setDepth(10);
     this.hintText = this.add
-      .text(this.scale.width / 2, this.scale.height - 56, "", {
+      .text(this.scale.width / 2, this.scale.height - 104, "", {
         color: "#9fb0d0",
         fontSize: "14px",
       })
@@ -199,7 +201,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private setHint(text: string): void {
+    this.lastHint = text;
     this.hintText.setText(text);
+  }
+
+  /** Show transient text (e.g. a skill description on hover) without losing the
+   * underlying turn prompt, which {@link restoreHint} brings back. */
+  private showTransientHint(text: string): void {
+    this.hintText.setText(text);
+  }
+
+  private restoreHint(): void {
+    this.hintText.setText(this.lastHint);
   }
 
   private highlightTile(coord: GridCoord | null): void {
@@ -261,13 +274,14 @@ export class BattleScene extends Phaser.Scene {
   private showSkillButtons(actor: Unit): void {
     this.clearSkillButtons();
     const skills = unitSkills(actor, "battle");
-    const y = this.scale.height - 64;
+    // Own band, clear of the hint line (above) and the Advance button (below).
+    const y = this.scale.height - 66;
     const gap = 150;
     const startX = this.scale.width / 2 - ((skills.length - 1) * gap) / 2;
     skills.forEach((skill, i) => {
       const x = startX + i * gap;
       const bg = this.add
-        .rectangle(x, y, 140, 26, 0x394063)
+        .rectangle(x, y, 144, 30, 0x394063)
         .setStrokeStyle(2, 0x6f7bb0)
         .setInteractive({ useHandCursor: true })
         .setDepth(12);
@@ -278,6 +292,15 @@ export class BattleScene extends Phaser.Scene {
       bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () =>
         this.onSkillButton(actor, skill),
       );
+      // Hover surfaces the description on the hint line; leaving restores the prompt.
+      bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+        bg.setFillStyle(0x4a5482);
+        this.showTransientHint(`${skill.name} — ${skill.description}`);
+      });
+      bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+        bg.setFillStyle(0x394063);
+        this.restoreHint();
+      });
       this.skillButtons.push(bg, label);
     });
   }
