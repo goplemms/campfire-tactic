@@ -16,26 +16,48 @@ It is **not** a free setup phase. It is a **per-unit push-your-luck time gamble.
 The enemy has advance scouts; the longer a unit lingers preparing, the greater the
 chance it is caught out of position.
 
-### The exposure model (transparent, not a hidden roll)
+### The exposure model — two-stage and spatial (D11)
 
-Each unit that *participates* in prep has a visible **exposure meter**:
+Risk has **two axes — *how many* you place and *where* you place them** — unified
+into a two-stage model. It is fully **banded and shown on the board** (no hidden
+rolls):
 
-- A **safe allowance** — placements inside it carry **no risk**.
-- An **overdraw zone** — each placement past the allowance adds a **shown,
-  escalating capture risk**.
+**Stage 1 — the safe period.** Your first placements (the **safe allowance**, sized
+in bands by Awareness) carry **zero risk**, anywhere on your side. The enemy's
+scouts haven't arrived yet.
 
-The point of the gamble is that the danger is *legible*: the player sees "place a
-3rd trap → 35% capture" and chooses to push or not. No surprise coin-flips.
+**Stage 2 — the danger gradient.** Once the safe period ends, every tile shows a
+**banded danger reading** that grows with **distance from camp**:
+
+```
+   CAMP ░░░░  Safe       (near home — still ~0%)
+        ▒▒▒▒  Exposed    (low %)
+        ▓▓▓▓  Hunted     (medium %)
+   ENEMY████  Cornered   (high % — out by the enemy approach)
+```
+
+A placement's capture risk = the **band of the tile it sits on**, read right off the
+grid before you commit. So a trap by your own line stays nearly free even late,
+while a trap at the enemy's mouth is a real gamble. Resolution is **immediate, per
+placement**: put a kit on a *Hunted* tile and the roll happens then and there
+(clean feedback, no end-of-phase save-scum).
+
+This unifies the two axes cleanly: **how many** you place spends the window and ends
+the safe period (**Speed** = throughput), and **where** you place sets the risk once
+you're past safe (**distance bands**).
 
 Two stats drive the gamble (see [Stats](systems/stats.md)):
 
 | Stat | Role in Deployment |
 |---|---|
-| **Awareness** | **Safety.** Bigger safe allowance; lower exposure added per overdraw placement. (You spot the scouts coming.) |
-| **Speed** | **Throughput.** More placements fit in the window before it closes. (Also the unit's Combat CT stat.) |
+| **Awareness** | **Safety, two ways:** a longer **safe period** *and* it pushes the danger gradient **farther out** (gentler bands for that unit). You spot the scouts coming. |
+| **Speed** | **Throughput.** More placements / more range before the window closes. (Also the unit's Combat CT stat.) |
 
-High party **morale** can nudge the safe allowance upward (confident troops set up
-bolder) — see [morale](systems/morale.md).
+High party **morale** can nudge the safe period longer (confident troops set up
+bolder) — see [morale](systems/morale.md). And a **Tier-3 [intel](systems/intel.md)**
+read (enemy *positions*) reveals where the gradient bites hardest — so investing in
+intel makes placement safer and smarter, a deliberate cross-reinforcement of the
+prep systems.
 
 A unit may instead **hold position**: place nothing, take **zero risk**, and be
 **ready** (well-positioned, full kit) when Combat starts. Deployment is therefore
@@ -43,7 +65,7 @@ opt-in per unit: *prep (more setup, more risk)* vs. *hold (safe, no setup)*.
 
 ### Capture — the cost of overreach
 
-If an overdraw gamble fails, the unit is **captured**. A captured unit:
+If a Stage-2 placement gamble fails, the unit is **captured**. A captured unit:
 
 - still **appears on the battlefield**, but **bound/guarded** under enemy control;
 - does **not** count toward your **active fielded count** (effective **−1**);
@@ -88,13 +110,15 @@ seed** for both sides.
 > The canyon map from Pre-deployment loads. The party has `2 × trap kit`,
 > `1 × fire-rune reagent`, and Vale's arrows already on her.
 >
-> 1. **Bram** (Survivalist, **high Awareness**) has a generous safe allowance. He
->    plants **both trap kits** on the two canyon-mouth tiles — both **inside his
->    safe zone**, exposure stays at 0%. No risk taken, two traps armed.
+> 1. **Bram** (Survivalist, **high Awareness**) has a **long safe period** and his
+>    Awareness pushes the gradient outward. He plants **both trap kits** on the two
+>    chokepoint tiles while still in his safe period — both read **Safe (~0%)**. No
+>    risk taken, two traps armed.
 > 2. **Vale** (Scout, **high Speed**, modest Awareness) wants to pre-place the
->    **fire rune** deep near the enemy approach *and* move to a ledge. Her first
->    placement is safe; the **rune** pushes her into **overdraw**: the meter shows
->    **35% capture**. The player gambles for the value. ✗ — Vale is **captured**.
+>    **fire rune** deep near the enemy approach *and* move to a ledge. Her short
+>    safe period ends after the move; the **rune** would sit on a **Hunted** tile
+>    reading **35% capture**. The player gambles for the value. ✗ — Vale is
+>    **captured**.
 >    - She starts Combat **bound on a ledge tile**, guarded by 2 enemies.
 >    - The side is now **3 active + 1 captured**.
 >    - Vale's Speed is dropped from the **initiative seed** → the **enemy side
@@ -107,8 +131,11 @@ seed** for both sides.
 
 ## Open questions / future scope
 
-- Exact exposure curve (linear? accelerating?) and how Awareness scales it: TBD.
+- Exposure model is **resolved** (D11): two-stage (safe period → distance-from-camp
+  danger gradient), banded, shown on the board, immediate per-placement resolution;
+  Awareness lengthens the safe period *and* pushes the gradient out. Only exact band
+  %s and distances are tuning.
 - Whether enemies also pre-place hazards (symmetry) and whether Awareness lets you
-  **detect** them during your own Deployment: noted, deferred.
+  **detect** them during your own Deployment: **Q4, in progress.**
 - Guard composition for captured units (how hard a rescue is) is encounter-driven;
   generation rules come with the run loop (M6).

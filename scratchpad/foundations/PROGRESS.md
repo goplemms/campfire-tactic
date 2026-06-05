@@ -33,9 +33,10 @@ States: `todo` → `in-progress` → `testable` → `done`
 - **Open-questions pass (in progress):** working through the design docs' open
   questions one by one. **Resolved Q1** (morale + mortality/recovery/difficulty →
   D8/D9) and **Q2** (intel: three lanes, banded tiers, new Intelligence stat, Seer
-  job, banding convention → D10; new `systems/intel.md`). **Next: Q3 — the exposure
-  curve** (shape of the Deployment overdraw risk + how Awareness scales it).
-  Remaining after: enemy-prep symmetry, material recovery all-or-nothing vs partial,
+  job, banding convention → D10; new `systems/intel.md`), and **Q3** (Deployment
+  exposure: two-stage spatial danger gradient, banded + shown on the board → D11).
+  **Next: Q4 — enemy-prep symmetry** (do enemies pre-place hazards; can you
+  detect/disarm them?). Remaining after: material recovery all-or-nothing vs partial,
   inventory slot model, ammo per-unit vs pool, material spoilage, entity stacking.
   Also logged as future: in-combat fog-of-war/vision (distinct from pre-battle
   intel).

@@ -199,3 +199,26 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/intel.md`](../../docs/design/systems/intel.md),
   [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md).
 - **Superseded by:** —
+
+## D11 — Deployment exposure: two-stage spatial danger gradient
+
+- **Status:** Decided (details the D7 gamble)
+- **Context:** D7 set the *experience* (visible safe allowance → escalating risk) but
+  not the curve. Player added a spatial dimension: danger should also depend on
+  *where* you place, not just how many.
+- **Options considered:** (a) smooth accelerating % per overdraw placement /
+  (b) **banded risk tiers** / (c) deterministic threshold (no roll).
+- **Decision:** **(b), made spatial and two-stage.**
+  - **Stage 1 — safe period:** the first placements (safe allowance, banded by
+    Awareness) are zero-risk anywhere on your side.
+  - **Stage 2 — danger gradient:** once safe ends, every tile shows a **banded**
+    danger reading (Safe → Exposed → Hunted → Cornered) that grows with **distance
+    from camp**; a placement's risk = its tile's band. **Shown on the board**,
+    resolved **immediately per placement** (no end-of-phase save-scum).
+  - Axes unify: **how many** ends the safe period (Speed = throughput); **where**
+    sets the risk (distance bands). **Awareness does both** — longer safe period
+    *and* pushes the gradient farther out.
+  - Cross-tie: a **Tier-3 intel** read (enemy positions) reveals where the gradient
+    bites hardest, making placement safer/smarter.
+- **Spec:** [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md).
+- **Superseded by:** —
