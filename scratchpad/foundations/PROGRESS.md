@@ -6,8 +6,8 @@ Resume/survival file. If context is lost, this page alone should let work resume
 
 | Milestone | State |
 |-----------|-------|
-| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | testable |
-| M2 — Isometric grid + a unit that moves | todo |
+| M1 — Walking skeleton (Vite + Phaser + TS, core/render split) | done |
+| M2 — Isometric grid + a unit that moves | testable |
 | M3 — Turn-based battle loop | todo |
 | M4 — Data-driven jobs & skills + phase pipeline | todo |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | todo |
@@ -18,15 +18,21 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M1 — Walking skeleton (code complete; awaiting in-browser gate
-  confirmation).
-- **Last green sha:** committed in this change (Vite + TS + Phaser 3 + Vitest,
-  `core/` iso math with 3 passing tests, `game/` IsoScene draws a 6×6 grid).
-- **What landed:** `npm test` → 3/3 green; `npm run build` typechecks + bundles;
-  `npm run dev` serves the page; `core/` verified free of Phaser/DOM imports.
-- **Next step:** confirm the user-testable gate in a browser (`npm run dev` shows
-  the isometric tiles), then begin M2 — iso grid + a unit that moves
-  (A* pathfinding in `core`, click-to-move in `game`).
+- **Milestone:** M3 — Turn-based battle loop (next up). M2 is code complete and
+  awaiting its in-browser gate confirmation.
+- **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
+  per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
+  (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),
+  plus `game/IsoScene.ts` rebuilt to draw an 8×8 iso grid with blocked walls,
+  one unit, and click-to-move that animates along the A* path.
+- **What landed:** `npm test` → 14/14 green (3 iso + 5 grid + 6 pathfinding,
+  covering a straight path, routing around a blocked tile, no-path-exists, and
+  start==goal); `npm run build` typechecks + bundles; `core/` verified free of
+  Phaser/DOM imports.
+- **Next step:** confirm the M2 user-testable gate in a browser (`npm run dev`:
+  click a tile, the unit walks there routing around walls), then begin M3 —
+  turn/initiative order, action economy (move + act), attack/damage, win/lose,
+  an End Turn button, and a basic enemy AI.
 - **Note:** npm "latest" is now Phaser 4; we deliberately pinned Phaser 3 (`^3.90.0`)
   to honor decision D1. Revisit as a tracked pivot if we ever want Phaser 4.
 - **Blockers:** none.
