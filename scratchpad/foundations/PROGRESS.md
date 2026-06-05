@@ -37,12 +37,14 @@ States: `todo` → `in-progress` → `testable` → `done`
   exposure: two-stage spatial danger gradient, banded + shown on the board → D11),
   **Q4** (enemy-prep symmetry: A3 fortified encounters, Intel/Awareness
   detection, Act-cost disarm, and the Snare → unified in-combat capture → D12), and
-  **Q5** (material recovery: outcome-gated whole-field win-recovers-all incl. enemy
-  salvage + entity durability → D13), and **Q6** (inventory: party-wide slotted
-  stacks + the "wide logistics, micro at the unit" principle → D14). **Next: Q8 —
-  material spoilage** (do materials degrade over a run?), then **Q9 — entity
-  stacking** (can placeables combine?). **Parked for a dedicated discussion: Ammo**
-  (per-unit vs pool + the "empty ranged feels bad" balance; carries the conditional
+  **Q5** (material recovery → D13), **Q6** (inventory: party-wide slotted stacks +
+  "wide logistics, micro at the unit" → D14), and **Q8** (spoilage → **dropped** in
+  favor of **Upkeep**: gold as the solvent for maintenance chores, with funded/
+  underfunded Food + Repairs lines, gear-condition replacing equipment durability,
+  and debt → morale → desertion → D15). **Next: Q9 — entity stacking** (can
+  placeables combine?) — the last item in the main list. **Parked for a dedicated
+  discussion: Ammo** (per-unit vs pool + the "empty ranged feels bad" balance; the
+  wide-logistics principle leans it toward a shared pool; carries the conditional
   Survivalist salvage perk). Also logged as future: in-combat fog-of-war/vision;
   Snare adjacency-accelerator variant.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +

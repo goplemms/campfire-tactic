@@ -40,18 +40,20 @@ next Meta/Pre-deployment phase, until the run ends in victory or death.
 > Continuing from Combat: the party won the canyon fight and **held the ground**.
 >
 > 1. **Material recovery.** Both traps **sprung** (gone). The fire rune was
->    **detonated** (gone). But `1 × ration` was never eaten and **1 spare trap kit**
->    was never deployed — both **recovered** to storage.
+>    **detonated** (gone). But **1 spare trap kit** was never deployed and a downed
+>    **enemy snare** is intact — both **salvaged** to storage (a clean win controls
+>    the whole field).
 > 2. **Captures.** Vale was **rescued** mid-fight → she returns to the roster
 >    unharmed (if she'd been left bound at battle's end, she'd be **dead**).
 > 3. **Rewards.** Loot + **180 gold** (Merchant bonus applied). Spent consumables
->    (`12 arrows`, `2 trap kits`, `1 rune reagent`) are deducted from the ledger.
+>    (`18 arrows`, `2 trap kits`, `1 rune reagent`) are deducted from the ledger.
 > 4. **Morale & state.** The rescue lifts party **morale +1**; the Chef's banked
 >    stew heal was consumed at battle start, so it clears. Run state updates: 4
->    survivors, storage now holding the recovered ration + trap kit, 180g added.
+>    survivors, storage now holding the recovered kit + salvaged snare, 180g — ready
+>    to pay next night's **Upkeep**.
 >
 > Control returns to **Pre-deployment** for the next encounter — now with a little
-> more gold and a recovered trap kit to re-provision around.
+> more gold and salvage to re-provision around.
 
 ## Open questions / future scope
 

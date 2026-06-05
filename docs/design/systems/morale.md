@@ -53,11 +53,16 @@ effects that reinforce systems we already have:
 
 ### What moves morale
 
-- **Up:** the Chef cooking (rations → morale, see
+- **Up:** the Chef's **morale meals** (see
   [Pre-deployment](../01-pre-deployment.md)); a clean **rescue**.
 - **Down:** **abandoning** a captured ally (declining/expiring their rescue quest);
-  losing a unit. Per the *punish-choices-not-execution* philosophy, the heaviest
-  morale hits come from **choices** (abandonment), not from a hard-fought loss.
+  losing a unit; **underfunding [Upkeep](logistics.md)** — skipping **food** is a
+  fast, **high** hit, letting **repairs** slide is a slower, **moderate** one. Per
+  the *punish-choices-not-execution* philosophy, the heaviest hits come from
+  **choices** (abandonment, neglect), not from a hard-fought loss.
+- **Desertion:** sustained **Low** morale, night over night, eventually makes a unit
+  **walk** — the terminal stake of letting the party rot. (Party-wide morale must
+  pick a victim, a natural hook toward the per-unit-morale lever below.)
 
 ## Pseudo-example
 

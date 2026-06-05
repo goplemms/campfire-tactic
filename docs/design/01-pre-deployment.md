@@ -17,14 +17,24 @@ that don't act on the map do their work:
 
 - **Merchant** — buy/sell equipment, generate gold, and (crucially) **set how
   much storage** the party has. Storage is the master cap on everything carried.
-- **Chef** — **cook**, converting rations into party **morale** (see
-  [morale](systems/morale.md)) and a banked between-battle **heal/buff** that the
-  squad carries into the next fight.
+- **Chef** — owns the **Food** line of [Upkeep](systems/logistics.md) (lowers the
+  per-unit cost), and provides **morale** (see [morale](systems/morale.md)) via meals
+  and a banked between-battle **heal/buff**. Food is paid as Upkeep gold, *not*
+  carried as a storage item.
 - **Quartermaster role (any unit)** — **load the loadout**: distribute ammo, trap
-  kits, rune reagents, and rations into limited storage slots.
+  kits, and rune reagents into limited storage slots.
 - **Seer** — **gather [intel](systems/intel.md)** on the coming fight, reading a
   divination reagent (or, at master rank, freely) to lift the provisioning fog. The
   exemplar intel job (the intel counterpart to the Survivalist's traps).
+
+### Camp: Upkeep
+
+Each night the camp menu shows **Upkeep** — one **gold figure** covering party
+maintenance (Food via the Chef, Repairs via a Blacksmith, …), per the
+**gold-as-solvent** convention (D15). Pay it in full (the chore), or **underfund a
+line** when broke (the *choice*): skipping **food** is a fast, **high** morale hit;
+letting **repairs** slide is a slower, **moderate** hit that also drops **gear
+condition** (−defense, −crit). See [logistics](systems/logistics.md).
 
 ### Camp: recovery & revival
 
@@ -62,17 +72,19 @@ Key tensions a crunch player optimizes here:
 >
 > 1. **Merchant.** The player sells salvaged scrap (+60g → 300g) and considers a
 >    storage upgrade (+2 slots for 150g) but holds off — too expensive this early.
-> 2. **Loadout.** With 8 slots and a canyon ahead, the player loads:
+> 2. **Upkeep.** The camp shows Upkeep **6g** (Food `4g` after the Chef's discount,
+>    Repairs `2g`). The player pays it in full this night → no morale or gear hit.
+>    (300g → 294g.)
+> 3. **Loadout.** With 8 slots and a canyon ahead, the player loads:
 >    - `2 × trap kit` (2 slots) — chokepoints love traps,
->    - `12 × arrow` (2 slots) — Vale's ammo for the fight,
+>    - `18 × arrow` (3 slots @6) — Vale's ammo,
 >    - `1 × fire-rune reagent` (1 slot),
->    - `3 × rations` (3 slots).
+>    - `1 × nest lumber` (2 slots, bulky).
 >    Storage is now **full (8/8)**. The player *wanted* a second rune but has no
 >    room — a direct consequence of not buying the storage upgrade.
-> 3. **Chef.** Cooks 2 rations into a **hearty stew**: party morale +1 and a
->    banked **squad heal** (small HP restore applied at the start of next battle).
->    One ration is kept in reserve.
-> 4. **Commit.** The player locks the loadout and advances to **Deployment**. The
+> 4. **Chef.** Buys a **hearty stew** morale meal (gold): party morale +1 and a
+>    banked **squad heal** (small HP restore at the start of next battle).
+> 5. **Commit.** The player locks the loadout and advances to **Deployment**. The
 >    canyon map loads; the shop is now closed for this encounter.
 
 ## Open questions / future scope

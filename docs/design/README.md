@@ -25,6 +25,10 @@ who enjoys *crunch*: legible systems with deep, interacting decisions.
   **party/macro** level (shared pools, provisioning); the turn-to-turn
   micro-management lives at **unit control** (positioning, action economy, placement,
   triage). Pre-answers many "shared vs. per-unit" forks.
+- **Gold is the solvent for chores; bespoke systems for choices.** A mechanic that's
+  an interesting in-the-moment *choice* gets its own system; a necessary *chore*
+  collapses into a gold cost (the one **Upkeep** figure). Keeps the meter count low —
+  a handful of tactical systems + one gold dial (decision D15).
 
 ## The loop
 

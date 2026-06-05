@@ -291,3 +291,30 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md),
   [`docs/design/README.md`](../../docs/design/README.md) (Conventions).
 - **Superseded by:** —
+
+## D15 — Upkeep: gold as the common denominator for maintenance
+
+- **Status:** Decided (also resolves the Q8 "material spoilage" question)
+- **Context:** Risk of *too many parallel meters*. Need a way to keep the logistics
+  fantasy without burying the player in upkeep systems.
+- **Decision:** **Collapse maintenance into a single gold Upkeep figure.** Dividing
+  test: **interesting in-the-moment choice → its own system; necessary chore → a gold
+  cost.** Bespoke (kept): CT clock, Deployment gamble, intel tiers, capture/rescue,
+  RP triage, entity durability. Collapsed to gold: feeding, repairs, restock,
+  emergency revive (the cleric, already gold).
+  - **Upkeep = Σ per-job budget lines**, shown as one camp-menu number; adding a
+    maintenance job adds a *line*, not a meter. Pay the total (chore) or **underfund a
+    line** when broke (the *choice*).
+  - **Categories (banded):** **Food** (Chef-owned, 1-night grace, **high** morale hit
+    on breach) and **Repairs** (Blacksmith-owned, ~3-night grace, **moderate** morale
+    hit + **gear condition** drop: −defense, −crit). Extensible.
+  - **Gear condition replaces per-item equipment durability** — one funded/unfunded
+    state + grace, then blanket penalties (no per-weapon meter).
+  - **Debt = morale (option A):** unpaid Upkeep hits morale (D8); sustained **Low**
+    morale night-over-night risks **desertion**. No new meter.
+  - **Q8 resolved:** per-item **spoilage is dropped**; food is Upkeep gold (off the
+    storage slots), so hoarding pressure is the steady gold drain instead of item rot.
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (Upkeep), [`docs/design/systems/morale.md`](../../docs/design/systems/morale.md),
+  [`docs/design/01-pre-deployment.md`](../../docs/design/01-pre-deployment.md).
+- **Superseded by:** —

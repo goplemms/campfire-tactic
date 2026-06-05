@@ -49,13 +49,39 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
   feels *useless* once empty is bad. Per-unit vs. shared pool, and the empty-feels-bad
   balance, are deferred to their own discussion; a possible **Survivalist salvage
   perk** (retrieve a higher % of spent ammo) rides on whatever we choose.
-- **Rations** — the **Chef's** input; cooked into morale and banked heals.
-- **Gold** — earned in Resolution (Merchant bonus), spent in Pre-deployment.
+- **Gold** — earned in Resolution (Merchant bonus), spent in Pre-deployment on
+  provisioning **and Upkeep** (below).
+- **Upkeep** — the party's per-night maintenance, expressed as **one gold figure**
+  (see below). Food is part of Upkeep, *not* a carried item — so it never competes
+  for storage slots.
+
+### Upkeep — gold as the solvent for chores (D15)
+
+Per the **gold-as-solvent** convention, *maintenance* (a chore) collapses into a
+single **Upkeep** number on the camp menu, while *tactical* systems stay bespoke.
+The dividing test: **interesting in-the-moment choice → its own system; necessary
+chore → a gold cost.**
+
+Upkeep is the **sum of per-job budget lines**; adding a maintenance job adds a line,
+not a meter. You pay the total (the common case = one number), or **underfund a
+line** when broke (the *choice* — what do I let slide?):
+
+| Category | Owner | Grace | Breach → morale | Breach → mechanical |
+|---|---|---|---|---|
+| **Food** | Chef | 1 night | **High** | — (hunger is morale only) |
+| **Repairs** | Blacksmith | ~3 nights | **Moderate** | **gear condition** drops: −defense, −crit |
+
+- The **Chef** lowers the per-unit food cost (e.g. 2g → 1g); special **morale meals**
+  are optional gold purchases that boost/guarantee morale.
+- **Repairs replace per-item equipment durability:** one funded/unfunded state +
+  grace, then blanket combat penalties — gear wear with no per-weapon meter. (Distinct
+  from entity `durability`, D13.)
+- Sustained **Low** [morale](morale.md), night over night, risks **desertion**.
 
 ### The loop (why it's a pillar, not a chore)
 
 ```
-Pre-deployment: spend gold + storage to provision (blind-ish to the fight)
+Pre-deployment: pay Upkeep (one gold figure); spend gold + storage to provision
    Deployment:  commit materials spatially, gambling time/exposure
      Combat:    consume ammo, spring traps, detonate runes
    Resolution:  win → recover unsprung (incl. enemy salvage); earn gold; deduct spend
@@ -68,20 +94,23 @@ system.
 
 ## Pseudo-example
 
-> **8 storage slots.** Heading into a canyon, the player loads `2 × trap kit`,
-> `12 × arrow`, `1 × rune reagent`, `3 × rations` → **8/8 full**. They *wanted* a
-> second rune but had no room — a direct cost of skipping the Merchant's storage
-> upgrade.
+> **Upkeep first.** The camp menu shows Upkeep **6g** (food `4g` after the Chef's
+> discount + repairs `2g`). Gold is tight, so the player **underfunds repairs** this
+> night — a moderate morale hit and gear condition starts to slide, but food stays
+> covered (skipping *that* would gut morale immediately).
+>
+> **8 storage slots** (food isn't here — it's Upkeep). The player loads `2 × trap
+> kit`, `18 × arrow` (3 slots @6), `1 × rune reagent`, `1 × nest lumber` (2, bulky)
+> → **8/8 full**. They *wanted* a second rune but had no room — a direct cost of
+> skipping the Merchant's storage upgrade.
 >
 > - **Deployment:** both trap kits placed; rune placed (Vale captured doing it).
-> - **Combat:** Vale fires 12 arrows (now **0 ammo** — she finishes the fight in
->   melee); both traps spring; the rune is detonated.
-> - **Resolution:** party held the ground → the **1 unused trap kit** and **1
->   uneaten ration** are **recovered**; `12 arrows / 1 trap kit / 1 rune reagent`
->   are deducted; **+180 gold**.
+> - **Combat:** Vale fires her arrows; both traps spring; the rune is detonated.
+> - **Resolution:** party held the ground → the **intact nest** (and a salvaged
+>   **enemy snare**) are **recovered**; spent materials are deducted; **+180 gold**.
 >
-> Next Pre-deployment, the player can finally afford the **+2 storage upgrade** —
-> and now there's room for that second rune.
+> Next Pre-deployment, the player can finally afford repairs *and* the **+2 storage
+> upgrade** — and now there's room for that second rune.
 
 ## Open questions / future scope
 
