@@ -13,15 +13,21 @@
         color: #c9d1d9;
         font-family: system-ui, sans-serif;
       }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
       #app {
+        flex: 1;
         display: grid;
         place-items: center;
-        min-height: 100%;
+        min-height: 0;
       }
       canvas {
         display: block;
       }
       #runbar {
+        flex: none;
         display: flex;
         gap: 8px;
         align-items: center;
