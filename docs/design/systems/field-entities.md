@@ -80,6 +80,23 @@ before any field entity exists** — that's the cheap insurance that stops traps
 runes from becoming bolt-ons. Today the bus may have zero or one listener; the
 shape is what matters.
 
+### Chaining — entity combos (D16, provisional)
+
+Entities don't *merge*; they **chain through the bus**. When one fires, it inspects
+its **own tile and 4-adjacent neighbors** (matching the grid's 4-connectivity) for
+entities to set off — and **schedules the reaction onto the [CT clock](action-economy.md)
+with a `speed`**. This reuses the charged-ability machinery wholesale:
+
+- `speed = instant` → the chained effect fires immediately.
+- `speed < instant` → it becomes a **timer** that resolves later on the timeline —
+  *counterplayable*, exactly like a slow charged spell (it can be disrupted before it
+  lands).
+
+So a trap can **instantly** chain a snare, or kick off a **delayed** ritual that
+erupts a few ticks later — combos with real timing texture, and **zero new systems**
+(just a listener that schedules a CT event). This is the lowest-confidence design
+call so far; expect to **revisit it** once the bus and clock are real code.
+
 ### Lifecycle across phases
 
 ```
@@ -114,7 +131,8 @@ Deployment: build entity from a provisioned material, place it, register listene
 
 ## Open questions / future scope
 
-- Whether entities can be **stacked/combined** (a rune *inside* a nest?) is a
-  tempting depth lever, deferred.
+- Entity combos are **resolved** (D16, provisional): no merging — they **chain** via
+  the bus, scheduling reactions onto the CT clock with a `speed` (instant→timer).
+  Flagged for revisit at implementation.
 - The first real implementation lands the **bus + registry** in M3 and the first
   data-defined entity (the Survivalist trap) in M4–M5.

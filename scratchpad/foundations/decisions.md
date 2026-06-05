@@ -318,3 +318,19 @@ trail of reasoning stays intact.
   (Upkeep), [`docs/design/systems/morale.md`](../../docs/design/systems/morale.md),
   [`docs/design/01-pre-deployment.md`](../../docs/design/01-pre-deployment.md).
 - **Superseded by:** —
+
+## D16 — Entity combos: chaining via the bus + CT-scheduled reactions
+
+- **Status:** Decided (**provisional** — lowest-confidence call; revisit at M3/M4)
+- **Context:** Should placed entities combine (rune-in-a-nest, trap-into-snare)?
+- **Options considered:** (a) no stacking / (b) **chaining via the trigger bus** /
+  (c) true fusion into compound entities.
+- **Decision:** **(b).** Entities don't merge — on firing, an entity inspects its
+  **own tile + 4-adjacent neighbors** for entities to set off and **schedules the
+  reaction onto the CT clock with a `speed`** (`instant` → fires now; lower → a
+  disruptable timer). This reuses the D5 charged-ability machinery wholesale, so
+  combos get timing texture and counterplay with **zero new systems**. Rejected (c)
+  as an authoring/balance burden that fights D15's restraint.
+- **Spec:** [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md)
+  (Chaining), [`docs/design/systems/action-economy.md`](../../docs/design/systems/action-economy.md).
+- **Superseded by:** —

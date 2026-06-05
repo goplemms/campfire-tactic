@@ -47,6 +47,13 @@ non-captured** units' Speed (set in [Deployment](../02-deployment.md)). Losing a
 unit to capture lowers the seed, handing the enemy earlier turns — the concrete
 "prep vs. readiness" tension.
 
+### Also rides the timeline: entity chains
+
+[Field-entity chains](field-entities.md) (D16) reuse this machinery: when an entity
+sets off an adjacent one, the reaction is **scheduled onto the CT clock with a
+`speed`** — `instant` fires now, lower speed becomes a disruptable timer. Combos are
+just charged abilities by another name.
+
 > All numbers in these docs are **illustrative**; exact tick rates, CT spend-down
 > costs, and per-ability charge times are tuning values, not commitments.
 

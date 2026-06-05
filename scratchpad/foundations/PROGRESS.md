@@ -41,12 +41,16 @@ States: `todo` → `in-progress` → `testable` → `done`
   "wide logistics, micro at the unit" → D14), and **Q8** (spoilage → **dropped** in
   favor of **Upkeep**: gold as the solvent for maintenance chores, with funded/
   underfunded Food + Repairs lines, gear-condition replacing equipment durability,
-  and debt → morale → desertion → D15). **Next: Q9 — entity stacking** (can
-  placeables combine?) — the last item in the main list. **Parked for a dedicated
+  and debt → morale → desertion → D15), and **Q9** (entity combos: no merging —
+  **chain via the bus**, scheduling reactions onto the CT clock with a `speed`
+  (instant→timer); provisional → D16). **The main open-questions list is now
+  COMPLETE — decisions D1–D16 recorded; design spine done.** **Parked for a dedicated
   discussion: Ammo** (per-unit vs pool + the "empty ranged feels bad" balance; the
   wide-logistics principle leans it toward a shared pool; carries the conditional
-  Survivalist salvage perk). Also logged as future: in-combat fog-of-war/vision;
-  Snare adjacency-accelerator variant.
+  Survivalist salvage perk). Future-tagged: in-combat fog-of-war/vision; Snare
+  adjacency-accelerator variant; per-unit morale lever; the "Intelligence" stat
+  rename. **Next concrete build step is M3** (CT clock + trigger/event bus +
+  field-entity registry), now well-specified by D4/D5/D11/D12/D16.
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),
