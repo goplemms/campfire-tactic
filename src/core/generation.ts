@@ -1,0 +1,191 @@
+/**
+ * Procedural encounter generation (M6) — pure and **seed-driven**.
+ *
+ * Given a deterministic {@link Rng} stream, produces a complete encounter: a
+ * {@link TileGrid} (dimensions + blocked tiles), an **enemy roster**
+ * (count/stats/positions), the **encounter type** (open-field vs fortified, D12),
+ * and **rewards** (gold + materials). The same seed ⇒ the same encounter, always
+ * (the run derives each encounter's stream from `streamFor(seed, "enc:N")`, so
+ * replay reproduces every map and roster exactly).
+ *
+ * **Data-driven (D3/D4 ethos):** enemy kinds and reward tables are *data*
+ * ({@link ENEMY_TEMPLATES}, {@link REWARD_TABLE}), not hard-coded branches.
+ * Difficulty scales with the encounter `index` so a run ramps toward a wipe.
+ *
+ * Pure logic: no Phaser, no DOM.
+ */
+
+import type { GridCoord } from "./iso";
+import { TileGrid } from "./grid";
+import { createUnit, type Unit, type UnitSpec } from "./units";
+import type { Rng } from "./rng";
+
+/** Encounter shape (D12): an open scrap, or a prepped/fortified position. */
+export type EncounterType = "open-field" | "fortified";
+
+/** An authored enemy kind — pure data the generator draws from. */
+export interface EnemyTemplate {
+  id: string;
+  name: string;
+  speed: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  moveRange: number;
+  sightRadius: number;
+  awareness: number;
+  /** Relative pick weight. */
+  weight: number;
+}
+
+/** The enemy roster table (D4 ethos: enemies are data). */
+export const ENEMY_TEMPLATES: readonly EnemyTemplate[] = [
+  { id: "goblin", name: "Goblin", speed: 11, maxHp: 16, attack: 6, defense: 1, moveRange: 4, sightRadius: 5, awareness: 2, weight: 5 },
+  { id: "brute", name: "Brute", speed: 7, maxHp: 30, attack: 9, defense: 3, moveRange: 3, sightRadius: 4, awareness: 2, weight: 3 },
+  { id: "archer", name: "Archer", speed: 10, maxHp: 18, attack: 8, defense: 1, moveRange: 4, sightRadius: 6, awareness: 3, weight: 3 },
+  { id: "warg", name: "Warg", speed: 14, maxHp: 20, attack: 7, defense: 2, moveRange: 5, sightRadius: 5, awareness: 3, weight: 2 },
+];
+
+/** A material drop (an id + how many). */
+export interface MaterialDrop {
+  id: string;
+  count: number;
+}
+
+/** What a won encounter pays out. */
+export interface EncounterReward {
+  gold: number;
+  materials: MaterialDrop[];
+}
+
+/** The reward material table (D4 ethos: drops are data). */
+export const REWARD_TABLE: readonly { id: string; weight: number }[] = [
+  { id: "trap-kit", weight: 4 },
+  { id: "rune-reagent", weight: 2 },
+];
+
+/** A fully-specified, deterministic encounter. */
+export interface EncounterDef {
+  index: number;
+  type: EncounterType;
+  cols: number;
+  rows: number;
+  blocked: GridCoord[];
+  /** Enemy specs (positions on the right side of the grid). */
+  enemies: UnitSpec[];
+  reward: EncounterReward;
+}
+
+/** Generation tuning — all data, no magic numbers buried in logic. */
+export const GEN = {
+  cols: 8,
+  rows: 6,
+  /** Enemy count = base + floor(index * growth), capped. */
+  baseEnemies: 2,
+  enemyGrowth: 0.5,
+  maxEnemies: 6,
+  /** Stat scaling applied per encounter index (HP/attack ramp). */
+  hpPerIndex: 2,
+  attackPerIndex: 0.5,
+  /** Blocked-tile count range (interior cover). */
+  minBlocked: 1,
+  maxBlocked: 4,
+  /** Reward gold = base + index * perIndex, jittered. */
+  baseGold: 40,
+  goldPerIndex: 15,
+  /** Chance an encounter is fortified (D12), rising slightly with index. */
+  fortifiedBaseChance: 0.2,
+  fortifiedPerIndex: 0.05,
+} as const;
+
+/** Enemy count for an encounter index (ramps so a run trends toward a wipe). */
+export function enemyCount(index: number): number {
+  return Math.min(GEN.maxEnemies, GEN.baseEnemies + Math.floor(index * GEN.enemyGrowth));
+}
+
+/**
+ * Generate an encounter from a deterministic stream. Same `rng` sequence + same
+ * `index` ⇒ identical encounter. The render layer never calls this directly; the
+ * run derives `rng` from its seed so a replay reproduces the sequence.
+ */
+export function generateEncounter(rng: Rng, index: number): EncounterDef {
+  const { cols, rows } = GEN;
+
+  // Encounter type (D12) — fortified chance creeps up with index.
+  const fortChance = GEN.fortifiedBaseChance + GEN.fortifiedPerIndex * index;
+  const type: EncounterType = rng.chance(fortChance) ? "fortified" : "open-field";
+
+  // Interior cover: scatter blocked tiles in the middle columns (never on the
+  // home/enemy spawn columns), de-duplicated.
+  const blockedCount = rng.range(GEN.minBlocked, GEN.maxBlocked);
+  const blocked: GridCoord[] = [];
+  const seen = new Set<string>();
+  let guard = 0;
+  while (blocked.length < blockedCount && guard++ < 50) {
+    const col = rng.range(2, cols - 3);
+    const row = rng.range(0, rows - 1);
+    const key = `${col},${row}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    blocked.push({ col, row });
+  }
+
+  // Enemy roster: count ramps with index; stats scale; positions on the right.
+  const count = enemyCount(index);
+  const hpBoost = Math.round(GEN.hpPerIndex * index);
+  const atkBoost = Math.round(GEN.attackPerIndex * index);
+  const rightCols = [cols - 1, cols - 2];
+  const usedRows = new Set<string>();
+  const enemies: UnitSpec[] = [];
+  for (let i = 0; i < count; i++) {
+    const tpl = rng.pickWeighted(ENEMY_TEMPLATES, (t) => t.weight);
+    // Place down the right columns, avoiding blocked tiles and collisions.
+    let pos: GridCoord = { col: rightCols[i % rightCols.length], row: i % rows };
+    let pg = 0;
+    while (pg++ < 30) {
+      const col = rng.pick(rightCols);
+      const row = rng.range(0, rows - 1);
+      const key = `${col},${row}`;
+      if (usedRows.has(key) || blocked.some((b) => b.col === col && b.row === row)) continue;
+      usedRows.add(key);
+      pos = { col, row };
+      break;
+    }
+    enemies.push({
+      id: `e${index}-${i}-${tpl.id}`,
+      name: tpl.name,
+      side: "enemy",
+      pos,
+      speed: tpl.speed,
+      maxHp: tpl.maxHp + hpBoost,
+      attack: tpl.attack + atkBoost,
+      defense: tpl.defense,
+      moveRange: tpl.moveRange,
+      sightRadius: tpl.sightRadius,
+      awareness: tpl.awareness,
+    });
+  }
+
+  // Rewards: gold scales with index (jittered); a material drop or two.
+  const gold = GEN.baseGold + GEN.goldPerIndex * index + rng.range(0, 20);
+  const dropCount = 1 + rng.int(2);
+  const materials: MaterialDrop[] = [];
+  for (let i = 0; i < dropCount; i++) {
+    const id = rng.pickWeighted(REWARD_TABLE, (m) => m.weight).id;
+    const existing = materials.find((m) => m.id === id);
+    if (existing) existing.count += 1;
+    else materials.push({ id, count: 1 });
+  }
+
+  return { index, type, cols, rows, blocked, enemies, reward: { gold, materials } };
+}
+
+/** Build a live {@link TileGrid} from an encounter def. */
+export function buildGrid(def: EncounterDef): TileGrid {
+  return new TileGrid(def.cols, def.rows, def.blocked);
+}
+
+/** Inflate an encounter's enemy specs into live {@link Unit}s. */
+export function buildEnemies(def: EncounterDef): Unit[] {
+  return def.enemies.map((spec) => createUnit(spec));
+}

@@ -1,6 +1,8 @@
 // Barrel for the pure-logic core. The render layer (`game/`) imports from here;
 // it must never reach into Phaser or the DOM. Everything below is plain data +
 // functions, headlessly testable.
+export * from "./rng";
+export * from "./generation";
 export * from "./iso";
 export * from "./grid";
 export * from "./pathfinding";
@@ -11,6 +13,7 @@ export * from "./clock";
 export * from "./combat";
 export * from "./entities";
 export * from "./camp";
+export * from "./morale";
 export * from "./inventory";
 export * from "./deployment";
 export * from "./resolution";
@@ -20,3 +23,8 @@ export * from "./skills";
 export * from "./phases";
 export * from "./jobs";
 export * from "./turn";
+export * from "./mortality";
+export * from "./upkeep";
+export * from "./intel";
+export * from "./run";
+export * from "./runloop";

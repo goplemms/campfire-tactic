@@ -12,14 +12,74 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M4 — Data-driven jobs & skills + phase pipeline | done |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
-| M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
+| M6 — Roguelike run loop (seeded, permadeath, meta) | testable (code complete, 121/121 green, build clean; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
 
-- **Milestone:** M5b — Logistics pillar & the Deployment gamble. **DONE (gate)**
+- **Milestone:** M6 — Roguelike run loop (seeded, permadeath, the full phase loop).
+  **TESTABLE** (2026-06-05): code complete, `npm test` **121/121 green**, `npm run
+  build` clean, `core/` free of Phaser/DOM **and of `Math.random`** (a grep test
+  enforces it). **Awaiting the in-browser gate** (start a seeded run, play several
+  encounters, die, see the run-end screen; re-enter the seed to reproduce the run).
+  - **What landed (M6 core, all pure/headless):**
+    - `rng.ts` — deterministic **mulberry32** PRNG seeded from a string/number:
+      `int`/`range`/`float`/`chance`/`pick`/`pickWeighted`/`shuffle`, `fork()`
+      sub-streams, serialize/restore (`state`/`fromState`), and `streamFor(seed,
+      label)` for reproducible labelled streams. **The one source of randomness in
+      `core/`** — a grep test asserts no `Math.random`.
+    - `generation.ts` — pure, **seed-driven** encounter generation: a `TileGrid`
+      (8×6 + scattered blocked tiles), an **enemy roster** (data-driven
+      `ENEMY_TEMPLATES`, count/stats ramp with index), encounter **type**
+      (open-field/fortified, D12), and **rewards** (gold + `REWARD_TABLE` drops).
+      Same seed+index ⇒ identical encounter.
+    - `run.ts` — the **run state**: party roster, inventory, camp (gold/morale),
+      RP pool, night counter, encounter index, difficulty id, threaded RNG,
+      history; `combatRoster`/`activeRoster`, **permadeath** (`removeFromRoster`),
+      `isRunOver` (wipe = no combat-capable units), `advanceRun`, `snapshotRun`,
+      and deterministic `currentEncounter` (via `streamFor`).
+    - `mortality.ts` — the **data-driven difficulty consequence policy** (D9), one
+      per difficulty (Easy/Normal/Hard/Hardest): `resolveDowned` (full-heal /
+      ½-redeploy / dying-timer / permadeath), the dying-clock (`tickDyingClocks`),
+      and `resolveCaptured` → a rescue follow-up quest (window + reduced
+      Deployment); `rpPerChunk` is the single recovery dial.
+    - `upkeep.ts` — **Upkeep** (D15: one gold figure = Σ Food + Repairs; underfund
+      a line → morale hit + worn gear) and **RP recovery** (D9: `rpPerNight` from
+      data-driven role `restPoints`, `triageHeal` chunks at `RP_PER_CHUNK` →
+      `CHUNK_FRACTION` max HP, `clericRevive` as a gold sink for a dying unit).
+    - `intel.ts` — **banded intel** (D10): `intelFloor` from the new **Intelligence**
+      stat, `scout`/`seerDivine` lanes, `readEncounter` revealing types→numbers→
+      positions by tier, Tier-3 ⇒ `grantsVision` (the D18 bridge).
+    - `morale.ts` — D8 **passive tiered modifiers** finally with teeth, wired into
+      real systems: `safeDepth`/`placementCost` (deployment), the clock's
+      `seedInitiative` bonus, gold-find — asymmetric (shallow Low floor, Speed knob
+      smallest).
+    - `runloop.ts` — the **orchestrator** the render drives: `camp()` (upkeep + RP
+      + dying), `intel()`, `startEncounter()` (generate + build battle + place the
+      combat roster on the home edge, with the rescue deployment penalty),
+      `beginBattle()` (Chef heal + morale-warmed seed), `resolve()` (rewards +
+      recovery D13 + auto-rescue D21 + mortality D9 + permadeath + advance; a lost
+      battle ends the run), and `autoBattle()` for headless fast-forward.
+  - **Render (`game/`):** `BattleScene` is now a **run driver** — reads a
+    re-enterable **seed** field (index.html run-bar), walks Camp (Upkeep result +
+    intel read + provision/cook/trade/triage) → on-board Deployment (morale-modified
+    safe depth) → Battle → Resolution (rewards/recovery/mortality overlay) →
+    **Next Encounter**, rebuilding the board from each generated encounter, until a
+    wipe shows a **run-end screen with the seed** for replay. Camp-only Chef/Merchant
+    (job `noncombat`) act in Meta without taking the field.
+  - **Tests (new):** `rng.test.ts` (same-seed sequences, fork independence,
+    serialize→restore, **no-Math.random grep**), `generation.test.ts` (same
+    seed+index identical; divergence; ramp), `mortality.test.ts` (each difficulty's
+    downed/captured resolution + dying clock), `upkeep.test.ts` (Upkeep total /
+    underfund→morale / RP triage / cleric), `intel.test.ts` (three lanes, banded
+    reveals, Tier-3 vision), `run.test.ts` (state/permadeath, **full loop to a
+    wipe**, **replay reproduces the sequence**, Hardest permadeath through resolve).
+  - **Next:** confirm the in-browser gate, then PROGRESS M6 → done + the M6 row in
+    plan.md; commit/push; (on go-ahead) open + merge the PR.
+
+- **(prior) Milestone:** M5b — Logistics pillar & the Deployment gamble. **DONE (gate)**
   (2026-06-05): `npm test` **74/74 green**, `npm run build` clean, `core/` free of
   Phaser/DOM, and the **in-browser gate is confirmed** — provisioned under a storage
   cap → walked a unit out in on-board Deployment and over-ranged into capture →

@@ -76,14 +76,18 @@ export class CTClock {
    * side starts warmer and reaches the threshold first — so losing a unit (a
    * lower seed) hands the enemy early tempo.
    */
-  seedInitiative(): void {
+  seedInitiative(bonusBySide: Partial<Record<Side, number>> = {}): void {
     const seeds = new Map<Side, number>();
     for (const u of this.units) {
-      if (!seeds.has(u.side)) seeds.set(u.side, sideSeed(this.units, u.side));
+      if (!seeds.has(u.side)) {
+        // Morale (D8) warms the seed by the smallest amount in the bundle —
+        // Speed compounds in the clock, so this knob is kept gentle.
+        seeds.set(u.side, sideSeed(this.units, u.side) + (bonusBySide[u.side] ?? 0));
+      }
     }
     for (const u of this.units) {
       // Captured units start cold — they're bound until freed.
-      u.ct = u.captured ? 0 : seeds.get(u.side) ?? 0;
+      u.ct = u.captured ? 0 : Math.max(0, seeds.get(u.side) ?? 0);
     }
   }
 

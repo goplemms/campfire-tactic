@@ -21,6 +21,22 @@ export interface JobDef {
   name: string;
   description: string;
   skills: SkillDef[];
+  /**
+   * Rest Points this role banks per night (D9 recovery) — data, so adding a
+   * healer is adding a number. Support roles (Chef, Medic, …) contribute; pure
+   * combatants leave it undefined (0).
+   */
+  restPoints?: number;
+  /**
+   * Per-night Upkeep budget lines this job owns (D15). The Chef owns Food, the
+   * Blacksmith Repairs; collapsed to a single gold figure in {@link "./upkeep"}.
+   */
+  upkeep?: { food?: number; repairs?: number };
+  /**
+   * True for camp-only roles (Chef, Merchant) that act in Meta but never take the
+   * field — kept in the roster for Upkeep/RP/morale, excluded from combat.
+   */
+  noncombat?: boolean;
 }
 
 /**
@@ -82,6 +98,7 @@ export const SURVIVALIST: JobDef = {
   id: "survivalist",
   name: "Survivalist",
   description: "Field-craft specialist: lays traps before the fight begins.",
+  restPoints: 1,
   skills: [
     {
       id: "set-trap",
@@ -105,6 +122,9 @@ export const CHEF: JobDef = {
   id: "chef",
   name: "Chef",
   description: "Cooks for the party: lifts morale and banks a hearty heal.",
+  restPoints: 3,
+  upkeep: { food: 1 }, // the Chef lowers the per-unit food cost (D15)
+  noncombat: true,
   skills: [
     {
       id: "cook-stew",
@@ -127,6 +147,7 @@ export const MERCHANT: JobDef = {
   id: "merchant",
   name: "Merchant",
   description: "Works the economy: generates gold and expands storage.",
+  noncombat: true,
   skills: [
     {
       id: "trade",
@@ -152,6 +173,11 @@ export const JOBS: Record<string, JobDef> = {
 /** Look up a job by id. */
 export function getJob(id: string | undefined): JobDef | undefined {
   return id === undefined ? undefined : JOBS[id];
+}
+
+/** True if a unit can take the field (jobless or a combat job, not camp-only). */
+export function isCombatant(unit: Unit): boolean {
+  return !getJob(unit.jobId)?.noncombat;
 }
 
 /**

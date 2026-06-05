@@ -108,7 +108,7 @@ exercise in the browser.
   [`systems/morale.md`](../../docs/design/systems/morale.md),
   [`systems/mortality-recovery.md`](../../docs/design/systems/mortality-recovery.md).
 
-### M6 — Roguelike run loop (seeded procedural encounters, permadeath, meta)
+### M6 — Roguelike run loop (seeded procedural encounters, permadeath, meta) — *testable: code complete, 121/121 tests green + build clean (2026-06-05); awaiting in-browser gate*
 
 - core: seeded RNG, procedural encounter/map generation, run state, permadeath,
   a between-battle camp where the non-combat jobs act, and the **difficulty
