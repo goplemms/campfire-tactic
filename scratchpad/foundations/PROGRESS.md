@@ -59,12 +59,15 @@ States: `todo` → `in-progress` → `testable` → `done`
   relic (**cast-iron pan, −2sp cooking upkeep**) proved D15's "gold-as-solvent" lets
   items plug into one Upkeep line; **push-into-traps** showed unit-driven combos
   (D16 spirit). **Surfaced batch to design next:**
-  - *Declared (confirm & record):* **Vancian magic** (orthogonal to D5 charge-time:
-    casts-limited vs when-resolves); **relics/special items**; **currency
+  - *Declared (confirm & record):* ✅ **Vancian magic → D17** (scribed castings/day
+    re-allocatable to pre-deploy + refresh on rest; scrolls as storage consumables;
+    a free **default spell** floor; runes are Vancian via reagent cost + deploy peril;
+    Vancian ⟂ charge-time; **consumables family** = ammo+scrolls+reagents, partial
+    recovery on win). Still to record: **relics/special items**; **currency
     denominations** (gold + silver); **XP/leveling** exists.
-  - *Open — combat-core (touch M3):* **fog-of-war/vision**; **forced movement**
-    (push/displacement, combos with entities); **Ammo** (now w/ a "partial recovery
-    on win" data point easing empty-feels-bad).
+  - *Open — combat-core (touch M3):* **fog-of-war/vision** (NEXT); **forced movement**
+    (push/displacement, combos with entities); **Ammo** (within the consumables
+    family; default-spell template eases empty-feels-bad).
   - *Open — run frame:* **branching mission select** + the **overworld↔camp**
     relationship; **recruitment** of party members; **intel pre-selection scope**
     (reveals comp + rewards + recruits across options).

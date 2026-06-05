@@ -26,6 +26,9 @@ that don't act on the map do their work:
 - **Seer** — **gather [intel](systems/intel.md)** on the coming fight, reading a
   divination reagent (or, at master rank, freely) to lift the provisioning fog. The
   exemplar intel job (the intel counterpart to the Survivalist's traps).
+- **Mages** — **allocate scribed spells** (see [magic](systems/magic.md)): distribute
+  each mage's daily castings across their known spells, re-allocatable up until the
+  deployment commit.
 
 ### Camp: Upkeep
 

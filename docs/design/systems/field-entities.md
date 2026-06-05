@@ -34,7 +34,9 @@ adding a new placeable is adding **data**, not a new system.
 - **Passive aura** → **Defensive nest.** No event needed; while a unit holds the
   tile it grants cover / range / elevation. Really a **terrain modifier**.
 - **Pre-paid charge** → **Ritual rune.** A
-  [charged ability](action-economy.md) whose charge was paid in Deployment.
+  [charged ability](action-economy.md) whose charge was paid in Deployment. Runes are
+  **Vancian castings** ([D17](magic.md)) — paid in **reagent cost** and subject to the
+  **deployment peril** (D11), freely placeable within those limits.
   - **Auto:** resolves when a condition is met (enemy enters AoE).
   - **Manual:** a unit spends its **Act** to detonate now.
 

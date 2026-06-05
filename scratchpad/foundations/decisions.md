@@ -339,3 +339,28 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md)
   (Chaining), [`docs/design/systems/action-economy.md`](../../docs/design/systems/action-economy.md).
 - **Superseded by:** —
+
+## D17 — Magic is Vancian; the consumables family
+
+- **Status:** Decided
+- **Context:** The play-trace declared "all magic is Vancian." Need a model that fits
+  the logistics identity without a heavy spell-management minigame, and that never
+  leaves a mage feeling useless.
+- **Decision:** **All magic is Vancian** (limited, expended — not at-will), in three
+  forms:
+  - **Default spell** — every mage has one **free, unlimited, weak** at-will spell so
+    a depleted mage always contributes (Fire-Emblem-style floor).
+  - **Scribed spells** — each mage scribes **X castings/day**; the player **allocates**
+    those X across known spells (re-allocatable up to pre-deployment, then locked),
+    refreshed on a **night's rest**. One number per mage — low friction.
+  - **Scrolls** — consumable one-shot castings carried as **storage items**.
+  - **Runes** are Vancian castings placed in Deployment, paid in **reagent cost** +
+    the **deployment peril** (D11); freely placeable within those limits.
+  - **Orthogonal to D5:** Vancian = how *many* casts; charge-time = *when* a cast
+    resolves.
+  - **Consumables family:** scrolls, reagents, and **ammo** share one rule set —
+    storage-slotted, expended on use, **partially recovered on a win** (D13). The
+    default-spell idea is the template for ammo's empty-feels-bad balance (its own
+    discussion).
+- **Spec:** [`docs/design/systems/magic.md`](../../docs/design/systems/magic.md).
+- **Superseded by:** —

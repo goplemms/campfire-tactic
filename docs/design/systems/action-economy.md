@@ -30,6 +30,10 @@ fast your charged effects land**.
   fills. Powerful effects are therefore **committed in advance and can be played
   around** (the target may move out of the AoE before it lands).
 
+> **Vancian ⟂ charge-time.** [Magic](magic.md) (D17) is Vancian — *how many* casts
+> you have is a separate axis from *when* a cast resolves (charge-time). A spell can
+> be both limited and slow.
+
 ### Tie-in: runes are pre-paid charges
 
 A ritual rune (see [field-entities](../systems/field-entities.md)) is exactly a

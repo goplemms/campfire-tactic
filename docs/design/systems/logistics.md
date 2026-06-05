@@ -44,11 +44,15 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
   outcome-gated and whole-field: **win** → reclaim every unsprung, intact, surviving
   entity — *including the enemy's* (salvage); **flee/lose** → nothing. See
   [Resolution](../04-resolution.md).
-- **Ammo** — consumed by ranged units/abilities in Combat. **(Open — dedicated
-  follow-up.)** The design tension: spent ammo should matter, but a ranged unit that
-  feels *useless* once empty is bad. Per-unit vs. shared pool, and the empty-feels-bad
-  balance, are deferred to their own discussion; a possible **Survivalist salvage
-  perk** (retrieve a higher % of spent ammo) rides on whatever we choose.
+- **Consumables (ammo · scrolls · reagents)** — one family (D17): **storage-slotted,
+  expended on use, partially recovered on a win** (D13).
+  - **Scrolls / reagents** power [Vancian magic](magic.md) (extra castings; rune
+    builds).
+  - **Ammo** — **(Open — dedicated follow-up.)** Spent ammo should matter without a
+    ranged unit feeling *useless* once empty; the magic **default-spell** is the
+    template (always leave a free fallback). Per-unit vs. shared pool + that balance
+    are deferred; a possible **Survivalist salvage perk** (higher % return) rides on
+    the outcome.
 - **Gold** — earned in Resolution (Merchant bonus), spent in Pre-deployment on
   provisioning **and Upkeep** (below).
 - **Upkeep** — the party's per-night maintenance, expressed as **one gold figure**

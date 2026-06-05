@@ -75,6 +75,8 @@ reference them rather than re-explain:
 
 - **[Action economy](systems/action-economy.md)** — the CT clock and charged
   abilities (combat).
+- **[Magic](systems/magic.md)** — Vancian spells (scribed castings, scrolls, runes, a
+  default spell); magic as a logistics axis (decision D17).
 - **[Field entities & the trigger bus](systems/field-entities.md)** — the single
   abstraction behind traps, nests, and runes; placed in Deployment, fired in
   Combat (decision D4).
