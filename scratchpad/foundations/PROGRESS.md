@@ -13,11 +13,80 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
+| M7 — The overworld (seeded branching run map) | testable (147 tests green, build clean; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** M7 — The overworld (seeded branching run map). **TESTABLE**
+  (2026-06-05): `npm test` **147/147 green**, `npm run build` clean, `core/` free of
+  Phaser/DOM **and** `Math.random` (grep test still enforces it), and the dev server
+  boots + transforms every module without error. **Awaiting the in-browser gate
+  confirmation** (start a seeded run → pick reachable nodes with intel previews →
+  play a combat node to resolution → return to map → take a rest node → reach a
+  final node *or* die → re-enter the seed to reproduce the map). **Why:** through M6
+  a run was a *linear* chain (`encounterIndex` + `streamFor(seed,"enc:N")`); M7 wraps
+  it in a **seeded branching map** the player navigates — choosing the next mission,
+  informed by intel — keeping permadeath, determinism, and the core/render split
+  intact. Recruitment / shops / event nodes are a **later** batch (out of scope).
+  - **What landed (M7 core, all pure/headless):**
+    - `overworld.ts` — pure, **seed-driven** map generation (`streamFor(seed,
+      "map")`): an `OverworldMap` of `MapNode`s (`id`, `layer`, `index`, `kind:
+      "combat" | "rest"`, forward `edges`) shaped per **D22** (`MAP_GEN`: 7 layers,
+      single start (layer 0, rest) + single final, interior width 2–3, banded rest
+      chance, bounded fan-out). Guarantees the **connectivity invariants** (every
+      non-final node has ≥1 outgoing, every non-start ≥1 incoming ⇒ every node
+      reachable from the start, no dead ends). Helpers: `getNode`, `reachableFrom`,
+      `isFinalNode`, and `nodeEncounter(seed, node)` =
+      `generateEncounter(streamFor(seed,"node:<id>"), node.layer)` — **layer is the
+      difficulty index**, reusing `generation.ts` unchanged.
+    - `run.ts` (reframed) — dropped the linear `encounterIndex` for **map position**:
+      `map` (the seed-built `OverworldMap`), `mapNodeId` (current), `path` (route),
+      and a new `complete` terminal. Added `currentNode`, `isFinalRunNode`,
+      `reachableNodes`, `chooseNode` (validates a forward choice), `isRunComplete`,
+      and `recordNight` (replaces `advanceRun`: pushes a node-tagged
+      `EncounterRecord`, ticks the night, flags **complete** on clearing the final
+      node). `currentEncounter` now resolves from the current node. Permadeath / RNG
+      / camp / inventory unchanged. `snapshotRun` now captures `mapNodeId` + `path`.
+    - `runloop.ts` (extended) — `resolve()` records via `recordNight` + the complete
+      check; added `reachable`/`choose` (overworld step), `restNode()` (a **no-battle**
+      recovery night: Upkeep + nightly RP + a **chunk-denominated** rest bonus +
+      **auto-triage** of the wounded + a morale uptick + dying-clock tick, D8/D9/D23),
+      `playCurrentNode()` (combat *or* rest), `autoTraverse()` (**pick-first-reachable**
+      to a terminal), and `isComplete`/`isTerminal`. `REST` is the tuning data.
+    - `intel.ts` (extended, **D24**) — `previewNode(run, nodeId, extraTier?)` →
+      `NodePreview`: node **kind** always shown, combat **encounter type** always
+      shown, then the party's `intelFloor` reveals types→count→positions (banded as
+      `readEncounter`) plus a banded `rewardHint` (`rewardBand`: hidden → band →
+      `~Ng` → exact). A pure projection — **stable for a seed**.
+  - **Render (`game/`):** split into two scenes. **`OverworldScene`** (boots first)
+    owns the run + `RunLoop`, draws the **layered node DAG** (layers L→R, forward
+    edges, kind glyphs ⚔/❄/★), highlights **reachable** nodes, shows each candidate's
+    `previewNode` on hover, and commits a choice: a **combat** node hands off to
+    **`BattleScene`** (now receives the run+loop via `init`, plays **one** chosen
+    node's Camp → Deployment → Battle → Resolution, then **returns to the overworld**),
+    a **rest** node recovers in-place with a recovery screen. The overworld owns the
+    terminals — the M6-style **run-end** (seed for replay) and a new **run-complete**
+    screen — and the seed bar / New Run reset stay as in M6.
+  - **Tests (new/extended):** `overworld.test.ts` (same-seed identical map; seeds
+    diverge; per-node deterministic encounter; start/final single; **every node
+    reachable**; `reachableFrom` forward-only; no dead ends; any node reaches the
+    final layer; widths in band), `run.test.ts` (map position, `chooseNode`
+    advance/reject, `currentEncounter` follows the node, **complete vs wipe**
+    terminals, `autoTraverse` integration, **permadeath through the map**, mid-map
+    wipe, **same-seed+same-choices replay**, snapshot/route), `runloop.test.ts`
+    (**rest recovers with no battle**, never stages a fight, autoTraverse
+    determinism + valid forward walk), `intel.test.ts` (`previewNode` banding by
+    floor, bump above the floor, **stable for a seed**, reward bands).
+  - **Determinism contract:** the map derives from `streamFor(seed, "map")`; every
+    combat node's content from `streamFor(seed, "node:<id>")` with **layer as the
+    difficulty index** — never off a live-mutated draw order — so replay is exact
+    regardless of player choices. `generation.ts`, the camp/deploy/battle/resolution
+    flow, mortality/upkeep/intel/morale all stay; M7 only adds the *frame*.
+  - **Next:** confirm the in-browser gate, then PROGRESS M7 → done + the M7 row in
+    plan.md (testable → done); (on go-ahead) open + merge the PR.
 
 - **Milestone:** M6 — Roguelike run loop (seeded, permadeath, the full phase loop).
   **DONE (gate)** (2026-06-05): `npm test` **121/121 green**, `npm run build` clean,

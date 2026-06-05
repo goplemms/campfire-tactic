@@ -1,12 +1,19 @@
 /**
- * Run state (M6) — the seeded, permadeath roguelike run.
+ * Run state (M6, reframed for M7) — the seeded, permadeath roguelike run.
  *
  * Wraps the existing phase loop in a **run**: a persistent party roster,
- * inventory, gold/morale (camp), a Rest-Point pool, a night counter, the current
- * encounter index, the difficulty id, the **threaded RNG**, and a history of
- * outcomes. The run is the single source of all run-time randomness: each
- * encounter derives its generation stream deterministically from `seed`, so the
- * **same seed reproduces the run exactly**.
+ * inventory, gold/morale (camp), a Rest-Point pool, a night counter, the
+ * difficulty id, the **threaded RNG**, and a history of outcomes. The run is the
+ * single source of all run-time randomness: the map and each encounter derive
+ * their generation stream deterministically from `seed`, so the **same seed
+ * reproduces the run exactly**.
+ *
+ * **M7 — the overworld frame (D22).** The linear `encounterIndex` is gone; a run
+ * now navigates a seeded branching **map** ({@link "./overworld"}). Position is a
+ * **current node** (`mapNodeId`) plus the **path** of chosen nodes. The current
+ * encounter resolves from the current node; {@link reachableNodes} lists the
+ * forward choices and {@link chooseNode} commits one. The run ends on a **wipe**
+ * (unchanged) or completes when a **final-layer** node is cleared.
  *
  * Permadeath: fallen (per the difficulty {@link "./mortality"} policy) and
  * abandoned-captured units **leave the roster**. The run is over when no roster
@@ -15,18 +22,33 @@
  * Pure logic: no Phaser, no DOM.
  */
 
-import { Rng, streamFor, type RngState } from "./rng";
+import { Rng, type RngState } from "./rng";
 import type { Unit } from "./units";
 import { createInventory, type Inventory } from "./inventory";
 import { createCamp, type Camp } from "./camp";
 import { getDifficulty, type DifficultyPolicy } from "./mortality";
 import { isCombatant } from "./jobs";
-import { generateEncounter, type EncounterDef } from "./generation";
+import { type EncounterDef } from "./generation";
+import {
+  generateOverworld,
+  getNode,
+  reachableFrom,
+  isFinalNode,
+  nodeEncounter,
+  type OverworldMap,
+  type MapNode,
+  type NodeKind,
+} from "./overworld";
 
-/** A recorded encounter outcome, for the run history / run-end screen. */
+/** A recorded node outcome, for the run history / run-end screen. */
 export interface EncounterRecord {
-  index: number;
-  type: EncounterDef["type"];
+  /** The map node this record is for. */
+  nodeId: string;
+  /** The node's layer (its difficulty index for combat). */
+  layer: number;
+  kind: NodeKind;
+  /** Combat only: the encounter shape (open-field/fortified). */
+  type?: EncounterDef["type"];
   winner?: "player" | "enemy";
   goldEarned: number;
   fallen: string[];
@@ -39,6 +61,12 @@ export interface RunState {
   seed: string | number;
   /** The threaded master RNG (all run-time randomness flows through it). */
   rng: Rng;
+  /** The seed-derived overworld map the run navigates (D22). */
+  map: OverworldMap;
+  /** The current node id (starts at the map's start node). */
+  mapNodeId: string;
+  /** The route taken so far, oldest → current (starts `[startId]`). */
+  path: string[];
   /** The persistent party roster (units leave it on permadeath). */
   party: Unit[];
   inventory: Inventory;
@@ -47,13 +75,13 @@ export interface RunState {
   rp: number;
   /** Nights elapsed (the universal time unit, D9). */
   night: number;
-  /** The current encounter index (0-based). */
-  encounterIndex: number;
   /** Difficulty id → the consequence policy the run consults (D9). */
   difficultyId: string;
   history: EncounterRecord[];
-  /** True once the run has ended (a wipe). */
+  /** True once the run has ended (a wipe, or a non-win battle). */
   over: boolean;
+  /** True once a final-layer node has been cleared (run-complete, D23). */
+  complete: boolean;
 }
 
 /** Options for {@link createRun}. */
@@ -69,18 +97,22 @@ export interface CreateRunOptions {
 /** Create a fresh run from a seed. */
 export function createRun(seed: string | number, opts: CreateRunOptions): RunState {
   const storageCap = opts.storageCap ?? 6;
+  const map = generateOverworld(seed);
   return {
     seed,
     rng: new Rng(seed),
+    map,
+    mapNodeId: map.startId,
+    path: [map.startId],
     party: opts.party,
     inventory: createInventory(storageCap, opts.inventory ?? {}),
     camp: createCamp({ gold: opts.gold ?? 0, storageCap, morale: opts.morale ?? 0 }),
     rp: 0,
     night: 0,
-    encounterIndex: 0,
     difficultyId: opts.difficultyId ?? "normal",
     history: [],
     over: false,
+    complete: false,
   };
 }
 
@@ -89,13 +121,45 @@ export function runDifficulty(run: RunState): DifficultyPolicy {
   return getDifficulty(run.difficultyId);
 }
 
+/** The node the run is currently positioned at (D22). */
+export function currentNode(run: RunState): MapNode {
+  return getNode(run.map, run.mapNodeId);
+}
+
+/** True if the current node is the run's final mission (clearing it completes it). */
+export function isFinalRunNode(run: RunState): boolean {
+  return isFinalNode(run.map, currentNode(run));
+}
+
 /**
- * Generate the current encounter for a run — deterministically from `seed` +
- * `encounterIndex`, so it's identical on replay regardless of other draws. (The
- * dedicated `streamFor` stream is what makes replay rock-solid.)
+ * The nodes reachable in one forward step from the current position (D22) — the
+ * branch choices the player picks among. The final node has none.
+ */
+export function reachableNodes(run: RunState): MapNode[] {
+  return reachableFrom(run.map, run.mapNodeId);
+}
+
+/**
+ * Commit to a reachable node: move the run's position there and extend the path.
+ * Throws if `id` is not a forward choice from the current node. Returns the node
+ * (the orchestrator then plays it — a combat fight or a rest recovery).
+ */
+export function chooseNode(run: RunState, id: string): MapNode {
+  if (!reachableNodes(run).some((n) => n.id === id)) {
+    throw new Error(`run: "${id}" is not reachable from "${run.mapNodeId}"`);
+  }
+  run.mapNodeId = id;
+  run.path.push(id);
+  return currentNode(run);
+}
+
+/**
+ * Generate the current node's encounter — deterministically from `seed` + the
+ * node id (its layer is the difficulty index), so it's identical on replay
+ * regardless of other draws or the path taken to get here.
  */
 export function currentEncounter(run: RunState): EncounterDef {
-  return generateEncounter(streamFor(run.seed, `enc:${run.encounterIndex}`), run.encounterIndex);
+  return nodeEncounter(run.seed, currentNode(run));
 }
 
 /** Roster units that are alive and not captured (incl. camp-only crew). */
@@ -128,34 +192,47 @@ export function isRunOver(run: RunState): boolean {
   return combatRoster(run).length === 0;
 }
 
-/**
- * Advance to the next encounter (and the next night). Records the outcome,
- * increments the indices, and re-evaluates whether the run is over. Returns the
- * (possibly final) over state.
- */
-export function advanceRun(run: RunState, record: Omit<EncounterRecord, "night">): boolean {
-  run.history.push({ ...record, night: run.night });
-  run.encounterIndex += 1;
-  run.night += 1;
-  run.over = isRunOver(run);
-  return run.over;
+/** True once a final-layer node has been cleared (run-complete, D23). */
+export function isRunComplete(run: RunState): boolean {
+  return run.complete;
 }
 
-/** Serialized run state for save/replay (the seed + cursor + RNG state). */
+/**
+ * Record a played node (combat resolution or a rest) and advance the night
+ * counter. Does **not** move map position — that's {@link chooseNode}'s job — but
+ * it does re-evaluate the **wipe** terminal and, if the current node is the
+ * **final** one and the player won, flags the run **complete** (D23). Returns the
+ * run's terminal state (`over` from a wipe, or `complete`).
+ */
+export function recordNight(run: RunState, record: Omit<EncounterRecord, "night">): boolean {
+  run.history.push({ ...record, night: run.night });
+  run.night += 1;
+  run.over = run.over || isRunOver(run);
+  if (!run.over && record.winner !== "enemy" && isFinalRunNode(run)) {
+    run.complete = true;
+  }
+  return run.over || run.complete;
+}
+
+/** Serialized run state for save/replay (the seed + route + RNG state). */
 export interface RunSnapshot {
   seed: string | number;
   rngState: RngState;
-  encounterIndex: number;
+  /** The current node (the position to resume / regenerate from). */
+  mapNodeId: string;
+  /** The route taken so far — replays the same map + choices exactly. */
+  path: string[];
   night: number;
   difficultyId: string;
 }
 
-/** Capture a snapshot sufficient to reproduce the encounter sequence from here. */
+/** Capture a snapshot sufficient to reproduce the run's map, route and position. */
 export function snapshotRun(run: RunState): RunSnapshot {
   return {
     seed: run.seed,
     rngState: run.rng.state(),
-    encounterIndex: run.encounterIndex,
+    mapNodeId: run.mapNodeId,
+    path: [...run.path],
     night: run.night,
     difficultyId: run.difficultyId,
   };

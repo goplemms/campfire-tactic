@@ -453,3 +453,84 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md),
   [`docs/design/04-resolution.md`](../../docs/design/04-resolution.md).
 - **Superseded by:** —
+
+## D22 — Overworld shape: a seeded, layered node DAG
+
+- **Status:** Decided (M7 design pass)
+- **Context:** Through M6 a run is a **linear** chain — `run.ts` holds one
+  `encounterIndex` and each fight is `streamFor(seed, "enc:N")`. M7 replaces the
+  straight line with a navigable **map** the player branches through (the "run
+  frame" the notes queued), while keeping determinism, permadeath, and the
+  core/render split intact.
+- **Options considered:** (a) a **layered node DAG** (Slay-the-Spire-style columns
+  of nodes with forward-only edges) / (b) a free-roam node graph (arbitrary
+  adjacency, pathfound) / (c) a branching tree (no path re-merges).
+- **Decision:** **(a) — a layered node DAG.** It is deterministic, legible,
+  trivially seedable and testable, and delivers "branching mission select" without
+  a pathfinding overworld. The map is **seed-derived** (`streamFor(seed, "map")`),
+  so replaying a seed reproduces the **same layout, node kinds, and edges**.
+  - **Shape:** `MAP_GEN.layers` columns (default **7**). **Layer 0** is a single
+    **start** node (the camp you begin at, never fought); the **final layer** is a
+    single node (the run's last mission); interior layers are **`minWidth..width`**
+    nodes wide (default **2..3**). Edges run **forward only** (layer `L → L+1`).
+  - **Connectivity invariants (the generator guarantees):** every non-final node
+    has **≥1 outgoing** edge and every non-start node has **≥1 incoming** edge, so
+    **every node is reachable from the start** (no dead start) and the start can
+    always reach the final layer (no dead end). A small extra fan-out
+    (`maxFanout`) adds branch choices on top of the spanning edges.
+  - **Difficulty ramps with map depth:** a combat node's encounter is
+    `generateEncounter(streamFor(seed, "node:<id>"), node.layer)` — the **layer is
+    the index**, so deeper missions are harder, reusing `generation.ts` unchanged.
+- **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D23 — Node types & the camp relationship (minimal for M7)
+
+- **Status:** Decided (M7 design pass)
+- **Context:** A map needs node *kinds*. The full menagerie (shops, recruiters,
+  events) is a later batch; M7 only needs enough to prove the frame.
+- **Decision:** **Two kinds, both data-driven (D3/D4 ethos), no hard-coded
+  branches in the loop:**
+  - **`combat`** — a fight. Reuses `generation.ts` and the existing
+    **Camp → Deployment → Battle → Resolution** flow unchanged.
+  - **`rest`** — a **non-combat** between-battle camp recovery with **no fight**:
+    a night of Upkeep plus a recovery bonus (extra Rest Points + auto-triage of the
+    wounded + a small morale uptick, D8/D9). The **start** node (layer 0) is a rest
+    node thematically (your starting camp), but is the entry position and is never
+    *played*.
+  - **Camp stays the Meta phase (D3)** that runs *before* a chosen **combat** node
+    (upkeep, RP, dying clocks, provisioning, intel). The **overworld is the screen
+    you return to between nodes** to choose the next one. A rest node is its own
+    lightweight recovery beat, distinct from the pre-combat camp.
+  - **Run terminals:** a **wipe** (no combat-capable roster unit) ends the run as
+    before (`isRunOver`); clearing a **final-layer** node flags **run-complete** —
+    a new terminal the overworld surfaces.
+  - **Out of scope (next batch):** shops/merchants-as-nodes, recruitment, event
+    nodes, narrative. Kept deliberately minimal.
+- **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D24 — Intel pre-selection: a banded node preview (extends D10)
+
+- **Status:** Decided (M7 design pass)
+- **Context:** Branching is only a *choice* if it's **informed**. D10 made intel a
+  per-encounter, party-wide, banded read; M7 needs to surface a slice of it on the
+  **map**, before you commit to a node, so the player picks with intent.
+- **Decision:** **`previewNode(run, nodeId)` returns a banded preview** for a
+  candidate (reachable) node, wired to `intel.ts`/`readEncounter` and the party's
+  `intelFloor` (D10):
+  - **Node `kind` is always shown** (combat vs rest), and for a combat node its
+    **encounter type** (open-field/fortified) is always shown — you always know
+    *what shape* of node you're walking into.
+  - **The party's intel floor reveals more** about a combat node's contents, banded
+    exactly as D10: **Tier 1** enemy **types** → **Tier 2** the **count** → **Tier
+    3** positions/starting vision. A **reward hint** is likewise banded (Tier 0
+    hidden → a coarse gold **band** → an approximate figure → exact), so higher
+    intel makes the branch choice sharper.
+  - **Rest nodes** preview a recovery hint (no enemies to read).
+  - **Stable for a seed:** previews derive only from the seed-built map + the
+    deterministic per-node encounter + the party's floor, so the **same seed shows
+    the same reachable previews** (no live RNG draw).
+- **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md),
+  [`docs/design/systems/intel.md`](../../docs/design/systems/intel.md).
+- **Superseded by:** —

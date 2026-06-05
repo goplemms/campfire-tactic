@@ -32,9 +32,9 @@ who enjoys *crunch*: legible systems with deep, interacting decisions.
 
 ## The loop
 
-The game is modeled as an ordered **phase pipeline** (decision D3). Each phase is
-where a different part of the fantasy lives, and most of the signature jobs act in
-a *different* phase:
+The game is modeled as an ordered **phase pipeline** (decision D3) that runs
+*inside* each combat mission. Each phase is where a different part of the fantasy
+lives, and most of the signature jobs act in a *different* phase:
 
 ```
   ┌─────────────────────────────────────────────────────────────┐
@@ -50,6 +50,22 @@ a *different* phase:
         │   prep pays off; field entities trigger                  │
         ▼                                                          │
 4. RESOLUTION   recover materials, tally losses, rewards ──────────┘
+```
+
+That mission loop is itself wrapped in **the overworld** (decision D22): a seeded,
+branching **run map** the player navigates between missions. You start a run, see
+the map, pick a reachable **node** (combat or rest), play it through the loop
+above, return to the map, and advance along a chosen path until you clear the
+final mission (run complete) or wipe (run over) — all deterministic from the run
+seed.
+
+```
+  OVERWORLD (seeded layered DAG) ── choose a reachable node ──┐
+        ▲                                                     │
+        │  return between nodes                               ▼
+        │                                   ┌─ combat node ─→ the phase loop above
+        └───────────────────────────────────┤
+                                            └─ rest node ───→ recover (no battle)
 ```
 
 ## Phase docs
@@ -73,6 +89,9 @@ pseudo-example**:
 These span multiple phases and are documented independently so each phase can
 reference them rather than re-explain:
 
+- **[The overworld](systems/overworld.md)** — the seeded, branching run **map**
+  that wraps the mission loop; layered node DAG, combat/rest nodes, and the banded
+  intel preview that informs each branch (decisions D22–D24).
 - **[Action economy](systems/action-economy.md)** — the CT clock and charged
   abilities (combat).
 - **[Magic](systems/magic.md)** — Vancian spells (scribed castings, scrolls, runes, a

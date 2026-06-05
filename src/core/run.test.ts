@@ -2,13 +2,20 @@ import { describe, it, expect } from "vitest";
 import { createUnit, type Unit } from "./units";
 import {
   createRun,
+  currentNode,
   currentEncounter,
+  reachableNodes,
+  chooseNode,
+  isFinalRunNode,
+  isRunComplete,
   activeRoster,
   removeFromRoster,
   isRunOver,
+  recordNight,
   snapshotRun,
   type RunState,
 } from "./run";
+import { generateOverworld, getNode } from "./overworld";
 import { RunLoop } from "./runloop";
 
 /** A small fightable roster (Soldiers so they have battle skills too). */
@@ -22,6 +29,62 @@ function roster(): Unit[] {
 function newRun(seed: string): RunState {
   return createRun(seed, { party: roster(), difficultyId: "normal", gold: 200 });
 }
+
+/** Walk the run to the first reachable **combat** node (so a battle can stage). */
+function toFirstCombat(run: RunState): void {
+  while (true) {
+    const next = reachableNodes(run);
+    const combat = next.find((n) => n.kind === "combat") ?? next[0];
+    chooseNode(run, combat.id);
+    if (currentNode(run).kind === "combat") return;
+  }
+}
+
+describe("run — map position (D22)", () => {
+  it("a fresh run starts at the map's start node", () => {
+    const run = newRun("start");
+    expect(run.mapNodeId).toBe(run.map.startId);
+    expect(run.path).toEqual([run.map.startId]);
+    expect(currentNode(run).layer).toBe(0);
+  });
+
+  it("reachableNodes returns only forward-connected nodes", () => {
+    const run = newRun("reach");
+    const here = currentNode(run);
+    for (const n of reachableNodes(run)) {
+      expect(here.edges).toContain(n.id);
+      expect(n.layer).toBe(here.layer + 1);
+    }
+  });
+
+  it("chooseNode advances map position and extends the path", () => {
+    const run = newRun("choose");
+    const target = reachableNodes(run)[0];
+    chooseNode(run, target.id);
+    expect(run.mapNodeId).toBe(target.id);
+    expect(run.path[run.path.length - 1]).toBe(target.id);
+  });
+
+  it("chooseNode rejects an unreachable node", () => {
+    const run = newRun("reject");
+    // The final node is never reachable in a single step from the start.
+    expect(() => chooseNode(run, run.map.finalIds[0])).toThrow();
+  });
+
+  it("currentEncounter follows the chosen node (deterministic by id + layer)", () => {
+    const run = newRun("follow");
+    toFirstCombat(run);
+    const enc = currentEncounter(run);
+    expect(enc.index).toBe(currentNode(run).layer);
+    // Same node ⇒ identical encounter on a fresh run with the same seed.
+    const run2 = newRun("follow");
+    while (run2.mapNodeId !== run.mapNodeId) {
+      const step = run.path[run2.path.length];
+      chooseNode(run2, step);
+    }
+    expect(currentEncounter(run2)).toEqual(enc);
+  });
+});
 
 describe("run — state & permadeath", () => {
   it("active roster excludes captured/fallen; permadeath removes a unit", () => {
@@ -42,83 +105,101 @@ describe("run — state & permadeath", () => {
     for (const u of run.party) u.alive = false;
     expect(isRunOver(run)).toBe(true);
   });
+});
 
-  it("currentEncounter is deterministic for a seed + index", () => {
-    const a = currentEncounter(newRun("det"));
-    const b = currentEncounter(newRun("det"));
-    expect(a).toEqual(b);
+describe("run — terminals: complete vs wipe (D23)", () => {
+  it("clearing the final node flags run-complete", () => {
+    const run = newRun("complete");
+    // Jump position straight to the final node (test scaffolding) and record a win.
+    run.mapNodeId = run.map.finalIds[0];
+    run.path.push(run.mapNodeId);
+    expect(isFinalRunNode(run)).toBe(true);
+    const terminal = recordNight(run, { nodeId: run.mapNodeId, layer: currentNode(run).layer, kind: "combat", winner: "player", goldEarned: 50, fallen: [] });
+    expect(terminal).toBe(true);
+    expect(isRunComplete(run)).toBe(true);
+    expect(run.over).toBe(false);
+  });
+
+  it("a wipe ends the run even on a final node", () => {
+    const run = newRun("final-wipe");
+    for (const u of run.party) u.alive = false;
+    run.mapNodeId = run.map.finalIds[0];
+    recordNight(run, { nodeId: run.mapNodeId, layer: 6, kind: "combat", winner: "player", goldEarned: 0, fallen: [] });
+    expect(run.over).toBe(true);
+    expect(run.complete).toBe(false);
   });
 });
 
-describe("run — the full loop plays to a wipe (integration)", () => {
-  it("auto-plays seeded encounters until the party is wiped", () => {
-    const run = newRun("full-loop");
+describe("run — the full map plays to a terminal (integration)", () => {
+  it("autoTraverse plays seeded nodes to a wipe or a clear, deterministically", () => {
+    const run = newRun("traverse");
     const loop = new RunLoop(run);
-    let guard = 0;
-    while (!loop.isOver() && guard++ < 50) {
-      loop.camp();
-      if (loop.isOver()) break;
-      loop.startEncounter();
-      loop.beginBattle();
-      loop.autoBattle();
-      const res = loop.resolve();
-      if (res.over) break;
-    }
-    expect(loop.isOver()).toBe(true);
+    const route = loop.autoTraverse();
+    expect(loop.isTerminal()).toBe(true);
+    expect(route.length).toBeGreaterThan(1);
     expect(run.history.length).toBeGreaterThan(0);
-    // The run ramped to a loss the party couldn't survive.
-    expect(run.history.some((h) => h.winner === "player")).toBe(true);
-  });
-});
-
-describe("run — replay reproduces the run", () => {
-  it("two runs with the same seed produce an identical encounter sequence", () => {
-    function playHistory(seed: string) {
-      const run = createRun(seed, { party: roster(), difficultyId: "normal", gold: 200 });
-      const loop = new RunLoop(run);
-      let guard = 0;
-      while (!loop.isOver() && guard++ < 50) {
-        loop.camp();
-        if (loop.isOver()) break;
-        loop.startEncounter();
-        loop.beginBattle();
-        loop.autoBattle();
-        if (loop.resolve().over) break;
-      }
-      return run.history;
+    // The route is a real forward walk: each step is an edge of the previous node.
+    for (let i = 2; i < route.length; i++) {
+      expect(getNode(run.map, route[i - 1]).edges).toContain(route[i]);
     }
-    const a = playHistory("replay-seed");
-    const b = playHistory("replay-seed");
-    expect(a).toEqual(b);
-    expect(a.length).toBeGreaterThan(0);
   });
 
-  it("a serialized snapshot reproduces the upcoming encounter", () => {
-    const run = newRun("snap");
-    run.encounterIndex = 3;
-    const snap = snapshotRun(run);
-    const expected = currentEncounter(run);
-
-    // Rebuild a run at the snapshot's cursor and regenerate.
-    const restored = createRun(snap.seed, { party: roster() });
-    restored.encounterIndex = snap.encounterIndex;
-    expect(currentEncounter(restored)).toEqual(expected);
-  });
-});
-
-describe("run — permadeath through the loop (Hardest)", () => {
-  it("a downed unit is removed from the roster on Hardest", () => {
+  it("permadeath through the map: a downed unit is removed (Hardest)", () => {
     const run = createRun("hardest-perma", { party: roster(), difficultyId: "hardest", gold: 200 });
     const loop = new RunLoop(run);
+    toFirstCombat(run);
     loop.startEncounter();
-    // Force a player unit down before resolution.
     const victim = loop.combatants[0];
     victim.alive = false;
     victim.hp = 0;
-    // Knock out enemies so the player "wins" the field but still lost a unit.
     for (const u of loop.battle!.units) if (u.side === "enemy") u.alive = false;
     const res = loop.resolve();
     expect(res.permadeaths).toContain(victim.id);
     expect(run.party.find((u) => u.id === victim.id)).toBeUndefined();
+  });
+
+  it("a wipe still ends the run mid-map", () => {
+    const run = newRun("midwipe");
+    const loop = new RunLoop(run);
+    toFirstCombat(run);
+    loop.camp();
+    loop.startEncounter();
+    // Knock the whole player side down → a lost battle ends the run.
+    for (const u of loop.battle!.units) if (u.side === "player") u.alive = false;
+    const res = loop.resolve();
+    expect(res.winner).toBe("enemy");
+    expect(loop.isOver()).toBe(true);
+  });
+});
+
+describe("run — replay reproduces the run (same seed + same choices)", () => {
+  it("two runs with the same seed + pick-first reproduce an identical history", () => {
+    function play(seed: string) {
+      const run = createRun(seed, { party: roster(), difficultyId: "normal", gold: 200 });
+      const loop = new RunLoop(run);
+      loop.autoTraverse();
+      return { history: run.history, path: run.path, complete: run.complete, over: run.over };
+    }
+    const a = play("replay-seed");
+    const b = play("replay-seed");
+    expect(a).toEqual(b);
+    expect(a.path.length).toBeGreaterThan(1);
+  });
+
+  it("the same map regenerates from the seed; a snapshot captures the route", () => {
+    const run = newRun("snap");
+    toFirstCombat(run);
+    const snap = snapshotRun(run);
+    expect(snap.mapNodeId).toBe(run.mapNodeId);
+    expect(snap.path).toEqual(run.path);
+
+    // A run rebuilt from the seed has the identical map…
+    const rebuilt = generateOverworld(snap.seed);
+    expect(rebuilt).toEqual(run.map);
+    // …and replaying the recorded path lands on the same node + encounter.
+    const restored = createRun(snap.seed, { party: roster() });
+    for (const id of snap.path.slice(1)) chooseNode(restored, id);
+    expect(restored.mapNodeId).toBe(run.mapNodeId);
+    expect(currentEncounter(restored)).toEqual(currentEncounter(run));
   });
 });

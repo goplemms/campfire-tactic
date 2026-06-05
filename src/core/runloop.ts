@@ -21,12 +21,16 @@ import { buildGrid, buildEnemies, type EncounterDef } from "./generation";
 import {
   type RunState,
   runDifficulty,
+  currentNode,
   currentEncounter,
   combatRoster,
   isRunOver,
   removeFromRoster,
-  advanceRun,
+  recordNight,
+  reachableNodes,
+  chooseNode,
 } from "./run";
+import type { MapNode } from "./overworld";
 import { moraleModifiers } from "./morale";
 import { moraleTier } from "./camp";
 import { applyCampToParty } from "./camp";
@@ -34,7 +38,7 @@ import { freeCaptive } from "./deployment";
 import { recoverMaterials } from "./resolution";
 import { addItem } from "./inventory";
 import { resolveDowned, resolveCaptured, tickDyingClocks, type DownedOutcome, type RescueQuest } from "./mortality";
-import { rpPerNight, payUpkeep, type UpkeepResult } from "./upkeep";
+import { rpPerNight, payUpkeep, triageHeal, type UpkeepResult } from "./upkeep";
 import { intelFloor, readEncounter, type IntelReport, type IntelTier } from "./intel";
 import { planEnemyTurn } from "./ai";
 
@@ -57,6 +61,29 @@ export interface CampResult {
   dyingLost: string[];
 }
 
+/** What a rest node's recovery produced (no battle, D23). */
+export interface RestResult {
+  upkeep: UpkeepResult;
+  rpAdded: number;
+  /** Units auto-triaged and the HP each gained. */
+  healed: { unitId: string; hp: number }[];
+  moraleGained: number;
+  dyingLost: string[];
+  over: boolean;
+}
+
+/** Rest-node tuning — the recovery a no-battle camp grants (data, D23). */
+export const REST = {
+  /**
+   * Healing chunks a restful night funds, in addition to the nightly Rest
+   * Points. Denominated in **chunks** (each costs `policy.rpPerChunk` RP) so a
+   * rest is meaningful at every difficulty — the dying-clock dial scales with it.
+   */
+  chunks: 3,
+  /** Morale a good rest restores (D8). */
+  moraleGain: 2,
+} as const;
+
 /** The run-loop orchestrator. */
 export class RunLoop {
   readonly run: RunState;
@@ -71,9 +98,75 @@ export class RunLoop {
     this.run = run;
   }
 
-  /** True once the run has ended (a wipe). */
+  /** True once the run has ended (a wipe, or a lost battle). */
   isOver(): boolean {
     return this.run.over;
+  }
+
+  /** True once the run has been completed (the final node cleared, D23). */
+  isComplete(): boolean {
+    return this.run.complete;
+  }
+
+  /** True once the run has reached any terminal (over or complete). */
+  isTerminal(): boolean {
+    return this.run.over || this.run.complete;
+  }
+
+  // --- Overworld (D22) ------------------------------------------------------
+
+  /** The branch choices reachable from the run's current map position (D22). */
+  reachable(): MapNode[] {
+    return reachableNodes(this.run);
+  }
+
+  /** Commit to a reachable node — moves the run there so it can be played (D22). */
+  choose(id: string): MapNode {
+    return chooseNode(this.run, id);
+  }
+
+  // --- Rest node (no battle, D23) -------------------------------------------
+
+  /**
+   * Play a **rest** node: a night of recovery with **no fight** (D23). Pays
+   * Upkeep (a night still costs), banks the nightly Rest Points **plus a rest
+   * bonus**, **auto-triages** the most-wounded fighters down the RP pool, nudges
+   * morale up (D8), ticks any dying clocks, and records the night. Returns a
+   * summary for the render's rest screen.
+   */
+  restNode(): RestResult {
+    const policy = runDifficulty(this.run);
+    const upkeep = payUpkeep(this.run.camp, this.run.party);
+    const rpAdded = rpPerNight(this.run.party) + REST.chunks * policy.rpPerChunk;
+    this.run.rp += rpAdded;
+
+    // Auto-triage: heal the worst-off fighters first, spending the RP pool down.
+    const healed: { unitId: string; hp: number }[] = [];
+    const wounded = combatRoster(this.run)
+      .filter((u) => u.hp < u.maxHp)
+      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+    for (const u of wounded) {
+      if (this.run.rp < policy.rpPerChunk) break;
+      const res = triageHeal(u, this.run.rp, policy);
+      if (res.rpSpent > 0) {
+        this.run.rp -= res.rpSpent;
+        healed.push({ unitId: u.id, hp: res.hpHealed });
+      }
+    }
+
+    this.run.camp.morale += REST.moraleGain;
+
+    const lost = tickDyingClocks(this.run.party);
+    for (const u of lost) removeFromRoster(this.run, u);
+    const node = currentNode(this.run);
+    const over = recordNight(this.run, {
+      nodeId: node.id,
+      layer: node.layer,
+      kind: node.kind,
+      goldEarned: 0,
+      fallen: lost.map((u) => u.id),
+    });
+    return { upkeep, rpAdded, healed, moraleGained: REST.moraleGain, dyingLost: lost.map((u) => u.id), over };
   }
 
   // --- Camp (between battles, D9/D15) ---------------------------------------
@@ -232,25 +325,33 @@ export class RunLoop {
       }
     }
 
+    // Record the node outcome + advance the night. A win checks the run-complete
+    // (final-node) terminal; a loss ends the run here (the party's own wipe).
+    const node = currentNode(this.run);
     let over: boolean;
     if (won) {
-      over = advanceRun(this.run, {
-        index: def.index,
+      recordNight(this.run, {
+        nodeId: node.id,
+        layer: node.layer,
+        kind: node.kind,
         type: def.type,
         winner,
         goldEarned,
         fallen: [...permadeaths],
       });
+      over = this.run.over || this.run.complete;
     } else {
-      // The party lost the field — the run ends here (permadeath of the run).
       this.run.history.push({
-        index: def.index,
+        nodeId: node.id,
+        layer: node.layer,
+        kind: node.kind,
         type: def.type,
         winner,
         goldEarned: 0,
         fallen: this.combatants.filter((u) => !u.alive).map((u) => u.id),
         night: this.run.night,
       });
+      this.run.night += 1;
       this.run.over = true;
       over = true;
     }
@@ -263,6 +364,46 @@ export class RunLoop {
   }
 
   // --- Headless auto-play (tests / fast-forward) ----------------------------
+
+  /**
+   * Play **one** node at the run's current position to completion (D22/D23): a
+   * **combat** node runs camp → stage → auto-battle → resolve; a **rest** node
+   * runs the recovery step. The orchestrator must already be positioned (via
+   * {@link choose}). Returns the node played. The interactive render drives the
+   * battle itself — this is the headless fast-forward used by {@link autoTraverse}.
+   */
+  playCurrentNode(): MapNode {
+    const node = currentNode(this.run);
+    if (node.kind === "rest") {
+      this.restNode();
+      return node;
+    }
+    this.camp();
+    if (this.isOver()) return node; // a dying clock ran out at camp → wipe
+    this.startEncounter();
+    this.beginBattle();
+    this.autoBattle();
+    this.resolve();
+    return node;
+  }
+
+  /**
+   * **Pick-first-reachable** traversal of the whole map to a terminal state
+   * (D22) — deterministically choosing the first reachable node each step and
+   * playing it, until the run is **over** (wipe / lost) or **complete** (final
+   * node cleared). Returns the route taken. Lets a headless test play an entire
+   * map to a wipe/clear and replay a seed.
+   */
+  autoTraverse(maxNodes = 100): string[] {
+    let guard = 0;
+    while (!this.isTerminal() && guard++ < maxNodes) {
+      const next = this.reachable();
+      if (next.length === 0) break; // only the final node has none — defensive
+      this.choose(next[0].id);
+      this.playCurrentNode();
+    }
+    return [...this.run.path];
+  }
 
   /**
    * Play the current battle to a decision **deterministically** — both sides use
