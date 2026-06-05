@@ -1,0 +1,128 @@
+# Campfire Tactics — Design Overview
+
+This folder is the **living vision** for the game's systems. It is intentionally
+separate from the build plan in [`scratchpad/foundations/`](../../scratchpad/foundations/),
+which tracks *milestones and status*; these docs track *what the game is*.
+
+> Architectural calls that back these docs are logged as decisions **D1–D7** in
+> [`scratchpad/foundations/decisions.md`](../../scratchpad/foundations/decisions.md).
+
+## Identity
+
+An isometric roguelike tactics game in the lineage of *Final Fantasy Tactics* and
+*Fire Emblem*, with one deliberate twist: **the parts that matter most happen
+around the battle, not just on the grid.** Combat is the genre standard done
+well; the game's character is its **logistics** — provisioning, preparation, and
+the gambles you take before a single blow is struck. The target player is someone
+who enjoys *crunch*: legible systems with deep, interacting decisions.
+
+## Conventions
+
+- **Banding.** Many number systems are expressed as discrete **bands / breakpoints**
+  rather than smooth curves (intel tiers, morale tiers, Awareness allowance, …).
+  Bands are legible to the player and give us clean, isolated knobs to tune balance.
+- **Wide logistics, micro at the unit.** Resource/logistics decisions live at the
+  **party/macro** level (shared pools, provisioning); the turn-to-turn
+  micro-management lives at **unit control** (positioning, action economy, placement,
+  triage). Pre-answers many "shared vs. per-unit" forks.
+- **Gold is the solvent for chores; bespoke systems for choices.** A mechanic that's
+  an interesting in-the-moment *choice* gets its own system; a necessary *chore*
+  collapses into a gold cost (the one **Upkeep** figure). Keeps the meter count low —
+  a handful of tactical systems + one gold dial (decision D15).
+
+## The loop
+
+The game is modeled as an ordered **phase pipeline** (decision D3). Each phase is
+where a different part of the fantasy lives, and most of the signature jobs act in
+a *different* phase:
+
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                                                               │
+  ▼                                                               │
+1. PRE-DEPLOYMENT (Meta / world menu)   off-map resource logistics │
+        │   provision: buy gear, load ammo & materials, cook       │
+        ▼                                                          │
+2. DEPLOYMENT ("earlier that day", on-map)  spatial setup gamble   │
+        │   place traps / nests / runes; push your luck            │
+        ▼                                                          │
+3. COMBAT (the iso grid)   FFT-style CT clock + charged abilities  │
+        │   prep pays off; field entities trigger                  │
+        ▼                                                          │
+4. RESOLUTION   recover materials, tally losses, rewards ──────────┘
+```
+
+## Phase docs
+
+Each phase is described in its own doc, structured as **description → worked
+pseudo-example**:
+
+1. **[Pre-deployment (Meta / world menu)](01-pre-deployment.md)** — off-map
+   provisioning. Buy/sell equipment, load ammo & materials within storage limits,
+   cook for morale/healing, assign jobs. The constraint layer that gates the map.
+2. **[Deployment](02-deployment.md)** — the on-map "earlier that day" setup. A
+   per-unit **push-your-luck** placement of traps, nests, and runes against the
+   real battlefield. Overreach and your unit gets captured.
+3. **[Combat](03-combat.md)** — the isometric battle on an FFT-style continuous
+   **Charge-Time (CT) clock**, where prepared field entities trigger.
+4. **[Resolution](04-resolution.md)** — recover unsprung materials, resolve
+   captures (rescued vs. lost), tally rewards, feed the next Meta phase.
+
+## Cross-cutting subsystems
+
+These span multiple phases and are documented independently so each phase can
+reference them rather than re-explain:
+
+- **[Action economy](systems/action-economy.md)** — the CT clock and charged
+  abilities (combat).
+- **[Magic](systems/magic.md)** — Vancian spells (scribed castings, scrolls, runes, a
+  default spell); magic as a logistics axis (decision D17).
+- **[Field entities & the trigger bus](systems/field-entities.md)** — the single
+  abstraction behind traps, nests, and runes; placed in Deployment, fired in
+  Combat (decision D4).
+- **[Logistics & inventory](systems/logistics.md)** — ammo, materials, rations,
+  and storage; the game's headline pillar (decision D6).
+- **[Intel](systems/intel.md)** — banded pre-battle knowledge via three lanes
+  (Intelligence stat / scouting / the Seer's divination) (decision D10).
+- **[Vision & fog of war](systems/vision.md)** — symmetric in-battle fog on a
+  Hidden→Pinged→Seen ladder; the in-battle twin of Intel (decision D18).
+- **[Morale](systems/morale.md)** — a passive, tiered bundle of minor modifiers
+  the Chef feeds (decision D8).
+- **[Mortality, recovery & difficulty](systems/mortality-recovery.md)** — how units
+  leave the run, between-night Rest-Point healing, and the per-difficulty
+  consequence policy (decision D9).
+- **[Stats](systems/stats.md)** — the stats committed so far (Speed, Awareness)
+  and what each governs.
+
+## One run, end to end (pseudo-example)
+
+> A full, beat-by-beat annotated playthrough lives in
+> [`example-session.md`](example-session.md) — a living reference for sanity-checking
+> changes against. The sketch below is the short version.
+
+> **Meta.** The party has 8 storage slots (Merchant). The player buys 12 arrows,
+> 2 trap kits, and 1 fire-rune reagent, then has the Chef cook a hearty stew
+> (+morale, a small between-battle heal banked for the squad). Loadout locked.
+>
+> **Deployment.** On the map, the trapper **Bram** (high Awareness) safely plants
+> both trap kits across the chokepoint. The scout **Vale** (high Speed) pushes her
+> luck to pre-place the fire rune *and* reposition — tipping into the overdraw
+> zone. The exposure meter shows 35%; the player gambles. Vale is **captured** by
+> enemy scouts: she starts the battle bound on the map, the side fields **−1**, and
+> the team's starting initiative seed drops (the enemy will act first).
+>
+> **Combat.** On the CT clock, the enemy's early tempo is punished when their
+> vanguard walks the chokepoint — both of Bram's traps fire. Rook the soldier
+> cuts to **Vale's** captors and **frees her** (−1 becomes +1). Freed, Vale
+> manually detonates the pre-placed fire rune on the clustered enemies.
+>
+> **Resolution.** The party holds the ground, so one **unsprung** trap kit is
+> **recovered** to storage. Loot and gold roll in (Merchant), morale ticks up from
+> the rescue, and the run advances to the next Meta phase.
+
+## Status
+
+These docs describe the intended design; they will evolve. Nothing here is built
+yet beyond the M1–M2 walking skeleton — see
+[`scratchpad/foundations/PROGRESS.md`](../../scratchpad/foundations/PROGRESS.md)
+for what is actually implemented.

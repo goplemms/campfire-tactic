@@ -46,6 +46,10 @@ Meta (camp / party / economy)   →  Chef buffs, Merchant gold & storage
       → Resolution (rewards, loss) →  feeds back into Meta
 ```
 
+The full system vision — each phase plus cross-cutting subsystems (the FFT-style
+CT clock, field entities & trigger bus, logistics, stats), each with worked
+examples — lives in [`docs/design/`](docs/design/).
+
 ## How this project is built (memento workflow)
 
 This repo is also a live test of the [memento](https://github.com/goplemms/memento)
