@@ -16,6 +16,12 @@ well; the game's character is its **logistics** — provisioning, preparation, a
 the gambles you take before a single blow is struck. The target player is someone
 who enjoys *crunch*: legible systems with deep, interacting decisions.
 
+## Conventions
+
+- **Banding.** Many number systems are expressed as discrete **bands / breakpoints**
+  rather than smooth curves (intel tiers, morale tiers, Awareness allowance, …).
+  Bands are legible to the player and give us clean, isolated knobs to tune balance.
+
 ## The loop
 
 The game is modeled as an ordered **phase pipeline** (decision D3). Each phase is
@@ -66,6 +72,8 @@ reference them rather than re-explain:
   Combat (decision D4).
 - **[Logistics & inventory](systems/logistics.md)** — ammo, materials, rations,
   and storage; the game's headline pillar (decision D6).
+- **[Intel](systems/intel.md)** — banded pre-battle knowledge via three lanes
+  (Intelligence stat / scouting / the Seer's divination) (decision D10).
 - **[Morale](systems/morale.md)** — a passive, tiered bundle of minor modifiers
   the Chef feeds (decision D8).
 - **[Mortality, recovery & difficulty](systems/mortality-recovery.md)** — how units

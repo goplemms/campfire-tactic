@@ -173,3 +173,29 @@ trail of reasoning stays intact.
   scales anything *beyond* mortality (scoped **out** for this pass). Spec:
   [`docs/design/systems/mortality-recovery.md`](../../docs/design/systems/mortality-recovery.md).
 - **Superseded by:** —
+
+## D10 — Intel system, the Intelligence stat, and banding as a convention
+
+- **Status:** Decided
+- **Context:** Provisioning is deliberately "blind-ish"; *intel* lifts that fog. Two
+  questions were open: is intel a passive of a stat or a purchased action, and does
+  it share the Awareness stat (which already governs Deployment safety)?
+- **Decision:**
+  - **Intel is per-encounter, party-wide, and banded** into tiers separated by
+    **breakpoints**: **types → numbers → positions**.
+  - **Three lanes** to climb the tiers (C+D from the discussion, plus a specialist):
+    (1) **passive** via a new **Intelligence** stat (a free floor); (2) **scouting**
+    — gold/ration, or **send a unit** who then starts the battle out of position
+    (risk, à la D7); (3) **divination** via the **Seer** — spend a reagent to jump a
+    breakpoint, or at master rank read free with a chance to jump *multiple*.
+  - **Awareness and Intelligence are distinct personal stats.** Awareness = how
+    *safely* a unit preps (Deployment exposure); Intelligence = how much the party
+    *sees* (intel floor). Different archetypes: Survivalist high-Awareness, Diplomat/
+    Noble high-Intelligence. The **Seer** raises the shared **Intel level**, not the
+    Awareness stat. ("Intelligence" name is **provisional** — may collide with a
+    future magic stat.)
+  - **Banding is adopted as a general convention** (intel, morale, Awareness
+    allowance, …): discrete, player-legible, individually tunable knobs.
+- **Spec:** [`docs/design/systems/intel.md`](../../docs/design/systems/intel.md),
+  [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md).
+- **Superseded by:** —

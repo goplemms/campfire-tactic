@@ -98,7 +98,9 @@ exercise in the browser.
   green.
 - Also lands the camp consequence systems (D8/D9): **morale** (passive tiered
   modifiers) and **between-night recovery** (Rest-Point triage healing + cleric
-  revive as an economy sink).
+  revive as an economy sink); and the **intel system** (D10): banded tiers and the
+  three lanes (Intelligence stat floor / scouting / the Seer's divination), feeding
+  the provisioning decision.
 - See [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md),
   [`01-pre-deployment.md`](../../docs/design/01-pre-deployment.md),
   [`02-deployment.md`](../../docs/design/02-deployment.md),

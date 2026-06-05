@@ -22,6 +22,9 @@ that don't act on the map do their work:
   squad carries into the next fight.
 - **Quartermaster role (any unit)** — **load the loadout**: distribute ammo, trap
   kits, rune reagents, and rations into limited storage slots.
+- **Seer** — **gather [intel](systems/intel.md)** on the coming fight, reading a
+  divination reagent (or, at master rank, freely) to lift the provisioning fog. The
+  exemplar intel job (the intel counterpart to the Survivalist's traps).
 
 ### Camp: recovery & revival
 
@@ -44,8 +47,10 @@ Key tensions a crunch player optimizes here:
 - **Storage is scarce.** Arrows compete with trap kits compete with rations. The
   Merchant's storage stat is the dial that loosens this.
 - **Provisioning is blind-ish.** You commit *before* (or with only partial intel
-  of) the battlefield, so you're betting on what you'll need. Awareness/scouting
-  can buy you a preview (see [Stats](systems/stats.md)).
+  of) the battlefield, so you're betting on what you'll need. **[Intel](systems/intel.md)**
+  lifts that fog in banded tiers (types → numbers → positions) via three lanes:
+  the **Intelligence** stat (free floor), **scouting** (gold/risk), and the **Seer**
+  (divination).
 - **Spend now vs. bank.** Gold spent on consumables is gold not saved for a key
   piece of equipment later in the run.
 
@@ -76,5 +81,6 @@ Key tensions a crunch player optimizes here:
   (D8); only its exact effect magnitudes remain as tuning.
 - Equipment depth (weapon types, slots, upgrades) is deferred — this phase
   establishes the *logistics frame*, not a full RPG inventory yet.
-- Whether scouting/intel is a purchasable action here or a passive of Awareness is
-  noted in [Stats](systems/stats.md) and not yet decided.
+- Intel is **resolved** — three lanes (Intelligence floor / scouting / Seer),
+  banded tiers; see [intel](systems/intel.md) (D10). Only thresholds/costs are
+  tuning.
