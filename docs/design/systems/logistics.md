@@ -27,10 +27,17 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
 - **Storage** — the master cap on everything carried, set by the **Merchant**.
   Scarce by design; the central tension is *what competes for slots*.
 - **Materials** — the build inputs for [field entities](field-entities.md):
-  `trap kit`, `rune reagent`, nest lumber, etc. Spent when placed; **recovered** in
-  [Resolution](../04-resolution.md) if unsprung and the ground was held.
-- **Ammo** — consumed by ranged units/abilities in Combat. Run out → ranged units
-  become mediocre melee for the rest of the fight. Makes "how much to bring" real.
+  `trap kit`, `rune reagent`, nest lumber, etc. Each has **durability**: multi-use
+  **charges** (a rope snare fires a few times) and whether its material **survives**
+  use (recoverable) or is **consumed** (rune dust, gone). **Recovery (D13)** is
+  outcome-gated and whole-field: **win** → reclaim every unsprung, intact, surviving
+  entity — *including the enemy's* (salvage); **flee/lose** → nothing. See
+  [Resolution](../04-resolution.md).
+- **Ammo** — consumed by ranged units/abilities in Combat. **(Open — dedicated
+  follow-up.)** The design tension: spent ammo should matter, but a ranged unit that
+  feels *useless* once empty is bad. Per-unit vs. shared pool, and the empty-feels-bad
+  balance, are deferred to their own discussion; a possible **Survivalist salvage
+  perk** (retrieve a higher % of spent ammo) rides on whatever we choose.
 - **Rations** — the **Chef's** input; cooked into morale and banked heals.
 - **Gold** — earned in Resolution (Merchant bonus), spent in Pre-deployment.
 
@@ -40,7 +47,7 @@ than **storage** allows. Resource logistics gates spatial logistics gates Combat
 Pre-deployment: spend gold + storage to provision (blind-ish to the fight)
    Deployment:  commit materials spatially, gambling time/exposure
      Combat:    consume ammo, spring traps, detonate runes
-   Resolution:  recover unsprung materials (if held), earn gold, deduct spend
+   Resolution:  win → recover unsprung (incl. enemy salvage); earn gold; deduct spend
         ↺       re-provision smarter next time
 ```
 

@@ -11,10 +11,12 @@ provisioning and prep are tallied and folded back into the run.
 
 It resolves four things:
 
-1. **Material recovery.** If the party **held the ground**, **unsprung** field
-   entities (traps not triggered, runes not detonated, nests intact) are
-   **recovered** to storage for reuse. Lose/retreat and they're forfeit. This makes
-   over-provisioning recoverable but holding the field rewarding — see
+1. **Material recovery (D13).** Recovery is **outcome-gated and whole-field**: a
+   **win** means you control the *entire* battlefield, so you recover **every**
+   unsprung, intact entity left standing — **including the enemy's** (salvage into
+   your storage). **Flee or lose → nothing.** What's actually recoverable is bounded
+   by each entity's **durability** (multi-use *charges* and whether its material
+   *survives* use — rune dust is "wiped away" and gone even on a win); see
    [logistics](systems/logistics.md).
 2. **Capture & downed outcomes.** Allies **rescued** during Combat return to the
    roster normally. An ally **still captured at battle's end** opens a **rescue
@@ -53,8 +55,10 @@ next Meta/Pre-deployment phase, until the run ends in victory or death.
 
 ## Open questions / future scope
 
-- Whether recovery is all-or-nothing on "held the ground" or partial/percentage:
-  TBD.
+- Recovery is **resolved** (D13): outcome-gated, whole-field, win-recovers-all
+  (incl. enemy salvage), bounded by entity durability. **Ammo** handling is parked
+  for a **dedicated follow-up** (the "ranged feels bad when empty" balance), as is
+  the conditional **Survivalist salvage perk** on spent-ammo pickups.
 - Morale's feedback is **resolved** — passive tiered modifiers, see
   [morale](systems/morale.md) (D8); magnitudes remain tuning.
 - Full run-state persistence, seeding, and the death screen come with the

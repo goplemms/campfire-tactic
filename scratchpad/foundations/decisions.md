@@ -249,3 +249,24 @@ trail of reasoning stays intact.
   [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md),
   [`docs/design/03-combat.md`](../../docs/design/03-combat.md).
 - **Superseded by:** —
+
+## D13 — Material recovery + entity durability
+
+- **Status:** Decided
+- **Context:** What happens to placed-but-unused field entities after a battle —
+  all-or-nothing, per-tile partial, or per-entity?
+- **Decision:** **Outcome-gated, whole-field.** A **win** = control of the entire
+  battlefield = recover **every** unsprung, intact entity left standing, **including
+  the enemy's** (salvage into storage); **flee/lose → nothing.** (Mechanically the
+  clean binary, framed as "control"; the earlier per-tile partial idea is dropped.)
+  - Each entity carries **durability**: multi-use **charges** (a rope snare fires a
+    few times before breaking) and whether its **material survives** use
+    (recoverable) or is **consumed** (rune dust "wiped away," gone even on a win). So
+    "recoverable on a win" = unsprung **and** intact **and** surviving-material.
+- **Deferred (own follow-up):** **Ammo** handling — spent ammo should matter without
+  making empty ranged units feel useless (per-unit vs. shared pool + the balance);
+  and a **conditional Survivalist salvage perk** (higher % return) *if* we adopt
+  spent-ammo/quantity pickups.
+- **Spec:** [`docs/design/04-resolution.md`](../../docs/design/04-resolution.md),
+  [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md).
+- **Superseded by:** —

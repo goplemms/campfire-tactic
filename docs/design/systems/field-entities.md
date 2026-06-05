@@ -24,7 +24,8 @@ adding a new placeable is adding **data**, not a new system.
 | `state` | armed / sprung / charging / intact, plus charges remaining |
 | `trigger` | the **policy** that decides when its effect runs (below) |
 | `effect` | what happens when it fires (damage, aura, terrain change…) |
-| `provenance` | the material it was built from (for recovery in Resolution) |
+| `durability` | multi-use **charges** (rope snare fires a few times) and whether the material **survives** use (recoverable) or is **consumed** (rune dust) |
+| `provenance` | the material it was built from (for recovery in Resolution, **D13**) |
 
 ### Trigger policies (the three faces)
 
@@ -84,7 +85,7 @@ shape is what matters.
 ```
 Deployment: build entity from a provisioned material, place it, register listeners
    Combat:   bus events fire effects; state advances (armed → sprung / detonated)
- Resolution: unsprung entities, if the ground was held, are recovered to storage
+ Resolution: on a WIN, unsprung+surviving entities (yours AND the enemy's) recovered
 ```
 
 ## Pseudo-example
