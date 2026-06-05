@@ -44,6 +44,14 @@ States: `todo` → `in-progress` → `testable` → `done`
     (safe allowance, overdraw→capture, seed excludes captured + freed-unit rejoins),
     `resolution.test.ts` (win recovers unsprung incl. salvage; loss/consumed → none),
     `combat.test.ts` (+captured = non-active defender), seed-sum updates in `clock.test.ts`.
+  - **Playtest adjustments (2026-06-05, → D21):** (1) **Deployment now plays on the
+    board** — select a unit, **walk it out (A*) like combat**, and place traps where
+    it stands; exposure became **spatial** (a banded safe **depth** from your edge,
+    shown as a green zone tint; placing deeper raises the meter), replacing the
+    abstract placement counter. (2) **A win auto-rescues captured allies** (control
+    the field → your bound people come home); the rescue follow-up quest now applies
+    only to non-win/abandon. Recorded as **D21** (refines D7/D9); 04-resolution.md
+    updated. 74/74 tests green.
   - **Scoped for this pass:** the milestone's "also lands" extras — full **D9
     Rest-Point recovery / cleric revive** and the **D10 intel system** — are
     **deferred** to keep M5b on its user-testable gate; **D8 morale** is present as

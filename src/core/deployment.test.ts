@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   createExposure,
-  safeAllowance,
-  nextPlacementCost,
+  safeDepth,
+  placementCost,
   recordPlacement,
   exposureRisk,
   freeCaptive,
@@ -28,29 +28,35 @@ function unit(id: string, side: Side, awareness: number, speed = 10): Unit {
 }
 
 describe("deployment exposure gamble (D7/D11)", () => {
-  it("gives free placements within the Awareness-banded safe allowance", () => {
-    const cautious = unit("Bram", "player", 6); // allowance 1 + 6/3 = 3
-    const reckless = unit("Vale", "player", 2); // allowance 1 + 0 = 1
-    expect(safeAllowance(cautious)).toBe(3);
-    expect(safeAllowance(reckless)).toBe(1);
+  it("ranges deeper for free at higher Awareness (banded safe depth)", () => {
+    const cautious = unit("Bram", "player", 6); // 2 + 3 = 5
+    const reckless = unit("Vale", "player", 2); // 2 + 1 = 3
+    expect(safeDepth(cautious)).toBe(5);
+    expect(safeDepth(reckless)).toBe(3);
   });
 
-  it("accrues exposure only on overdraw placements and captures at the threshold", () => {
-    const vale = unit("Vale", "player", 2); // safe 1, overdraw 50/placement
+  it("charges exposure per tile of depth beyond the safe zone", () => {
+    const vale = unit("Vale", "player", 2); // safe depth 3, 25 per tile deeper
+    expect(placementCost(vale, 3)).toBe(0); // within safe depth
+    expect(placementCost(vale, 4)).toBe(25);
+    expect(placementCost(vale, 6)).toBe(75);
+  });
+
+  it("accrues exposure only on deep placements and captures at the threshold", () => {
+    const vale = unit("Vale", "player", 2); // safe depth 3
     const st = createExposure();
 
-    // 1st placement: within the safe allowance → free.
-    expect(nextPlacementCost(st, vale)).toBe(0);
-    expect(recordPlacement(st, vale)).toEqual({ exposureAdded: 0, captured: false });
+    // A placement inside the safe depth → free.
+    expect(recordPlacement(st, vale, 2)).toEqual({ exposureAdded: 0, captured: false });
     expect(st.exposure).toBe(0);
 
-    // 2nd: overdraw → +50, risk 50%.
-    expect(recordPlacement(st, vale)).toEqual({ exposureAdded: 50, captured: false });
+    // Depth 5 → +50, risk 50%.
+    expect(recordPlacement(st, vale, 5)).toEqual({ exposureAdded: 50, captured: false });
     expect(exposureRisk(st)).toBeCloseTo(0.5);
     expect(isCaptured(vale)).toBe(false);
 
-    // 3rd: +50 → 100 ⇒ captured.
-    const r = recordPlacement(st, vale);
+    // Another depth-5 placement → +50 ⇒ 100 ⇒ captured.
+    const r = recordPlacement(st, vale, 5);
     expect(r.exposureAdded).toBe(50);
     expect(r.captured).toBe(true);
     expect(st.exposure).toBeGreaterThanOrEqual(CAPTURE_THRESHOLD);
@@ -58,10 +64,11 @@ describe("deployment exposure gamble (D7/D11)", () => {
     expect(vale.ct).toBe(0);
   });
 
-  it("high Awareness preps deeper before any risk", () => {
-    const bram = unit("Bram", "player", 6); // safe 3
+  it("high Awareness preps deep before any risk", () => {
+    const bram = unit("Bram", "player", 6); // safe depth 5
     const st = createExposure();
-    for (let i = 0; i < 3; i++) recordPlacement(st, bram);
+    recordPlacement(st, bram, 4);
+    recordPlacement(st, bram, 5);
     expect(st.exposure).toBe(0);
     expect(isCaptured(bram)).toBe(false);
   });

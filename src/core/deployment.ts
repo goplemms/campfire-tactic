@@ -1,15 +1,15 @@
 /**
  * Deployment — the per-unit push-your-luck exposure gamble (D7/D11).
  *
- * A unit places field entities during a **safe allowance** of placements at zero
- * risk (sized in bands by Awareness). Each placement **beyond** the allowance is
- * **overdraw**: it adds to a **transparent exposure meter** (no hidden roll — the
- * board shows it). When exposure crosses {@link CAPTURE_THRESHOLD} the unit is
- * **captured** — bound on the map, dropped from the initiative seed, but a
- * rescuable sub-objective in the coming battle.
+ * Deployment plays out **on the board**, like combat: units walk out and place
+ * field entities where they stand. The gamble is **spatial** — a **safe depth**
+ * near your edge (banded by Awareness) costs nothing, but each tile **deeper**
+ * you commit a placement raises a **transparent exposure meter**. Cross
+ * {@link CAPTURE_THRESHOLD} and the unit is **captured** — bound on the map,
+ * dropped from the initiative seed, a rescuable sub-objective in the battle.
  *
- * (M5b uses a transparent deterministic meter; the full D11 "auto-retreat with a
- * per-step capture roll" is a later tuning pass over this same seam.)
+ * (M5b uses a transparent deterministic meter driven by placement depth; the
+ * full D11 "auto-retreat with a per-step roll" is a later tuning pass.)
  *
  * Pure logic: no Phaser, no DOM.
  */
@@ -18,6 +18,9 @@ import type { Unit } from "./units";
 
 /** Exposure at which a unit is captured. */
 export const CAPTURE_THRESHOLD = 100;
+
+/** Exposure added per tile of depth **beyond** the safe zone. */
+export const EXPOSURE_PER_DEPTH = 25;
 
 /** Per-unit deployment exposure state. */
 export interface DeployExposure {
@@ -33,19 +36,22 @@ export function createExposure(): DeployExposure {
   return { placements: 0, exposure: 0, captured: false };
 }
 
-/** Free placements before overdraw begins — banded by Awareness (D11). */
-export function safeAllowance(unit: Unit): number {
-  return 1 + Math.floor(unit.awareness / 3);
+/**
+ * How deep (in tiles from the party's safe edge) a unit may place at **zero
+ * risk** — banded by Awareness (D11). A high-Awareness unit ranges further
+ * before the meter moves.
+ */
+export function safeDepth(unit: Unit): number {
+  return 2 + Math.floor(unit.awareness / 2);
 }
 
-/** Exposure added per overdraw placement — lower for high-Awareness units. */
-export function overdrawCost(unit: Unit): number {
-  return Math.max(20, 60 - unit.awareness * 5);
-}
-
-/** Exposure the *next* placement would add (0 while within the safe allowance). */
-export function nextPlacementCost(state: DeployExposure, unit: Unit): number {
-  return state.placements < safeAllowance(unit) ? 0 : overdrawCost(unit);
+/**
+ * Exposure a placement at the given `depth` (tiles from the safe edge) would
+ * add — zero within the safe depth, then {@link EXPOSURE_PER_DEPTH} per tile
+ * deeper.
+ */
+export function placementCost(unit: Unit, depth: number): number {
+  return Math.max(0, depth - safeDepth(unit)) * EXPOSURE_PER_DEPTH;
 }
 
 /** Current exposure as a 0..1 fraction, for the board meter. */
@@ -54,15 +60,16 @@ export function exposureRisk(state: DeployExposure): number {
 }
 
 /**
- * Record a placement by `unit`: spend its safe allowance first, then accrue
- * overdraw exposure; capture it if exposure crosses the threshold. Returns the
- * exposure added and whether the unit is now captured.
+ * Record a placement by `unit` at the given `depth`: accrue its exposure cost
+ * and capture the unit if exposure crosses the threshold. Returns the exposure
+ * added and whether the unit is now captured.
  */
 export function recordPlacement(
   state: DeployExposure,
   unit: Unit,
+  depth: number,
 ): { exposureAdded: number; captured: boolean } {
-  const cost = nextPlacementCost(state, unit);
+  const cost = placementCost(unit, depth);
   state.placements += 1;
   state.exposure += cost;
   if (!state.captured && state.exposure >= CAPTURE_THRESHOLD) {

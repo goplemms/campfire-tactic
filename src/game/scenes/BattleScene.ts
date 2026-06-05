@@ -29,8 +29,9 @@ import {
   slotsUsed,
   createExposure,
   recordPlacement,
-  nextPlacementCost,
   exposureRisk,
+  safeDepth,
+  placementCost,
   freeCaptive,
   recoverMaterials,
   type Inventory,
@@ -73,10 +74,12 @@ export class BattleScene extends Phaser.Scene {
   private phaseSkills!: PhaseSkillRegistry;
   /** The full player party (incl. off-grid Chef/Merchant), for camp skills. */
   private party: Unit[] = [];
-  /** The Survivalist who places traps and risks capture in Deployment. */
-  private deployer!: Unit;
-  /** The deployer's running exposure meter. */
-  private exposure: DeployExposure = createExposure();
+  /** The player unit currently active in Deployment (selected to move/place). */
+  private deployActor: Unit | null = null;
+  /** Per-unit deployment exposure meters. */
+  private deployExposures = new Map<string, DeployExposure>();
+  /** Translucent overlay marking the active unit's safe (zero-risk) depth. */
+  private safeZoneGfx?: Phaser.GameObjects.Graphics;
   /** Where a captured unit is repositioned (enemy safe zone). */
   private static readonly CAPTURE_TILE: GridCoord = { col: 6, row: 5 };
   private originX = 0;
@@ -110,7 +113,6 @@ export class BattleScene extends Phaser.Scene {
   private over = false;
 
   // Deployment state.
-  private armingTrap = false;
   private trapDamage = 12;
   private placedTraps: {
     pos: GridCoord;
@@ -128,7 +130,6 @@ export class BattleScene extends Phaser.Scene {
     this.battle = new Battle(this.grid, this.makeCombatants());
     this.camp = createCamp({ gold: 0, storageCap: 6, morale: 0 });
     this.inventory = createInventory(this.camp.storageCap);
-    this.deployer = this.battle.units.find((u) => u.id === "Vale")!;
     this.pipeline = new PhasePipeline();
 
     // The party = on-grid combatants + off-grid non-combat jobs (Chef/Merchant).
@@ -456,62 +457,163 @@ export class BattleScene extends Phaser.Scene {
 
   private enterDeployPhase(): void {
     // Pull the trap's damage from the Survivalist's data so it stays data-driven.
-    const deploySkills = this.phaseSkills.forPhase("deployment");
-    const trapSkill = deploySkills.find((h) => h.skill.effect.kind === "placeTrap");
+    const trapSkill = this.phaseSkills
+      .forPhase("deployment")
+      .find((h) => h.skill.effect.kind === "placeTrap");
     if (trapSkill && trapSkill.skill.effect.kind === "placeTrap") {
       this.trapDamage = trapSkill.skill.effect.damage;
     }
-    this.layoutActionRow(
-      deploySkills.map(({ unit, skill }) => ({
-        text: `${unit.name}: ${skill.name}`,
-        description: `${skill.name} — ${skill.description}`,
-        onClick: () => {
-          if (this.deployer.captured) {
-            this.setHint(`${this.deployer.name} is captured and can't place more.`);
-            return;
-          }
-          if (countOf(this.inventory, "trap-kit") <= 0) {
-            this.setHint("No trap kits carried — go back and load some in camp.");
-            return;
-          }
-          this.armingTrap = true;
-          this.setHint("Click a walkable tile to place the trap (watch your exposure).");
-        },
-      })),
-    );
+    // Deployment plays on the board: select a unit, walk it out (A*), and place
+    // traps where it stands. The first player unit is active to start.
+    this.selectDeployActor(this.battle.units.find((u) => u.side === "player") ?? null);
     this.setPrimary("Start Battle");
+  }
+
+  /** A unit's deployment exposure meter (created on first use). */
+  private exposureOf(unit: Unit): DeployExposure {
+    let st = this.deployExposures.get(unit.id);
+    if (!st) {
+      st = createExposure();
+      this.deployExposures.set(unit.id, st);
+    }
+    return st;
+  }
+
+  /** Make a player unit the active deployer: highlight it, draw its safe zone. */
+  private selectDeployActor(unit: Unit | null): void {
+    this.deployActor = unit;
+    this.highlightTile(unit ? unit.pos : null);
+    this.drawSafeZone(unit);
+    this.refreshDeployButtons();
     this.refreshDeployStatus();
+    if (unit) {
+      this.setHint(
+        `${unit.name}: click a tile to move (deeper = riskier), place a trap where you stand, or pick another unit.`,
+      );
+    }
   }
 
-  /** Title line showing the deployer's exposure gamble state. */
+  private refreshDeployButtons(): void {
+    const actor = this.deployActor;
+    const specs: { text: string; description?: string; onClick: () => void }[] = [];
+    if (actor && !actor.captured) {
+      const isTrapper = unitSkills(actor, "deployment").some(
+        (s) => s.effect.kind === "placeTrap",
+      );
+      if (isTrapper) {
+        specs.push({
+          text: "Place Trap Here",
+          description: "Drop a trap on this tile (1 kit). Deeper tiles raise capture risk.",
+          onClick: () => this.placeTrapAtActor(),
+        });
+      }
+    }
+    // Let the player cycle which unit is deploying.
+    const players = this.battle.units.filter((u) => u.side === "player" && !u.captured);
+    if (players.length > 1) {
+      specs.push({
+        text: "Next Unit",
+        description: "Switch to another unit to deploy.",
+        onClick: () => this.cycleDeployActor(),
+      });
+    }
+    this.layoutActionRow(specs);
+  }
+
+  private cycleDeployActor(): void {
+    if (this.busy) return;
+    const players = this.battle.units.filter((u) => u.side === "player" && !u.captured);
+    if (players.length === 0) return;
+    const i = this.deployActor ? players.indexOf(this.deployActor) : -1;
+    this.selectDeployActor(players[(i + 1) % players.length]);
+  }
+
+  /** The depth (tiles from the party's home edge, col 0) of a tile. */
+  private depthOf(tile: GridCoord): number {
+    return tile.col;
+  }
+
+  /** Title line showing the active deployer's spatial exposure gamble. */
   private refreshDeployStatus(): void {
-    const pct = Math.round(exposureRisk(this.exposure) * 100);
-    const next = Math.round(
-      (nextPlacementCost(this.exposure, this.deployer) / 100) * 100,
-    );
+    const actor = this.deployActor;
+    if (!actor) {
+      this.titleText.setText("Deployment");
+      return;
+    }
+    const st = this.exposureOf(actor);
+    const pct = Math.round(exposureRisk(st) * 100);
+    const here = Math.round((placementCost(actor, this.depthOf(actor.pos)) / 100) * 100);
     const kits = countOf(this.inventory, "trap-kit");
-    const tag = this.deployer.captured ? " — CAPTURED" : ` (next placement +${next}%)`;
+    const tag = actor.captured
+      ? " — CAPTURED"
+      : `, safe to depth ${safeDepth(actor)} (place here +${here}%)`;
     this.titleText.setText(
-      `Deployment — ${this.deployer.name} exposure ${pct}%${tag} · Trap Kits ${kits}`,
+      `Deployment — ${actor.name} exposure ${pct}%${tag} · Trap Kits ${kits}`,
     );
   }
 
-  private placeTrapAt(tile: GridCoord): void {
-    if (this.deployer.captured) return;
+  /** Faintly tint the active unit's zero-risk depth columns. */
+  private drawSafeZone(unit: Unit | null): void {
+    if (!this.safeZoneGfx) this.safeZoneGfx = this.add.graphics().setDepth(0.4);
+    this.safeZoneGfx.clear();
+    if (!unit) return;
+    const maxCol = safeDepth(unit);
+    for (let row = 0; row < BattleScene.ROWS; row++) {
+      for (let col = 0; col <= maxCol && col < BattleScene.COLS; col++) {
+        if (!this.grid.isWalkable({ col, row })) continue;
+        const { x, y } = this.tileToWorld({ col, row });
+        const halfW = TILE_WIDTH / 2;
+        const halfH = TILE_HEIGHT / 2;
+        this.safeZoneGfx.fillStyle(0x2f6b46, 0.28);
+        this.safeZoneGfx.beginPath();
+        this.safeZoneGfx.moveTo(x, y - halfH);
+        this.safeZoneGfx.lineTo(x + halfW, y);
+        this.safeZoneGfx.lineTo(x, y + halfH);
+        this.safeZoneGfx.lineTo(x - halfW, y);
+        this.safeZoneGfx.closePath();
+        this.safeZoneGfx.fillPath();
+      }
+    }
+  }
+
+  /** Move the active deployer toward a clicked tile (A*, capped at moveRange). */
+  private deployMove(tile: GridCoord): void {
+    const actor = this.deployActor;
+    if (!actor || actor.captured || this.busy) return;
+    const nav = occupiedGrid(this.grid, this.battle.units, [actor]);
+    const path = findPath(nav, actor.pos, tile);
+    if (!path || path.length < 2) {
+      this.setHint("Can't move there.");
+      return;
+    }
+    const steps = path.slice(1).slice(0, actor.moveRange);
+    const dest = steps[steps.length - 1];
+    actor.pos = { ...dest };
+    this.busy = true;
+    this.animateMove(actor, steps, () => {
+      this.busy = false;
+      this.highlightTile(actor.pos);
+      this.refreshDeployStatus();
+      this.refreshDeployButtons();
+    });
+  }
+
+  private placeTrapAtActor(): void {
+    if (this.busy) return;
+    this.placeTrap();
+  }
+
+  /** Place a trap on the active deployer's current tile (the risky commit). */
+  private placeTrap(): void {
+    const actor = this.deployActor;
+    if (!actor || actor.captured) return;
     if (countOf(this.inventory, "trap-kit") <= 0) {
-      this.setHint("No trap kits left to place.");
+      this.setHint("No trap kits carried — go back and load some in camp.");
       return;
     }
-    if (!this.grid.isWalkable(tile)) {
-      this.setHint("Can't place a trap there.");
-      return;
-    }
-    if (this.battle.units.some((u) => u.alive && u.pos.col === tile.col && u.pos.row === tile.row)) {
-      this.setHint("That tile is occupied.");
-      return;
-    }
+    const tile = actor.pos;
     if (this.placedTraps.some((t) => t.pos.col === tile.col && t.pos.row === tile.row)) {
-      this.setHint("There's already a trap there.");
+      this.setHint("There's already a trap here — move first.");
       return;
     }
 
@@ -523,34 +625,38 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(0.8);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
-    this.armingTrap = false;
     this.refreshCampText();
 
-    // The push-your-luck gamble: each placement may push the deployer into
-    // overdraw, and far enough → captured (D7/D11).
-    const result = recordPlacement(this.exposure, this.deployer);
+    // The push-your-luck gamble: a placement this deep may tip into capture.
+    const st = this.exposureOf(actor);
+    const result = recordPlacement(st, actor, this.depthOf(tile));
     this.refreshDeployStatus();
     if (result.captured) {
-      this.captureDeployer();
+      this.captureDuringDeploy(actor);
     } else {
-      const pct = Math.round(exposureRisk(this.exposure) * 100);
+      const pct = Math.round(exposureRisk(st) * 100);
+      this.refreshDeployButtons();
       this.setHint(
         result.exposureAdded > 0
-          ? `Trap placed — overdraw! Exposure now ${pct}%. Press your luck or Start Battle.`
-          : "Trap placed safely. Set another, or Start Battle.",
+          ? `Trap placed deep — exposure now ${pct}%. Press your luck or Start Battle.`
+          : "Trap placed safely (within your safe depth). Range deeper or Start Battle.",
       );
     }
   }
 
-  /** The deployer was captured during prep: bind it in the enemy safe zone. */
-  private captureDeployer(): void {
-    this.armingTrap = false;
-    const u = this.deployer;
-    u.pos = { ...BattleScene.CAPTURE_TILE };
-    this.placeView(u);
-    this.tintCaptured(u, true);
+  /** A unit was captured mid-deployment: bind it in the enemy safe zone. */
+  private captureDuringDeploy(unit: Unit): void {
+    unit.pos = { ...BattleScene.CAPTURE_TILE };
+    this.placeView(unit);
+    this.tintCaptured(unit, true);
+    this.highlightTile(null);
+    // Hand control to another free unit if there is one.
+    const next = this.battle.units.find(
+      (u) => u.side === "player" && !u.captured && u !== unit,
+    );
+    this.selectDeployActor(next ?? null);
     this.setHint(
-      `${u.name} was captured deploying! She starts the battle bound in the enemy zone (dropped from your initiative seed) — reach her and rescue.`,
+      `${unit.name} ranged too deep and was captured! She starts the battle bound in the enemy zone (dropped from your initiative seed) — rescue her, or win to bring her home.`,
     );
   }
 
@@ -559,7 +665,9 @@ export class BattleScene extends Phaser.Scene {
   private startBattlePhase(): void {
     this.titleText.setText("Battle");
     this.clearActionButtons();
-    this.armingTrap = false;
+    this.deployActor = null;
+    this.safeZoneGfx?.clear();
+    this.highlightTile(null);
 
     // Register the Survivalist's traps as field entities (D4) before the fight.
     this.placedTraps.forEach((t, i) =>
@@ -590,8 +698,9 @@ export class BattleScene extends Phaser.Scene {
     this.battle.seed();
     this.refreshHud();
     this.setPrimary("Advance Clock");
-    const captiveNote = this.deployer.captured
-      ? ` ${this.deployer.name} is bound in the enemy zone and dropped from your initiative seed — rescue her.`
+    const bound = this.battle.units.find((u) => u.captured && u.side === "player");
+    const captiveNote = bound
+      ? ` ${bound.name} is bound in the enemy zone and dropped from your initiative seed — rescue her (or win to bring her home).`
       : "";
     this.setHint(
       (healed > 0
@@ -697,7 +806,15 @@ export class BattleScene extends Phaser.Scene {
     if (!this.grid.inBounds(tile)) return;
 
     if (phase === "deployment") {
-      if (this.armingTrap) this.placeTrapAt(tile);
+      if (this.busy) return;
+      const clicked = this.battle.units.find(
+        (u) => u.alive && u.pos.col === tile.col && u.pos.row === tile.row,
+      );
+      if (clicked && clicked.side === "player" && !clicked.captured) {
+        this.selectDeployActor(clicked); // pick this unit to deploy
+      } else if (!clicked) {
+        this.deployMove(tile); // walk the active unit out (A*)
+      }
       return;
     }
     if (phase !== "battle") return;
@@ -893,13 +1010,21 @@ export class BattleScene extends Phaser.Scene {
 
     const lines: string[] = [];
     if (won) {
+      // Victory = control of the field: any still-bound allies are freed (D7/D13).
+      const freed = this.battle.units.filter((u) => u.captured && u.side === "player");
+      for (const u of freed) {
+        freeCaptive(u);
+        this.tintCaptured(u, false);
+        this.flashHeal(u);
+      }
+      if (freed.length > 0) {
+        lines.push(`Auto-rescued ${freed.map((u) => u.name).join(", ")} (won the field).`);
+      }
       lines.push(
         recovered.length > 0
           ? `Recovered ${recovered.length} unsprung trap kit(s) to storage.`
           : "No unsprung materials to recover.",
       );
-      const stillBound = this.battle.units.find((u) => u.captured && u.side === "player");
-      if (stillBound) lines.push(`${stillBound.name} left bound → a rescue follow-up (M6).`);
     } else {
       lines.push("Fled the field — no materials recovered.");
     }
