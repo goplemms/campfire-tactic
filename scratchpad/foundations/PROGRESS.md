@@ -11,7 +11,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M3 — Turn-based battle loop (CT clock + trigger bus) | done |
 | M4 — Data-driven jobs & skills + phase pipeline | done |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
-| M5b — Logistics pillar & Deployment gamble (D6/D7) | testable |
+| M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
 
 States: `todo` → `in-progress` → `testable` → `done`
@@ -19,11 +19,14 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M5b — Logistics pillar & the Deployment gamble. **Code complete →
-  `testable`** (same branch): `npm test` **73/73 green**, `npm run build` clean,
-  `core/` free of Phaser/DOM. Awaiting the **in-browser gate**: provision a loadout
-  under a storage cap → over-prep a unit into overdraw until captured → rescue her
-  mid-battle → recover an unsprung trap in Resolution.
+- **Milestone:** M5b — Logistics pillar & the Deployment gamble. **DONE (gate)**
+  (2026-06-05): `npm test` **74/74 green**, `npm run build` clean, `core/` free of
+  Phaser/DOM, and the **in-browser gate is confirmed** — provisioned under a storage
+  cap → walked a unit out in on-board Deployment and over-ranged into capture →
+  brought her home (manual rescue and/or auto-rescue on victory) → recovered unsprung
+  traps in Resolution. The D9-RP-recovery and D10-intel extras remain **deferred**
+  (see plan.md). **Next up: M6** (seeded run loop) — pull the deferred D8-morale
+  effects / D9-RP / D10-intel in alongside it.
   - **What landed (M5b):** new `core/` modules — `inventory.ts` (party-wide slotted
     stacks: `MaterialDef` with `slotCost`/`stackSize`/`recoverable`, a `MATERIALS`
     registry, storage-cap-enforced add/remove = the **provisioning constraint**, D6/D14);
