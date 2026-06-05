@@ -53,22 +53,23 @@ describe("CTClock", () => {
     expect(MOVE_COST).toBeLessThan(ACT_COST);
   });
 
-  it("seeds initiative from each side's average Speed (D11)", () => {
+  it("seeds initiative from each side's summed Speed (D11)", () => {
     const p1 = unit("p1", 12, "player");
     const p2 = unit("p2", 8, "player");
     const e1 = unit("e1", 20, "enemy");
     const units = [p1, p2, e1];
 
-    expect(sideSeed(units, "player")).toBe(10);
+    // Sum, not average: the player fielded two units (12 + 8 = 20).
+    expect(sideSeed(units, "player")).toBe(20);
     expect(sideSeed(units, "enemy")).toBe(20);
 
     const clock = new CTClock(units);
     clock.seedInitiative();
-    expect(p1.ct).toBe(10);
-    expect(p2.ct).toBe(10);
+    expect(p1.ct).toBe(20);
+    expect(p2.ct).toBe(20);
     expect(e1.ct).toBe(20);
 
-    // The higher-seeded (faster) side reaches its turn first.
+    // From an equal seed, the fastest single unit (e1, Speed 20) acts first.
     expect(clock.advanceToNextActor()).toBe(e1);
   });
 

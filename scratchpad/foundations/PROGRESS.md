@@ -11,7 +11,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M3 — Turn-based battle loop (CT clock + trigger bus) | done |
 | M4 — Data-driven jobs & skills + phase pipeline | done |
 | M5 — Signature non-combat jobs (chef / survivalist / merchant) | done |
-| M5b — Logistics pillar & Deployment gamble (D6/D7) | todo |
+| M5b — Logistics pillar & Deployment gamble (D6/D7) | testable |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | todo |
 
 States: `todo` → `in-progress` → `testable` → `done`
@@ -19,12 +19,36 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 ## Current block
 
-- **Milestone:** M5 — Signature non-combat jobs. **DONE** (2026-06-05): `npm test`
-  **61/61 green**, `npm run build` clean, `core/` free of Phaser/DOM, and the
-  **in-browser gate is confirmed** — the camp→deploy→battle mini-loop ran: the
-  Chef's cooking buff healed the party and a Survivalist-placed trap sprang in the
-  following battle. **Next up: a contributor guide for adding new abilities**
-  (requested), then M5b / M6.
+- **Milestone:** M5b — Logistics pillar & the Deployment gamble. **Code complete →
+  `testable`** (same branch): `npm test` **73/73 green**, `npm run build` clean,
+  `core/` free of Phaser/DOM. Awaiting the **in-browser gate**: provision a loadout
+  under a storage cap → over-prep a unit into overdraw until captured → rescue her
+  mid-battle → recover an unsprung trap in Resolution.
+  - **What landed (M5b):** new `core/` modules — `inventory.ts` (party-wide slotted
+    stacks: `MaterialDef` with `slotCost`/`stackSize`/`recoverable`, a `MATERIALS`
+    registry, storage-cap-enforced add/remove = the **provisioning constraint**, D6/D14);
+    `deployment.ts` (the **push-your-luck exposure gamble**, D7/D11: Awareness-banded
+    `safeAllowance`, overdraw exposure meter, deterministic capture at the threshold;
+    plus `captureUnit`/`freeCaptive`/`isCaptured`); `resolution.ts` (`recoverMaterials`
+    — outcome-gated whole-field recovery of unsprung+recoverable entities incl. enemy
+    salvage, D13). `units.ts` gained `awareness` + a `captured` flag; `clock.ts` now
+    **excludes captured units** from the seed (switched avg→**sum** so losing a unit
+    *lowers* the seed, D11), ticking, and turns; `ai.ts` ignores bound units;
+    `combat.ts` `battleOutcome` treats captured as non-active; `entities.ts` `makeTrap`
+    now carries recovery state (`sprung`/`recoverable`/`materialId`). Render:
+    `BattleScene` extends the mini-loop — **Camp** loadout (Load Trap Kit under the
+    cap, Merchant raises the cap), **Deployment** with a live **exposure meter** +
+    capture (token binds purple, repositions to the enemy zone), **Battle** rescue
+    (move adjacent + free), and a **Resolution** overlay listing recovered materials.
+  - **Tests:** `inventory.test.ts` (slots/cap/provisioning), `deployment.test.ts`
+    (safe allowance, overdraw→capture, seed excludes captured + freed-unit rejoins),
+    `resolution.test.ts` (win recovers unsprung incl. salvage; loss/consumed → none),
+    `combat.test.ts` (+captured = non-active defender), seed-sum updates in `clock.test.ts`.
+  - **Scoped for this pass:** the milestone's "also lands" extras — full **D9
+    Rest-Point recovery / cleric revive** and the **D10 intel system** — are
+    **deferred** to keep M5b on its user-testable gate; **D8 morale** is present as
+    the passive tiered value/`moraleTier` (no battle modifiers yet). Flagged for a
+    follow-up before/with M6.
   - **What landed (M5):** new `core/` modules — `camp.ts` (Meta state: gold,
     storageCap, morale + `moraleTier` banding (D8), a banked `pendingHeal`;
     `applyCampSkill` for Merchant `economy` / Chef `morale` effects;
@@ -72,6 +96,9 @@ States: `todo` → `in-progress` → `testable` → `done`
     [], `registerParty` buckets 2×3 into Battle), `phases.test.ts` (phase order,
     pipeline advance/clamp/reset, registry buckets by phase), and a `turn.test.ts`
     case (`Battle.useSkill` resolves Power Strike and spends Act CT).
+- **(prior) M5 — Signature non-combat jobs. DONE** (2026-06-05): Chef/Survivalist/
+  Merchant each hook a different phase; in-browser the cooking buff healed the party
+  and a placed trap sprang. Also added `docs/guides/adding-abilities.md`.
 - **(prior) M4 — Data-driven jobs & skills + phase pipeline. DONE** (2026-06-05):
   skills as declarative data, the D3 phase pipeline, the Soldier's Battle-phase
   skills surfaced as working in-browser buttons.

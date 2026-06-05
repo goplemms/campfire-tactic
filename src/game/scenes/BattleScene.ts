@@ -21,6 +21,20 @@ import {
   applyCampToParty,
   moraleTier,
   makeTrap,
+  // M5b — logistics, deployment gamble, resolution
+  createInventory,
+  addItem,
+  removeItem,
+  countOf,
+  slotsUsed,
+  createExposure,
+  recordPlacement,
+  nextPlacementCost,
+  exposureRisk,
+  freeCaptive,
+  recoverMaterials,
+  type Inventory,
+  type DeployExposure,
   type Camp,
   type GridCoord,
   type Unit,
@@ -54,17 +68,28 @@ export class BattleScene extends Phaser.Scene {
   private grid!: TileGrid;
   private battle!: Battle;
   private camp!: Camp;
+  private inventory!: Inventory;
   private pipeline!: PhasePipeline;
   private phaseSkills!: PhaseSkillRegistry;
   /** The full player party (incl. off-grid Chef/Merchant), for camp skills. */
   private party: Unit[] = [];
+  /** The Survivalist who places traps and risks capture in Deployment. */
+  private deployer!: Unit;
+  /** The deployer's running exposure meter. */
+  private exposure: DeployExposure = createExposure();
+  /** Where a captured unit is repositioned (enemy safe zone). */
+  private static readonly CAPTURE_TILE: GridCoord = { col: 6, row: 5 };
   private originX = 0;
   private originY = 0;
 
   /** Per-unit render handles. */
   private views = new Map<
     string,
-    { container: Phaser.GameObjects.Container; hp: Phaser.GameObjects.Text }
+    {
+      container: Phaser.GameObjects.Container;
+      body: Phaser.GameObjects.Arc;
+      hp: Phaser.GameObjects.Text;
+    }
   >();
   private highlight!: Phaser.GameObjects.Graphics;
   private orderText!: Phaser.GameObjects.Text;
@@ -102,6 +127,8 @@ export class BattleScene extends Phaser.Scene {
     this.grid = new TileGrid(BattleScene.COLS, BattleScene.ROWS, BattleScene.BLOCKED);
     this.battle = new Battle(this.grid, this.makeCombatants());
     this.camp = createCamp({ gold: 0, storageCap: 6, morale: 0 });
+    this.inventory = createInventory(this.camp.storageCap);
+    this.deployer = this.battle.units.find((u) => u.id === "Vale")!;
     this.pipeline = new PhasePipeline();
 
     // The party = on-grid combatants + off-grid non-combat jobs (Chef/Merchant).
@@ -159,10 +186,10 @@ export class BattleScene extends Phaser.Scene {
   /** The on-grid combatants. */
   private makeCombatants(): Unit[] {
     return [
-      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", jobId: "soldier", speed: 12, maxHp: 30, hp: 18, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", jobId: "survivalist", speed: 10, maxHp: 24, hp: 14, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Grunt", side: "enemy", pos: { col: 7, row: 1 }, name: "Grunt", speed: 9, maxHp: 22, attack: 7, defense: 2, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Brute", side: "enemy", pos: { col: 7, row: 4 }, name: "Brute", speed: 7, maxHp: 30, attack: 8, defense: 3, moveRange: 3, sightRadius: 4 }),
+      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", jobId: "soldier", awareness: 4, speed: 12, maxHp: 30, hp: 18, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
+      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", jobId: "survivalist", awareness: 2, speed: 10, maxHp: 24, hp: 14, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
+      createUnit({ id: "Grunt", side: "enemy", pos: { col: 7, row: 1 }, name: "Grunt", awareness: 3, speed: 9, maxHp: 22, attack: 7, defense: 2, moveRange: 4, sightRadius: 5 }),
+      createUnit({ id: "Brute", side: "enemy", pos: { col: 7, row: 4 }, name: "Brute", awareness: 3, speed: 7, maxHp: 30, attack: 8, defense: 3, moveRange: 3, sightRadius: 4 }),
     ];
   }
 
@@ -237,10 +264,18 @@ export class BattleScene extends Phaser.Scene {
         .text(0, -TILE_HEIGHT / 2 - 13, "", { color: "#bfe8c0", fontSize: "11px" })
         .setOrigin(0.5);
       const container = this.add.container(0, 0, [body, label, hp]).setDepth(1);
-      this.views.set(unit.id, { container, hp });
+      this.views.set(unit.id, { container, body, hp });
       this.placeView(unit);
     }
     this.refreshHp();
+  }
+
+  /** Recolour a captured/freed unit's token (purple = bound). */
+  private tintCaptured(unit: Unit, captured: boolean): void {
+    const view = this.views.get(unit.id);
+    if (!view) return;
+    view.body.setFillStyle(captured ? 0x9a6bd0 : 0xffcf6b);
+    view.body.setStrokeStyle(2, captured ? 0x4a2c6b : 0x6b4a1c);
   }
 
   private placeView(unit: Unit): void {
@@ -271,7 +306,8 @@ export class BattleScene extends Phaser.Scene {
 
   private refreshCampText(): void {
     this.campText.setText(
-      `Gold ${this.camp.gold}   Storage ${this.camp.storageCap}   Morale ${moraleTier(this.camp.morale)} (${this.camp.morale})   Banked heal ${this.camp.pendingHeal}`,
+      `Gold ${this.camp.gold}   Morale ${moraleTier(this.camp.morale)} (${this.camp.morale})   Banked heal ${this.camp.pendingHeal}    |    ` +
+        `Storage ${slotsUsed(this.inventory)}/${this.inventory.storageCap}   Trap Kits ${countOf(this.inventory, "trap-kit")}`,
     );
   }
 
@@ -376,21 +412,28 @@ export class BattleScene extends Phaser.Scene {
   // --- Phase: Camp (Meta) ----------------------------------------------------
 
   private enterCampPhase(): void {
-    this.titleText.setText("Camp — Meta phase");
-    this.setHint("Use your camp jobs, then proceed to deployment.");
+    this.titleText.setText("Camp — Meta phase (provision under your storage cap)");
+    this.setHint("Trade for storage, cook for the party, and load trap kits. Then deploy.");
     const metaSkills = this.phaseSkills.forPhase("meta");
-    this.layoutActionRow(
-      metaSkills.map(({ unit, skill }) => ({
+    this.layoutActionRow([
+      ...metaSkills.map(({ unit, skill }) => ({
         text: `${unit.name}: ${skill.name}`,
         description: `${skill.name} — ${skill.description}`,
         onClick: () => this.useCampSkill(skill),
       })),
-    );
+      {
+        text: "Load Trap Kit",
+        description: "Provision a Trap Kit into storage (1 slot) for the Survivalist.",
+        onClick: () => this.provisionTrapKit(),
+      },
+    ]);
     this.setPrimary("Proceed to Deployment");
   }
 
   private useCampSkill(skill: SkillDef): void {
     const out = applyCampSkill(skill, this.camp);
+    // The Merchant's storage upgrade is the master logistics cap — sync it.
+    if (out.storage) this.inventory.storageCap = this.camp.storageCap;
     this.refreshCampText();
     const parts: string[] = [];
     if (out.gold) parts.push(`+${out.gold} gold`);
@@ -400,11 +443,18 @@ export class BattleScene extends Phaser.Scene {
     this.setHint(`${skill.name}: ${parts.join(", ")}.`);
   }
 
+  private provisionTrapKit(): void {
+    if (addItem(this.inventory, "trap-kit", 1)) {
+      this.refreshCampText();
+      this.setHint(`Loaded a Trap Kit (${countOf(this.inventory, "trap-kit")} carried).`);
+    } else {
+      this.setHint("Storage full — Trade for more slots first.");
+    }
+  }
+
   // --- Phase: Deployment -----------------------------------------------------
 
   private enterDeployPhase(): void {
-    this.titleText.setText("Deployment — place your prep");
-    this.setHint("Set a trap on the map (it springs on the first enemy onto it).");
     // Pull the trap's damage from the Survivalist's data so it stays data-driven.
     const deploySkills = this.phaseSkills.forPhase("deployment");
     const trapSkill = deploySkills.find((h) => h.skill.effect.kind === "placeTrap");
@@ -416,15 +466,42 @@ export class BattleScene extends Phaser.Scene {
         text: `${unit.name}: ${skill.name}`,
         description: `${skill.name} — ${skill.description}`,
         onClick: () => {
+          if (this.deployer.captured) {
+            this.setHint(`${this.deployer.name} is captured and can't place more.`);
+            return;
+          }
+          if (countOf(this.inventory, "trap-kit") <= 0) {
+            this.setHint("No trap kits carried — go back and load some in camp.");
+            return;
+          }
           this.armingTrap = true;
-          this.setHint("Click a walkable tile to place the trap.");
+          this.setHint("Click a walkable tile to place the trap (watch your exposure).");
         },
       })),
     );
     this.setPrimary("Start Battle");
+    this.refreshDeployStatus();
+  }
+
+  /** Title line showing the deployer's exposure gamble state. */
+  private refreshDeployStatus(): void {
+    const pct = Math.round(exposureRisk(this.exposure) * 100);
+    const next = Math.round(
+      (nextPlacementCost(this.exposure, this.deployer) / 100) * 100,
+    );
+    const kits = countOf(this.inventory, "trap-kit");
+    const tag = this.deployer.captured ? " — CAPTURED" : ` (next placement +${next}%)`;
+    this.titleText.setText(
+      `Deployment — ${this.deployer.name} exposure ${pct}%${tag} · Trap Kits ${kits}`,
+    );
   }
 
   private placeTrapAt(tile: GridCoord): void {
+    if (this.deployer.captured) return;
+    if (countOf(this.inventory, "trap-kit") <= 0) {
+      this.setHint("No trap kits left to place.");
+      return;
+    }
     if (!this.grid.isWalkable(tile)) {
       this.setHint("Can't place a trap there.");
       return;
@@ -437,6 +514,9 @@ export class BattleScene extends Phaser.Scene {
       this.setHint("There's already a trap there.");
       return;
     }
+
+    // Provisioning constraint: spend a carried trap kit (D6).
+    removeItem(this.inventory, "trap-kit", 1);
     const { x, y } = this.tileToWorld(tile);
     const marker = this.add
       .text(x, y - TILE_HEIGHT / 2, "✸", { color: "#ff9d5c", fontSize: "20px" })
@@ -444,7 +524,34 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(0.8);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
     this.armingTrap = false;
-    this.setHint("Trap placed. Set another, or Start Battle.");
+    this.refreshCampText();
+
+    // The push-your-luck gamble: each placement may push the deployer into
+    // overdraw, and far enough → captured (D7/D11).
+    const result = recordPlacement(this.exposure, this.deployer);
+    this.refreshDeployStatus();
+    if (result.captured) {
+      this.captureDeployer();
+    } else {
+      const pct = Math.round(exposureRisk(this.exposure) * 100);
+      this.setHint(
+        result.exposureAdded > 0
+          ? `Trap placed — overdraw! Exposure now ${pct}%. Press your luck or Start Battle.`
+          : "Trap placed safely. Set another, or Start Battle.",
+      );
+    }
+  }
+
+  /** The deployer was captured during prep: bind it in the enemy safe zone. */
+  private captureDeployer(): void {
+    this.armingTrap = false;
+    const u = this.deployer;
+    u.pos = { ...BattleScene.CAPTURE_TILE };
+    this.placeView(u);
+    this.tintCaptured(u, true);
+    this.setHint(
+      `${u.name} was captured deploying! She starts the battle bound in the enemy zone (dropped from your initiative seed) — reach her and rescue.`,
+    );
   }
 
   // --- Phase: Battle ---------------------------------------------------------
@@ -483,10 +590,15 @@ export class BattleScene extends Phaser.Scene {
     this.battle.seed();
     this.refreshHud();
     this.setPrimary("Advance Clock");
+    const captiveNote = this.deployer.captured
+      ? ` ${this.deployer.name} is bound in the enemy zone and dropped from your initiative seed — rescue her.`
+      : "";
     this.setHint(
-      healed > 0
-        ? `Chef's stew restored ${healed} HP across the party. Press Advance Clock.`
-        : "Press Advance Clock to begin the battle.",
+      (healed > 0
+        ? `Chef's stew restored ${healed} HP across the party.`
+        : "Battle begins.") +
+        captiveNote +
+        " Press Advance Clock.",
     );
   }
 
@@ -611,11 +723,55 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    if (clicked && clicked.side !== actor.side) {
+    // A bound ally → rescue (move adjacent + free, D7).
+    if (clicked && clicked.captured && clicked.side === actor.side && clicked !== actor) {
+      this.playerRescueOrApproach(actor, clicked);
+    } else if (clicked && clicked.side !== actor.side && !clicked.captured) {
       this.playerAttackOrApproach(actor, clicked);
     } else if (!clicked && this.grid.isWalkable(tile)) {
       this.playerMove(actor, tile);
     }
+  }
+
+  private playerRescueOrApproach(actor: Unit, captive: Unit): void {
+    if (isAdjacent(actor.pos, captive.pos)) {
+      this.commitRescue(actor, [], captive);
+      return;
+    }
+    const nav = occupiedGrid(this.grid, this.battle.units, [actor, captive]);
+    const path = findPath(nav, actor.pos, captive.pos);
+    if (!path || path.length < 2) {
+      this.setHint("No path to your captured ally.");
+      return;
+    }
+    const approach = path.slice(1, -1).slice(0, actor.moveRange);
+    const dest = approach.length > 0 ? approach[approach.length - 1] : actor.pos;
+    this.commitRescue(actor, approach, isAdjacent(dest, captive.pos) ? captive : null);
+  }
+
+  private commitRescue(actor: Unit, path: GridCoord[], captive: Unit | null): void {
+    this.waitingFor = null;
+    this.armedSkill = null;
+    this.busy = true;
+    this.clearActionButtons();
+    this.highlightTile(null);
+    if (path.length > 0) this.battle.moveUnit(actor, path);
+    let freed = false;
+    if (captive && isAdjacent(actor.pos, captive.pos)) {
+      freeCaptive(captive); // rejoins the clock cold
+      this.tintCaptured(captive, false);
+      freed = true;
+    }
+    this.battle.endTurn(actor, { moved: path.length > 0, acted: freed });
+    this.animateMove(actor, path, () => {
+      if (freed) this.flashHeal(captive!);
+      this.afterTurn();
+      if (!this.over && freed) {
+        this.setHint(`${actor.name} freed ${captive!.name}! She rejoins the clock. Advance Clock.`);
+      } else if (!this.over && !freed) {
+        this.setHint("Couldn't reach your ally this turn. Advance Clock.");
+      }
+    });
   }
 
   private playerAttackOrApproach(actor: Unit, foe: Unit): void {
@@ -724,20 +880,49 @@ export class BattleScene extends Phaser.Scene {
   private finish(winner?: Side): void {
     if (this.over) return;
     this.over = true;
+    this.pipeline.advance(); // battle → resolution
     this.highlightTile(null);
     this.clearActionButtons();
     this.setPrimary("", false);
     const won = winner === "player";
-    const msg = winner === undefined ? "Draw" : won ? "Victory!" : "Defeat";
-    this.setHint(msg);
+    const title = winner === undefined ? "Draw" : won ? "Victory!" : "Defeat";
+
+    // Resolution — material recovery (D13): a win reclaims unsprung trap kits.
+    const { recovered } = recoverMaterials(this.battle.entities.all(), winner, this.inventory);
+    this.refreshCampText();
+
+    const lines: string[] = [];
+    if (won) {
+      lines.push(
+        recovered.length > 0
+          ? `Recovered ${recovered.length} unsprung trap kit(s) to storage.`
+          : "No unsprung materials to recover.",
+      );
+      const stillBound = this.battle.units.find((u) => u.captured && u.side === "player");
+      if (stillBound) lines.push(`${stillBound.name} left bound → a rescue follow-up (M6).`);
+    } else {
+      lines.push("Fled the field — no materials recovered.");
+    }
+    lines.push(`Storage now ${slotsUsed(this.inventory)}/${this.inventory.storageCap}, ${countOf(this.inventory, "trap-kit")} trap kits.`);
+    this.setHint(`Resolution — ${lines.join("  ")}`);
+
     this.add
-      .rectangle(this.scale.width / 2, this.scale.height / 2, 320, 90, 0x11141b, 0.85)
+      .rectangle(this.scale.width / 2, this.scale.height / 2, 460, 150, 0x11141b, 0.9)
       .setStrokeStyle(2, won ? 0x57b07a : 0xb05757)
       .setDepth(20);
     this.add
-      .text(this.scale.width / 2, this.scale.height / 2, msg, {
+      .text(this.scale.width / 2, this.scale.height / 2 - 44, title, {
         color: won ? "#9ff0bf" : "#f0a0a0",
-        fontSize: "34px",
+        fontSize: "30px",
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+    this.add
+      .text(this.scale.width / 2, this.scale.height / 2 + 14, lines.join("\n"), {
+        color: "#cdd7ee",
+        fontSize: "14px",
+        align: "center",
+        lineSpacing: 4,
       })
       .setOrigin(0.5)
       .setDepth(21);

@@ -79,7 +79,7 @@ exercise in the browser.
   Survivalist-placed trap triggers during the following battle. Each job's effect
   has a green test.
 
-### M5b — Logistics pillar & the Deployment gamble (adjustment, per D6/D7)
+### M5b — Logistics pillar & the Deployment gamble (adjustment, per D6/D7) — *testable: gate code complete (inventory/exposure-capture/seed/recovery); D9-RP & D10-intel deferred*
 
 - *Adjustment (not a pivot): the north star is unchanged; this deepens the prep
   loop the signature jobs act on, making logistics a headline pillar.*

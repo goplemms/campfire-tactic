@@ -74,14 +74,17 @@ export interface BattleOutcome {
 }
 
 /**
- * Win/lose detection: a side wins when the other has no living units. If both
- * sides are wiped it's over with no winner; otherwise the battle continues.
+ * Win/lose detection: a side wins when the other has no **active** units. A
+ * captured unit (D7) is bound and doesn't count as an active defender — a side
+ * with only captured/fallen units is eliminated (the captured one becomes a
+ * rescue follow-up, not an instant loss). If both sides lack active units it's
+ * over with no winner; otherwise the battle continues.
  */
 export function battleOutcome(units: readonly Unit[]): BattleOutcome {
-  const playersAlive = units.some((u) => u.alive && u.side === "player");
-  const enemiesAlive = units.some((u) => u.alive && u.side === "enemy");
-  if (playersAlive && enemiesAlive) return { over: false };
-  if (playersAlive) return { over: true, winner: "player" };
-  if (enemiesAlive) return { over: true, winner: "enemy" };
+  const playersActive = units.some((u) => u.alive && !u.captured && u.side === "player");
+  const enemiesActive = units.some((u) => u.alive && !u.captured && u.side === "enemy");
+  if (playersActive && enemiesActive) return { over: false };
+  if (playersActive) return { over: true, winner: "player" };
+  if (enemiesActive) return { over: true, winner: "enemy" };
   return { over: true };
 }

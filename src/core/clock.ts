@@ -46,12 +46,16 @@ export interface ScheduledEffect {
   run: () => void;
 }
 
-/** Average Speed of a side's living units — the initiative seed source (D11). */
+/**
+ * Summed Speed of a side's **deployed, non-captured** living units — the
+ * initiative seed source (D11). Sum (not average) so the seed reflects how much
+ * a side fielded: a side that held more units starts the clock **warmer**, and
+ * **losing a unit to capture lowers the seed**, handing the enemy earlier turns.
+ */
 export function sideSeed(units: readonly Unit[], side: Side): number {
-  const own = units.filter((u) => u.alive && u.side === side);
-  if (own.length === 0) return 0;
-  const total = own.reduce((sum, u) => sum + u.speed, 0);
-  return total / own.length;
+  return units
+    .filter((u) => u.alive && !u.captured && u.side === side)
+    .reduce((sum, u) => sum + u.speed, 0);
 }
 
 /** The CT clock over a fixed set of units. */
@@ -78,7 +82,8 @@ export class CTClock {
       if (!seeds.has(u.side)) seeds.set(u.side, sideSeed(this.units, u.side));
     }
     for (const u of this.units) {
-      u.ct = seeds.get(u.side) ?? 0;
+      // Captured units start cold — they're bound until freed.
+      u.ct = u.captured ? 0 : seeds.get(u.side) ?? 0;
     }
   }
 
@@ -116,9 +121,10 @@ export class CTClock {
       }
     }
 
-    // 2) Every living unit charges by its Speed.
+    // 2) Every living, non-captured unit charges by its Speed (a captured unit
+    //    is bound — it doesn't tick toward a turn until freed).
     for (const u of this.units) {
-      if (u.alive) u.ct += u.speed;
+      if (u.alive && !u.captured) u.ct += u.speed;
     }
   }
 
@@ -128,15 +134,16 @@ export class CTClock {
    * Returns `null` if no living unit can ever act.
    */
   advanceToNextActor(): Unit | null {
-    if (this.units.every((u) => !u.alive)) return null;
+    const canAct = (u: Unit) => u.alive && !u.captured;
+    if (!this.units.some(canAct)) return null;
     let guard = 0;
     const GUARD_MAX = 1_000_000;
-    while (!this.units.some((u) => u.alive && u.ct >= TURN_THRESHOLD)) {
+    while (!this.units.some((u) => canAct(u) && u.ct >= TURN_THRESHOLD)) {
       this.tick();
       if (++guard > GUARD_MAX) return null;
-      if (this.units.every((u) => !u.alive)) return null;
+      if (!this.units.some(canAct)) return null;
     }
-    const ready = this.units.filter((u) => u.alive && u.ct >= TURN_THRESHOLD);
+    const ready = this.units.filter((u) => canAct(u) && u.ct >= TURN_THRESHOLD);
     ready.sort(
       (a, b) => b.ct - a.ct || b.speed - a.speed || a.id.localeCompare(b.id),
     );

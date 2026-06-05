@@ -28,7 +28,6 @@ export interface UnitStats {
   /** Vision radius for the fog-of-war seam (D18). */
   sightRadius: number;
 }
-
 /** The authored description of a unit — the data a designer writes. */
 export interface UnitSpec extends UnitStats {
   id: string;
@@ -40,6 +39,8 @@ export interface UnitSpec extends UnitStats {
   hp?: number;
   /** Optional job id (see {@link "./jobs"}); grants the unit its skills. */
   jobId?: string;
+  /** Deployment safety stat (D7/D11); defaults to 0. Higher = preps deeper safely. */
+  awareness?: number;
 }
 
 /**
@@ -59,6 +60,13 @@ export interface Unit extends UnitStats {
   /** Charge-Time gauge; a unit takes a turn at `ct >= 100` (D5). */
   ct: number;
   alive: boolean;
+  /** Deployment safety stat (D7/D11): bigger safe allowance, gentler exposure. */
+  awareness: number;
+  /**
+   * Captured (D7): bound on the map, doesn't take turns, excluded from the
+   * initiative seed, but still "alive" — a rescuable sub-objective.
+   */
+  captured: boolean;
   /** Active statuses (D12); ticked on the unit's turn start. */
   statuses: StatusInstance[];
   /** Generic per-unit counters, e.g. a capture meter (D12). */
@@ -77,6 +85,8 @@ export function createUnit(spec: UnitSpec): Unit {
     maxHp: spec.maxHp,
     ct: 0,
     alive: true,
+    awareness: spec.awareness ?? 0,
+    captured: false,
     speed: spec.speed,
     attack: spec.attack,
     defense: spec.defense,

@@ -60,8 +60,10 @@ export function planEnemyTurn(
 ): AIPlan {
   const stay: AIPlan = { unit, path: [], destination: unit.pos, target: null };
 
+  // Captured (bound) units are guarded, not a threat — the AI ignores them so a
+  // captured ally survives to be rescued (D7).
   const enemies = units
-    .filter((u) => u.alive && u.side !== unit.side)
+    .filter((u) => u.alive && !u.captured && u.side !== unit.side)
     .sort((a, b) => manhattan(unit.pos, a.pos) - manhattan(unit.pos, b.pos));
   if (enemies.length === 0) return stay;
 

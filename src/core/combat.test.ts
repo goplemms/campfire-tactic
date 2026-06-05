@@ -79,6 +79,20 @@ describe("combat", () => {
     expect(battleOutcome([p, e])).toEqual({ over: true });
   });
 
+  it("treats a captured unit as not an active defender (D7)", () => {
+    const rook = unit("rook", "player");
+    const vale = unit("vale", "player", { captured: true });
+    const foe = unit("foe", "enemy");
+
+    // Rook still active → battle continues.
+    expect(battleOutcome([rook, vale, foe])).toEqual({ over: false });
+
+    // Rook falls; only a captured player unit remains → the enemy wins (Vale
+    // becomes a rescue follow-up, not an active defender).
+    rook.alive = false;
+    expect(battleOutcome([rook, vale, foe])).toEqual({ over: true, winner: "enemy" });
+  });
+
   it("knows orthogonal adjacency", () => {
     expect(isAdjacent({ col: 1, row: 1 }, { col: 1, row: 2 })).toBe(true);
     expect(isAdjacent({ col: 1, row: 1 }, { col: 2, row: 2 })).toBe(false);

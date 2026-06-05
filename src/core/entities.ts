@@ -88,28 +88,50 @@ export class EntityRegistry {
 }
 
 /**
+ * A field entity carrying **durability/recovery** state (D13): whether it has
+ * fired (`sprung`) and whether its material survives use (`recoverable`). On a
+ * win, unsprung + recoverable entities are reclaimed in Resolution.
+ */
+export interface RecoverableEntity extends FieldEntity {
+  /** Material this entity was built from (returned to storage on recovery). */
+  materialId: string;
+  /** Whether the material survives use and can be recovered (D13). */
+  recoverable: boolean;
+  /** True once the entity has fired/been spent. */
+  sprung: boolean;
+}
+
+/**
  * The first data-defined field entity (D4): a **trap** the Survivalist places in
  * Deployment. A one-shot listener on `onUnitEnterTile` — when a unit of the
  * *opposing* side steps (or is pushed, D19) onto its tile, it deals `damage` once
- * and is spent. This is the Deployment→Combat payoff the whole bus/registry seam
- * was built for; later placeables (nests, runes) are the same shape with
- * different effects.
+ * and is spent. Carries recovery state so an *unsprung* trap returns to storage
+ * on a win (D13). Later placeables (nests, runes) are the same shape.
  */
 export function makeTrap(
   id: string,
   pos: GridCoord,
   owner: Side,
   damage: number,
-): FieldEntity {
-  let sprung = false;
-  return {
+  opts: { materialId?: string; recoverable?: boolean } = {},
+): RecoverableEntity {
+  const trap: RecoverableEntity = {
     id,
     pos: { col: pos.col, row: pos.row },
     owner,
+    materialId: opts.materialId ?? "trap-kit",
+    recoverable: opts.recoverable ?? true,
+    sprung: false,
     onUnitEnterTile: ({ unit, bus }) => {
-      if (sprung || unit.side === owner) return;
-      sprung = true;
+      if (trap.sprung || unit.side === owner) return;
+      trap.sprung = true;
       applyDamage(unit, damage, bus);
     },
   };
+  return trap;
+}
+
+/** Type guard for entities that carry recovery state. */
+export function isRecoverable(e: FieldEntity): e is RecoverableEntity {
+  return (e as RecoverableEntity).recoverable !== undefined;
 }
