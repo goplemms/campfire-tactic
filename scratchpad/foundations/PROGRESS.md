@@ -14,7 +14,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
 | M7 — The overworld (seeded branching run map) | done (gate confirmed 2026-06-05; terminal-ending *design* deferred) |
-| M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | testable (code complete, awaiting in-browser gate) |
+| M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | done (accepted as prototype 2026-06-06; numbers/behavior to tune later) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
@@ -22,7 +22,13 @@ States: `todo` → `in-progress` → `testable` → `done`
 ## Current block
 
 - **Milestone:** M8 — The overworld action economy (camp at every node + cooldown
-  spine + loose fatigue). **TESTABLE** (code complete, awaiting the in-browser gate).
+  spine + loose fatigue). **DONE** — accepted as the **prototype** for the overworld
+  mechanics (2026-06-06): "a good mechanical skeleton for what we want." The menu /
+  cooldown-spine / loose-fatigue **machinery** is the deliverable; the **numbers and
+  behavior** (cooldown lengths, the fatigue floor/bite, the per-target Scout button
+  layout) are explicitly **to be tuned later** — they're all data/constants
+  (`FATIGUE` in `fatigue.ts`, `SCOUT`/`MARKET` `cost` in `overworld-actions.ts`), so
+  tuning is a numbers pass, not a reshape.
   `npm test` **173/173 green** (147 prior + 26 new), `npm run build` clean, `core/`
   free of Phaser/DOM **and** `Math.random` (grep test still enforces it). **Why:** M7
   shipped the overworld as a *frame* (pick-the-next-node); M8 turns it into a true
@@ -78,11 +84,14 @@ States: `todo` → `in-progress` → `testable` → `done`
     (no magic wiring — M10); Market uses the single existing gold pool + existing
     Merchant effect (no purse split / Banker / Noble / theft — M10); only the
     **overworld** camp tier is built (the guild hall is M9 — no code).
-  - **In-browser gate (pending):** `npm run dev` → seeded run; arriving at any node
-    opens the unified camp; fire an action → greys out for N node-steps + spends
-    fatigue; push deep skipping rest until fatigue bites; rest restores it; commit a
-    combat node into Deployment→Battle→Resolution and return; replay the seed
-    reproduces the same map + economy outcomes.
+  - **Accepted as prototype (2026-06-06):** the mechanical skeleton is the deliverable;
+    in-browser polish + number tuning are a deliberate follow-up (see below). The gate
+    behaviors are all proven headlessly by the M8 tests.
+  - **To tune later (own follow-up, not blocking):** cooldown lengths + fatigue
+    floor/bite magnitudes (all constants); the per-target Scout button layout (each
+    reachable node gets its own button but they share one per-ability cooldown — by
+    design, possibly worth a clearer presentation); Market is job-ungated by design
+    (any actor can trade) — revisit if it should require a Merchant.
 
 <details><summary>M7 — The overworld (seeded branching run map) — DONE (gate, 2026-06-05)</summary>
 
@@ -410,9 +419,9 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step (M8):** confirm the **in-browser gate** (the pending list above), then
-  flip M8 → **done** in the table + `plan.md`. After that: **M9** — the guild & caravan
-  tier (D25–D27/D32), `run.ts` → a Guild of N runs.
+- **Next step:** **M9** — the guild & caravan tier (D25–D27/D32), `run.ts` → a Guild
+  of N runs. (M8 accepted as the overworld-mechanics prototype; its number/behavior
+  tuning is a tracked non-blocking follow-up, see the M8 block.)
 - **Blockers:** none.
 
 <details><summary>Stale footer (M2-era notes, kept for history)</summary>

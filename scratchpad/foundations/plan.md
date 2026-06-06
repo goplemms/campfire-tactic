@@ -152,7 +152,7 @@ exercise in the browser.
 - See [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
   (D22–D24), referenced from [`docs/design/README.md`](../../docs/design/README.md).
 
-### M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) — *testable*
+### M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) — *done (prototype; numbers/behavior to tune later)*
 
 - *Adjustment (not a pivot): the north star is unchanged; this builds out the overworld
   M7 shipped as a **frame** into a true **second hook surface** (the twin of the combat
