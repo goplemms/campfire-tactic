@@ -313,6 +313,69 @@ rather than scattering.
     data set** with recruit hooks (conversation / quest-reward / combat-defector); a
     **"joins permanently" flag** on the turncoat + rescue paths; recruit-by-talk at the hall.
 
+- **Q12–Q14 — The gold economy as explicit loops (the highest-risk round-1 thread).**
+  With gold as the universal solvent (D28), the economy classes risked being three
+  flavours of "gives gold," and faucets without sinks make Upkeep (D15) toothless.
+  Resolved into a **two-pool structure + a purse stake + purpose-bound currencies**.
+  - **Q12 — TWO pools: a run purse + a guild treasury.** (Settles what D30 only
+    gestured at.)
+    - **Guild treasury** = persistent **stock**; the bank that funds Upkeep (D15)
+      between runs, the armory, and caravan upgrades.
+    - **Run purse** = a **flow** committed to one caravan; the tight, local **routing
+      currency** spent in the field. ⇒ run = tight local pressure; guild = persistent
+      wealth. Matches D30's "run gold is a flow" and the portfolio fantasy (D25/D26).
+    - **Where each flow lands (mostly mechanical):** **loot → purse** (won in the
+      field); **quest payouts + passive faucets → treasury** (paid at the guild);
+      **travel / rest / field-buys / bribes → drawn from the purse**; **Upkeep → drawn
+      from the treasury** between runs.
+    - (Rejected: one shared pool — a rich guild trivializes any single run, and you lose
+      the "provision the caravan with money" commitment. Also rejected: one pool with
+      field access gated by class verbs — clever but more complex to reason about.)
+  - **Q13 — Player-chosen purse, LOST ON WIPE.** At dispatch the player **allocates how
+    much treasury gold to load** into the caravan's purse — a real risk dial (more for
+    deep hauls / field-buys, but a **wipe loses it** like the people and locked gear,
+    D27). **Surviving purse returns to the treasury** on completion. ⇒ the purse becomes
+    a **FOURTH committed scarcity** (slots / vessel / locked gear / **purse**), extending
+    D25's three. Gives theft real teeth: gold skimmed off the purse is gold you might
+    then lose entirely on a wipe — the thief vector bites twice.
+    (Rejected: auto-provisioned purse — less commitment texture. Purse-as-view, no
+    wipe-loss — weakest stakes, kills the war-chest gamble.)
+  - **Q14 — Purpose-bound currencies keep passive faucets from trivializing Upkeep.**
+    The make-or-break discipline (D28/D30 flagged it):
+    - **Noble political income → a separate INFLUENCE / reputation resource**, spent
+      **only** on the Noble's verbs (bribes, sway-avoid, access). It **literally cannot
+      pay Upkeep**, so it can never slacken the central pressure. **Sharpens D30:**
+      "political income" is no longer gold-flavoured — Influence *is* the Noble's whole
+      economy (the patronage/reputation line of D30, made a currency).
+    - **Banker financial interest stays gold** but is **flat / diminishing AND offset by
+      its paired debt-interest sink** — self-balancing.
+    - **Net principle — the field is the faucet, the guild is the buffer:** the only real
+      path to wealth is **loot + quest payouts**, gated by the hand-played tactical core
+      (the crown jewel). Passive income *smooths*, it can't *replace* winning fights — so
+      progress stays tied to the part of the game that matters.
+    - (Rejected: percentage faucets + scaling sinks — "running to stand still." Flat
+      capped gold faucets — risk feeling vestigial late.)
+    - **Discipline watch:** Influence is **one new currency**, which brushes D15's
+      low-meter-count restraint — accepted because it *retires* a gold faucet rather than
+      adding one, and it gives the Noble a distinct identity. (Influence = the
+      "reputation" already named in D30 — one thing, not two.)
+  - **The explicit loops this yields (each faucet paired to a sink):**
+    1. **Banker loop:** financial interest (faucet, treasury, flat/diminishing) ↔
+       buy-on-debt interest + theft protection (sinks/risk). Self-balancing.
+    2. **Noble loop:** political income → **Influence** (faucet) ↔ bribes / sway-avoid /
+       access (Influence sinks). Walled off from gold entirely.
+    3. **Thief loop (the sink-side risk):** thief event-nodes skim the **purse** + a
+       thief enemy steals mid-battle ↔ Banker protection + **recover-on-win**. Derived
+       corollary (consistent with D13/D21 "win = control of field = recover"): **kill the
+       thief → it drops what it stole; a thief that escapes off the map keeps it** — a
+       "chase the thief" tension, not a flat loss.
+    4. **Field-as-engine:** loot → purse, quest payouts → treasury — the tactical core is
+       the genuine faucet.
+  - **Cost / what to build:** a **treasury↔purse** split in run/guild state; a
+    **dispatch-time purse allocation** UI + wipe/return reconciliation; an **Influence**
+    currency + the Noble's Influence-spending verbs; the **thief event-node + enemy
+    archetype** with steal + recover-on-win/escape-keeps-it (the D30/D23 event batch).
+
 ## Suggested next threads to harden (when ready)
 1. **Time model for parallel adventures** (the fork that reshapes existing code).
 2. **The gold faucet/sink economy** as explicit loops (so Banker/Noble/thief get
