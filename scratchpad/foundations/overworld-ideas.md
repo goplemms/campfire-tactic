@@ -265,6 +265,54 @@ rather than scattering.
 
 ---
 
+## Round 2 — resolved (design session, 2026-06-06)
+
+> New threads opened after the D25–D32 graduation. Same style: **agreed in
+> discussion**, graduate to `decisions.md` (D33+) + specs at the next write-up pass.
+
+- **Q11 — Recruitment: a THREE-TIER roster (the BG3 split).** "Where do party members
+  come from?" resolves into two sources feeding three tiers, not one flat pool.
+  - **Q11a — Both sources.** Members come from *both* a paid pool **and** narrative/
+    other means — not either/or.
+  - **Q11b — A mix of randomized mercenaries + an authored cast.**
+    - **Tier 1 — Mercenaries:** *randomized*, **gold-hired** from a **refreshing pool**
+      (guild hall + future recruiter nodes, D23 next batch). Fully **expendable** — the
+      literal **rebuild-after-wipe valve** that keeps the guild unkillable (D27).
+    - **Tier 2 — Companions:** *authored*, **named, distinct identities**, gained **not
+      with gold** but through **guild conversation, special quests, and mid-combat**
+      (Q11c). Permadeath stakes, but **earned rather than bought**.
+    - **Tier 3 — Lords:** the **top of the authored tier** — the **2–3** whose death is
+      game-over (D27). So "authored cast" is a **spectrum**: lords (game-over) → other
+      named companions (permadeath, not game-over) → mercenaries (expendable, rolled).
+  - **Settled corollaries (stated, not separately asked):**
+    - **Authored = fixed class/identity** (that's what makes them authored); they still
+      **level like anyone** (D32). **Mercenaries are the rolled ones** (randomized
+      stats/class). One clean split: rolled filler vs. hand-made identity.
+    - **"Guild conversation" = the guild-hall version of the interactable-camp idea**
+      (the brain-dump "render overworld as a small interactable camp"): you recruit some
+      companions by **talking to them at the hall**, giving that screen a real second job
+      beyond menus. *Watch:* keep the two camps visually distinct (guild hall vs. the
+      overworld caravan-camp).
+  - **Q11c — Mid-combat recruitment REUSES the turncoat/rescue machinery; authored =
+    permanent join, generic = temporary.** The most interesting piece because it adds a
+    recruitment vector with **zero new systems**:
+    - A **bribed** (Noble INFLUENCE, D30) or **freed** (rescue, D21) **named/authored**
+      character **joins the roster permanently** after the battle.
+    - A bribed **generic** enemy just **fights for the rest of the fight** (temporary) and
+      is gone at battle's end — **no roster bloat**.
+    - So the Noble's bribe verb (D30) and the rescue system (D21) **double as recruitment
+      vectors** for the authored cast — exactly the system-reuse this project favours. The
+      **temp(generic) ↔ permanent(authored)** flag is the whole new rule.
+  - **Integrations this locks in:** the authored cast threads through the bribe-to-turncoat
+    sink (D30), the rescue/capture machinery (D9/D21 — free a captive who then joins), the
+    lords (D27, the apex of the authored tier), the leveling model (D32, authored level too),
+    and the interactable-camp idea (recruit-by-conversation at the hall). Recruitment isn't a
+    new subsystem so much as a **new flag on existing ones**.
+  - **Cost / what to build:** a roster **tier/origin tag** (mercenary vs. authored vs. lord);
+    a **refreshing mercenary pool** (rolled, gold-priced) at the guild; an **authored-cast
+    data set** with recruit hooks (conversation / quest-reward / combat-defector); a
+    **"joins permanently" flag** on the turncoat + rescue paths; recruit-by-talk at the hall.
+
 ## Suggested next threads to harden (when ready)
 1. **Time model for parallel adventures** (the fork that reshapes existing code).
 2. **The gold faucet/sink economy** as explicit loops (so Banker/Noble/thief get
