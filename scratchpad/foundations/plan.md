@@ -189,6 +189,48 @@ exercise in the browser.
   [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md) (Fatigue), and the
   kickoff brief [`M8-kickoff.md`](M8-kickoff.md).
 
+### M9 — The guild & caravan tier (run.ts → a Guild of N runs) — *testable (code complete 2026-06-06; awaiting in-browser gate)*
+
+- *Adjustment (not a pivot): the north star is unchanged; this reshapes the **container**
+  around the run. Through M8 the run is the top tier (`run.ts` holds exactly one map +
+  position); M9 lifts it into a persistent **guild** (D25–D27) — the run becomes **one
+  caravan's adventure** and the guild owns several.* It is the second of three milestones
+  building the post-M7 batch (M8 = the overworld action economy; **M9 = this**; M10 = the
+  gold economy & recruitment).
+- core: `caravan.ts` — a **`VesselType`** (data: capacity/storage/speed/cost) + a
+  **`Caravan`** bundling the four committed scarcities (**uniform** party slots, per-caravan
+  storage, loaded supplies, **locked gear**, a **purse**) with the cross-caravan **lock**
+  (a person/gear can't ride two caravans, **D25/D26**). `guild.ts` — a **`Guild` owning N
+  `RunState`s** (**D26**): a shared roster pool, an armory, a **pure treasury** (**D34**), a
+  stable of caravans, and a **never-empty quest board** (main quest + a repeating generated
+  sidequest stream). `dispatch` builds a deterministic run from a caravan targeting the
+  quest's seed and **locks** it out of the pool; `resolveReturn` reads the run terminal — a
+  **return** flows survivors/gear/purse home, a **wipe** costs that caravan's people
+  (permadeath) + gear + purse while the **guild survives** (**D27**); `hireMercenary` is the
+  "never hard-fails" rebuild valve. `run.ts` gains `createRunFromCaravan` (the options
+  overload kept for tests). `leveling.ts` — the **D32 thin seam** (per-character level/XP;
+  "deployed grows, benched doesn't"). **Model C** (**D26**): commitment parallel, **play
+  serial** — no background clock, no auto-resolve.
+- render: a new **`GuildScene`** (the app's new entry point): roster pool, armory, treasury,
+  quest board, a **caravan-assembly panel** (pick a vessel, fill uniform slots, lock gear,
+  set the purse via a treasury→purse stepper) → **Dispatch**, and a **stable** with each
+  caravan's status + a **Play** on in-flight ones. `OverworldScene` becomes **one caravan's
+  run** (dispatched in from the guild; on a terminal it returns to the hall, which resolves
+  the return/wipe and surfaces the result). Kept visually distinct from the hall (D25/D35).
+- **User-testable gate:** `npm run dev` → the **guild hall** opens (shared roster + armory +
+  treasury + a never-empty board). Assemble **≥2 caravans** for different quests (uniform
+  slots: the Chef costs a fighter; committing people + gear + a purse **locks** them out of
+  a second caravan). Dispatch both; **play one** through its overworld to a terminal (the
+  M7/M8 flow runs unchanged) while the other **waits** (no tick, no auto-resolve). A **wipe**
+  removes that caravan's people (permadeath) + loses its gear, the guild persists (rebuild
+  via a cheap merc hire); a **return** rejoins survivors, unlocks gear, flows the surviving
+  purse to the treasury. Replaying the **guild seed** + same dispatch choices reproduces
+  every caravan's run. `npm test` green (caravan, guild dispatch/serial-play/wipe-return,
+  determinism, leveling); `npm run build` clean; `core/` free of Phaser/DOM **and**
+  `Math.random`.
+- See [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (D25–D27, D32,
+  D34) and the kickoff brief [`M9-kickoff.md`](M9-kickoff.md).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).
