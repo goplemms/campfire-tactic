@@ -152,6 +152,43 @@ exercise in the browser.
 - See [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
   (D22–D24), referenced from [`docs/design/README.md`](../../docs/design/README.md).
 
+### M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) — *todo*
+
+- *Adjustment (not a pivot): the north star is unchanged; this builds out the overworld
+  M7 shipped as a **frame** into a true **second hook surface** (the twin of the combat
+  tier), per the post-M7 design batch.* It is the first of three milestones that build
+  decisions **D25–D35** (M9 = the guild & caravan tier; M10 = the gold economy &
+  recruitment).
+- core: an **overworld-ability** model — data declaring a **cost** (a node-step
+  `cooldown`, a `fatigue` spend, optional gold) — plus a registry + a resolver that
+  gates an action on cooldown **and** fatigue, applies its effect, then arms the
+  cooldown (**D29/D35**). **Cooldowns are the spine**: per-ability, measured in
+  **node-steps** (the tick), ticked down as the caravan advances. A new **`fatigue.ts`**:
+  a **per-character, loose over-extension guardrail** in the codebase's shallow
+  asymmetric-floor shape (generous allowance, invisible in normal play, bites only when
+  you greedily skip rest), **restored at rest nodes**, **overworld-only** (never touches
+  the CT clock / combat). `RunLoop` reshapes so arriving at **any** node opens **one
+  unified overworld camp** (the old **Meta phase folds in**): take overworld actions,
+  then **commit** — a combat node → Deployment+Battle, a rest node → recovery + fatigue
+  restore. Prove the spine with ≥2 real abilities reusing existing systems (e.g. **Scout**
+  → raises a reachable node's `previewNode` tier via [intel](../../src/core/intel.ts);
+  **Market** → the Merchant's gold/provision access, reframed as an overworld action).
+- render: `OverworldScene` gains the **camp panel** at every node (action buttons showing
+  cooldown + fatigue readouts), a **per-character fatigue meter**, and the **commit** flow
+  into Battle/rest. The separate Meta-phase screen is **removed** (folded into the camp).
+- **User-testable gate:** `npm run dev` → on a seeded run, arriving at any node opens the
+  unified camp; fire an overworld action and watch it **grey out for N node-steps**
+  (cooldown) and **spend fatigue**; push deep skipping rest until **fatigue bites**; take
+  a **rest** node and watch fatigue **restore**; **commit** at a combat node into the
+  existing Deployment→Battle→Resolution and return to the map. Replaying the seed
+  reproduces the same map + the same action/cooldown/fatigue outcomes for the same
+  choices. Cooldown-tick, fatigue-curve (loose floor + restore), and unified-camp
+  orchestration tests are green; `core/` stays free of Phaser/DOM **and** `Math.random`.
+- See [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
+  (D29/D35, "The overworld action economy"),
+  [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md) (Fatigue), and the
+  kickoff brief [`M8-kickoff.md`](M8-kickoff.md).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).

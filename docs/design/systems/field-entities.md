@@ -1,7 +1,7 @@
 # System — Field entities & the trigger bus
 
 > Referenced by: [Deployment](../02-deployment.md), [Combat](../03-combat.md),
-> [Resolution](../04-resolution.md). Decision: **D4**.
+> [Resolution](../04-resolution.md). Decisions: **D4**, **D31** (the supply wagon).
 
 ## Description
 
@@ -65,6 +65,32 @@ overreach and in-combat helplessness.
 > Implementation note: the snare shows the bus needs to carry **status effects**
 > (Immobilized) and tick a **per-unit capture meter** on `onTurnStart` — both cheap
 > to account for when M3 builds the bus.
+
+### The supply wagon — a defendable asset (D31)
+
+The caravan's supplies appear on the battlefield as a **field entity**: a
+**supply wagon** (the [overworld camp](overworld.md) made physical) with `position`
+and `state`, deployed at the **back edge**. It is not a trap or rune — it is an
+**objective object** that can be **attacked and defended**, and it is the in-combat
+target of the **theft archetype** (D30): a gold/item-stealing enemy that ignores your
+front line and makes a run at the wagon.
+
+This turns "protect your investment" into a concrete **defend-the-wagon** beat rather
+than a vague escort. The non-combat **support units** that fielded with the caravan
+(see [the guild & caravans](guild.md)) deploy **near the wagon** as its bodyguards:
+
+- They are **low enemy-targeting priority by default** — enemy AI **deprioritizes**
+  both the support units and the wagon **except the thief archetype**, which actively
+  seeks the supplies. That single exception *is* the bodyguard gameplay (and the reason
+  it doesn't degrade into a constant babysit).
+- Support units have **positional abilities** — strong in their home zone, weak if
+  dragged out (e.g. the **Chef by the campfire** deals bonus damage with a hot pan),
+  which both rewards smart positioning and naturally keeps them back where they're safe.
+
+> Implementation note: the wagon reuses the entity `owner`/`state` plumbing; "thief
+> seeks the wagon" is an **AI target-priority rule**, and "deprioritize non-combat
+> units + wagon" is its default. Loss of the wagon is a **logistics** consequence
+> (stolen gold/items), resolved like other Resolution tallies.
 
 ### The trigger bus (the architectural hook)
 

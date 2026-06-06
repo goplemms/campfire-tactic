@@ -1,7 +1,9 @@
 # System — Stats
 
 > Referenced by: [Deployment](../02-deployment.md), [Combat](../03-combat.md),
-> [Action economy](action-economy.md).
+> [Action economy](action-economy.md), [The overworld](overworld.md),
+> [The guild & caravans](guild.md).
+> Decisions: **D29** (Fatigue), **D32** (leveling), **D35** (Fatigue as a loose guardrail).
 
 ## Description
 
@@ -37,6 +39,23 @@ so they don't overlap.
   paying. A *different* stat from Awareness, held by *different* archetypes.
 - **Naming note:** "Intelligence" may collide with a future magic-power stat; treat
   it as provisional (candidates: Insight, Lore, Cunning). The role is settled.
+
+#### Fatigue *(overworld meter, D29 · shaped by D35)*
+
+- **Overworld:** a single **per-character** stamina meter that **overworld abilities
+  spend and rest restores** — restored chiefly at **rest nodes** (rest's second job).
+  Deliberately **one meter, not per-ability** (D15 restraint).
+- **A LOOSE guardrail, not a tight pool (D35).** Fatigue is **not** the spine of the
+  overworld action economy — **per-ability cooldowns are** (see
+  [the overworld action economy](overworld.md#the-overworld-action-economy-d35)). Fatigue
+  follows the codebase's **shallow asymmetric-floor** shape (D7/D11 deployment overdraw,
+  D8 morale): a **generous allowance, invisible in normal play, that bites only when you
+  greedily skip rest and over-extend** night after night. The point is the
+  *over-extension stake*, not a per-camp rationing chore — a depleting meter is used here
+  *because* it has been given the shallow-floor shape that avoids hoarding/agony.
+- **Not a combat stat:** Fatigue governs the *overworld* action economy (node-steps),
+  not the CT clock, and **does not affect combat readiness** (D29's two-economies
+  separation). Keep it off the combat block.
 
 ### The deliberate split
 
@@ -75,4 +94,8 @@ edge of capture.
   defined with M3. (Sight radius drives the **Seen** state, [vision](vision.md).)
 - Intel is **resolved** — it is its own stat (Intelligence) feeding the three intel
   lanes; see [intel](intel.md) (D10). The stat *name* remains provisional.
-- Stat growth/leveling across a run: deferred to the run-loop milestone (M6).
+- Stat growth/leveling **direction is set (D32)**: **combat jobs** level via combat
+  XP; **secondary** (FFT-style) abilities level through **use**; **non-combat jobs**
+  level via a **passive trickle while deployed + a per-successful-use bump** (benched =
+  no growth). The concrete curves/numbers remain to be tuned. See
+  [the guild & caravans](guild.md).

@@ -4,7 +4,7 @@ This folder is the **living vision** for the game's systems. It is intentionally
 separate from the build plan in [`scratchpad/foundations/`](../../scratchpad/foundations/),
 which tracks *milestones and status*; these docs track *what the game is*.
 
-> Architectural calls that back these docs are logged as decisions **D1–D7** in
+> Architectural calls that back these docs are logged as decisions **D1–D35** in
 > [`scratchpad/foundations/decisions.md`](../../scratchpad/foundations/decisions.md).
 
 ## Identity
@@ -29,6 +29,12 @@ who enjoys *crunch*: legible systems with deep, interacting decisions.
   an interesting in-the-moment *choice* gets its own system; a necessary *chore*
   collapses into a gold cost (the one **Upkeep** figure). Keeps the meter count low —
   a handful of tactical systems + one gold dial (decision D15).
+- **Cooldowns over hoardable pools; shallow asymmetric floors.** Prefer **cooldowns**
+  (use-it-or-waste-it → the decision is *timing*, and they *encourage* engagement) to
+  tight hoardable resources (which punish use and breed agonized hoarding). When a
+  depleting meter *is* wanted, give it a **shallow asymmetric floor** — a generous
+  allowance that bites only on greed, never kicking a player when they're down. Applied
+  to deployment overdraw (D7/D11), morale (D8), and overworld fatigue (D35).
 
 ## The loop
 
@@ -89,9 +95,16 @@ pseudo-example**:
 These span multiple phases and are documented independently so each phase can
 reference them rather than re-explain:
 
+- **[The guild & caravans](systems/guild.md)** — the persistent **home** tier above
+  the overworld: one shared guild fed by a campaign + endless quest board, caravans as
+  upgradeable vessels with uniform slots, stakes via permanent loss + Fire-Emblem
+  lords, a three-tier recruitment roster, the treasury-vs-purse split, and
+  class/secondary-job leveling (decisions D25–D27, D32–D34).
 - **[The overworld](systems/overworld.md)** — the seeded, branching run **map**
-  that wraps the mission loop; layered node DAG, combat/rest nodes, and the banded
-  intel preview that informs each branch (decisions D22–D24).
+  that wraps the mission loop; layered node DAG, combat/rest nodes, the banded intel
+  preview that informs each branch, and (as a second hook surface) the gold routing
+  economy + the overworld action economy (camp at every node, cooldown spine, loose
+  fatigue) (decisions D22–D24, D28–D30, D34–D35).
 - **[Action economy](systems/action-economy.md)** — the CT clock and charged
   abilities (combat).
 - **[Magic](systems/magic.md)** — Vancian spells (scribed castings, scrolls, runes, a
