@@ -41,6 +41,8 @@ import { resolveDowned, resolveCaptured, tickDyingClocks, type DownedOutcome, ty
 import { rpPerNight, payUpkeep, triageHeal, type UpkeepResult } from "./upkeep";
 import { intelFloor, readEncounter, type IntelReport, type IntelTier } from "./intel";
 import { planEnemyTurn } from "./ai";
+import { restoreFatigue } from "./fatigue";
+import { takeOverworldAction, type ActionOpts, type ActionResult } from "./overworld-actions";
 
 /** What a resolved encounter produced (for the render/run-end screen). */
 export interface ResolveResult {
@@ -68,6 +70,8 @@ export interface RestResult {
   /** Units auto-triaged and the HP each gained. */
   healed: { unitId: string; hp: number }[];
   moraleGained: number;
+  /** Units whose overworld fatigue was restored to Rested (D35 — rest's second job). */
+  fatigueRestored: string[];
   dyingLost: string[];
   over: boolean;
 }
@@ -125,13 +129,27 @@ export class RunLoop {
     return chooseNode(this.run, id);
   }
 
+  // --- The unified overworld camp (D35) -------------------------------------
+
+  /**
+   * Take an overworld action at the current node (D29/D35) — the unified camp's
+   * verb. Delegates to the cost-gating interpreter ({@link takeOverworldAction}):
+   * checks the ability is off cooldown and the actor has fatigue headroom/gold,
+   * applies the effect, spends the costs and arms the node-step cooldown. Never
+   * throws on a refusal — returns the {@link ActionResult} the render reads.
+   */
+  overworldAction(unit: Unit, abilityId: string, opts: ActionOpts = {}): ActionResult {
+    return takeOverworldAction(this.run, unit, abilityId, opts);
+  }
+
   // --- Rest node (no battle, D23) -------------------------------------------
 
   /**
    * Play a **rest** node: a night of recovery with **no fight** (D23). Pays
    * Upkeep (a night still costs), banks the nightly Rest Points **plus a rest
    * bonus**, **auto-triages** the most-wounded fighters down the RP pool, nudges
-   * morale up (D8), ticks any dying clocks, and records the night. Returns a
+   * morale up (D8), **restores every member's overworld fatigue** (rest's second
+   * job, D29/D35), ticks any dying clocks, and records the night. Returns a
    * summary for the render's rest screen.
    */
   restNode(): RestResult {
@@ -139,6 +157,15 @@ export class RunLoop {
     const upkeep = payUpkeep(this.run.camp, this.run.party);
     const rpAdded = rpPerNight(this.run.party) + REST.chunks * policy.rpPerChunk;
     this.run.rp += rpAdded;
+
+    // Rest's second job (D35): wipe overworld fatigue clean — the only restore.
+    const fatigueRestored: string[] = [];
+    for (const u of this.run.party) {
+      if (u.fatigue > 0) {
+        u.fatigue = restoreFatigue(u.fatigue);
+        fatigueRestored.push(u.id);
+      }
+    }
 
     // Auto-triage: heal the worst-off fighters first, spending the RP pool down.
     const healed: { unitId: string; hp: number }[] = [];
@@ -166,7 +193,7 @@ export class RunLoop {
       goldEarned: 0,
       fallen: lost.map((u) => u.id),
     });
-    return { upkeep, rpAdded, healed, moraleGained: REST.moraleGain, dyingLost: lost.map((u) => u.id), over };
+    return { upkeep, rpAdded, healed, moraleGained: REST.moraleGain, fatigueRestored, dyingLost: lost.map((u) => u.id), over };
   }
 
   // --- Camp (between battles, D9/D15) ---------------------------------------

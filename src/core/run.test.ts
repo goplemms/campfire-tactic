@@ -17,6 +17,7 @@ import {
 } from "./run";
 import { generateOverworld, getNode } from "./overworld";
 import { RunLoop } from "./runloop";
+import { takeOverworldAction, cooldownRemaining, SCOUT } from "./overworld-actions";
 
 /** A small fightable roster (Soldiers so they have battle skills too). */
 function roster(): Unit[] {
@@ -201,5 +202,46 @@ describe("run — replay reproduces the run (same seed + same choices)", () => {
     for (const id of snap.path.slice(1)) chooseNode(restored, id);
     expect(restored.mapNodeId).toBe(run.mapNodeId);
     expect(currentEncounter(restored)).toEqual(currentEncounter(run));
+  });
+});
+
+describe("run — the overworld economy round-trips & replays deterministically (D35)", () => {
+  it("snapshotRun captures the overworld cooldown/scout state (a deep copy)", () => {
+    const run = newRun("eco-snap");
+    const target = reachableNodes(run)[0];
+    takeOverworldAction(run, run.party[0], "scout", { targetNodeId: target.id });
+    expect(cooldownRemaining(run.overworld, "scout")).toBe(SCOUT.cost.cooldown);
+
+    const snap = snapshotRun(run);
+    expect(snap.overworld).toEqual(run.overworld);
+    // It's a copy, not the live reference — mutating the run doesn't touch the snap.
+    run.overworld.cooldowns["scout"] = 0;
+    expect(snap.overworld.cooldowns["scout"]).toBe(SCOUT.cost.cooldown);
+  });
+
+  it("same seed + same choices + same actions ⇒ identical cooldown/fatigue trace", () => {
+    // A fully scripted run: at every node, scout the first node ahead (when able),
+    // then play. The economy outcome must be byte-identical across two runs.
+    function play(seed: string) {
+      const run = createRun(seed, { party: roster(), difficultyId: "normal", gold: 200 });
+      const loop = new RunLoop(run);
+      let guard = 0;
+      while (!loop.isTerminal() && guard++ < 100) {
+        const next = loop.reachable();
+        if (next.length === 0) break;
+        loop.choose(next[0].id);
+        const ahead = loop.reachable()[0];
+        if (ahead) loop.overworldAction(run.party[0], "scout", { targetNodeId: ahead.id });
+        loop.playCurrentNode();
+      }
+      return {
+        cooldowns: run.overworld.cooldowns,
+        scouted: run.overworld.scouted,
+        fatigue: run.party.map((u) => ({ id: u.id, fatigue: u.fatigue })),
+      };
+    }
+    const a = play("eco-replay");
+    const b = play("eco-replay");
+    expect(a).toEqual(b);
   });
 });

@@ -14,11 +14,77 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M5b — Logistics pillar & Deployment gamble (D6/D7) | done (gate; D9-RP/D10-intel deferred) |
 | M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
 | M7 — The overworld (seeded branching run map) | done (gate confirmed 2026-06-05; terminal-ending *design* deferred) |
+| M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | testable (code complete, awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** M8 — The overworld action economy (camp at every node + cooldown
+  spine + loose fatigue). **TESTABLE** (code complete, awaiting the in-browser gate).
+  `npm test` **173/173 green** (147 prior + 26 new), `npm run build` clean, `core/`
+  free of Phaser/DOM **and** `Math.random` (grep test still enforces it). **Why:** M7
+  shipped the overworld as a *frame* (pick-the-next-node); M8 turns it into a true
+  **second hook surface** (D29/D35) — every node opens **one unified overworld camp**
+  where you take **overworld actions** gated by a per-ability **node-step cooldown**
+  (the spine) and a per-character **fatigue** meter (a loose over-extension guardrail),
+  then **commit** onward. The old separate Meta phase folds into this camp.
+  - **What landed (M8 core, all pure/headless):**
+    - `fatigue.ts` — the per-character **loose guardrail** (D35) in the codebase's
+      recurring **shallow asymmetric-floor** shape (cf. deployment overdraw D7/D11,
+      morale D8): a generous allowance (`floor`), **invisible in normal play**, that
+      bites only past it — a *bounded* surcharge that caps, plus a demanding-action
+      lock once **Exhausted**. `spendFatigue`/`restoreFatigue`/`fatiguePenalty`/
+      `fatigueTier`. Lives as a `fatigue` field on `Unit` (overworld-only — **never**
+      read by `clock.ts`/combat, D29's two-economies separation).
+    - `overworld-actions.ts` — the **action-economy machinery** (D29/D35): an
+      `OverworldAbility` is **data** (`id`/`effect`/`cost`) with a cost menu
+      (`cooldown` spine + optional `fatigue`/`gold` + a **`vancian` typed stub** for
+      M10/magic), a registry + `getAbility`, and one interpreter
+      `takeOverworldAction` that cost-gates (cooldown **and** fatigue headroom **and**
+      gold), applies the effect, spends the costs, and arms the cooldown — returning a
+      result object (applied / why-refused). Per-run economy sub-state
+      (`{ cooldowns, scouted }`) on `RunState`; `tickCooldowns` decrements every
+      cooldown one **node-step** from `recordNight` (combat **and** rest tick it). Two
+      real abilities prove the spine: **Scout** (raises a reachable node's
+      `previewNode` tier via `intel.ts`) and **Market** (the Merchant's ACCESS verb —
+      reuses the existing `applyCampSkill` economy effect).
+    - `run.ts` — `overworld` economy on `RunState` + the node-step tick in
+      `recordNight` + the economy captured in `snapshotRun` (round-trips).
+    - `runloop.ts` — `restNode()` now **restores every member's fatigue** to Rested
+      (rest's second job, D35); `overworldAction()` wrapper for the render; the
+      unified-camp orchestration threads through unchanged combat/rest wiring.
+  - **What landed (M8 render):** `OverworldScene` now opens **one unified camp** at
+    every chosen node (between `choose` and play): overworld-action buttons with live
+    **cooldown** ("ready" / "N nodes") + **fatigue-cost** readouts (greyed with a
+    refusal reason when on cooldown / out of fatigue / out of gold), a **per-character
+    fatigue meter** (banded), the folded-in meta/camp actions (Chef/Merchant skills,
+    Trap Kit, Triage), and a **Commit** control → combat hands to `BattleScene`, rest
+    recovers in place showing fatigue restored. `BattleScene`'s **separate Meta/camp
+    screen is removed** — it now runs the silent Upkeep/RP bookkeeping then goes
+    straight to Deployment → Battle → Resolution (unchanged downstream).
+  - **Tests:** `fatigue.test.ts` (asymmetric floor: normal play never bites; sustained
+    over-extension does; bounded/gentle bite; rest restores; **combat leaves fatigue
+    untouched**). `overworld-actions.test.ts` (refuse on cooldown / when exhausted for
+    demanding actions; arming + spending; node-step tick re-enables; Scout raises a
+    reachable preview tier; Market moves gold/storage under the cap). `runloop.test.ts`
+    (unified camp works at a combat **and** a rest node; committing a combat node runs
+    the full encounter; rest restores fatigue; `autoTraverse` ticks the economy to a
+    terminal). `run.test.ts` (overworld state round-trips `snapshotRun`; same seed +
+    same choices + same actions ⇒ identical cooldown/fatigue trace — the determinism
+    gate).
+  - **Seams honored (thin, full behavior later):** `vancian?` cost key is a typed stub
+    (no magic wiring — M10); Market uses the single existing gold pool + existing
+    Merchant effect (no purse split / Banker / Noble / theft — M10); only the
+    **overworld** camp tier is built (the guild hall is M9 — no code).
+  - **In-browser gate (pending):** `npm run dev` → seeded run; arriving at any node
+    opens the unified camp; fire an action → greys out for N node-steps + spends
+    fatigue; push deep skipping rest until fatigue bites; rest restores it; commit a
+    combat node into Deployment→Battle→Resolution and return; replay the seed
+    reproduces the same map + economy outcomes.
+
+<details><summary>M7 — The overworld (seeded branching run map) — DONE (gate, 2026-06-05)</summary>
 
 - **Milestone:** M7 — The overworld (seeded branching run map). **DONE (gate)**
   (2026-06-05): `npm test` **147/147 green**, `npm run build` clean, `core/` free of
@@ -341,6 +407,16 @@ States: `todo` → `in-progress` → `testable` → `done`
   - *Confirmed consistent:* freed units cold-join the CT clock; temporary statuses can
     be escaped/expire (allies free from snares, enemies self-free from nets); entity
     durability partial-loss; intel banding scales reveal depth.
+
+</details>
+
+- **Next step (M8):** confirm the **in-browser gate** (the pending list above), then
+  flip M8 → **done** in the table + `plan.md`. After that: **M9** — the guild & caravan
+  tier (D25–D27/D32), `run.ts` → a Guild of N runs.
+- **Blockers:** none.
+
+<details><summary>Stale footer (M2-era notes, kept for history)</summary>
+
 - **Last green sha:** M2 landed `core/grid.ts` (TileGrid: dimensions +
   per-tile walkability + 4-connected neighbours) and `core/pathfinding.ts`
   (A* over the grid, Manhattan heuristic, returns a `GridCoord[]` or `null`),
@@ -357,6 +433,8 @@ States: `todo` → `in-progress` → `testable` → `done`
 - **Note:** npm "latest" is now Phaser 4; we deliberately pinned Phaser 3 (`^3.90.0`)
   to honor decision D1. Revisit as a tracked pivot if we ever want Phaser 4.
 - **Blockers:** none.
+
+</details>
 
 ## Closeout
 

@@ -39,6 +39,12 @@ import {
   type MapNode,
   type NodeKind,
 } from "./overworld";
+import {
+  createOverworldEconomy,
+  cloneOverworldEconomy,
+  tickCooldowns,
+  type OverworldEconomy,
+} from "./overworld-actions";
 
 /** A recorded node outcome, for the run history / run-end screen. */
 export interface EncounterRecord {
@@ -73,6 +79,12 @@ export interface RunState {
   camp: Camp;
   /** Banked Rest Points (D9 recovery pool). */
   rp: number;
+  /**
+   * The overworld action economy's per-run state (D35): per-ability node-step
+   * cooldowns (the spine) + per-node bought intel tiers (Scout). Deterministic
+   * run state — no live RNG (D22).
+   */
+  overworld: OverworldEconomy;
   /** Nights elapsed (the universal time unit, D9). */
   night: number;
   /** Difficulty id → the consequence policy the run consults (D9). */
@@ -108,6 +120,7 @@ export function createRun(seed: string | number, opts: CreateRunOptions): RunSta
     inventory: createInventory(storageCap, opts.inventory ?? {}),
     camp: createCamp({ gold: opts.gold ?? 0, storageCap, morale: opts.morale ?? 0 }),
     rp: 0,
+    overworld: createOverworldEconomy(),
     night: 0,
     difficultyId: opts.difficultyId ?? "normal",
     history: [],
@@ -203,10 +216,15 @@ export function isRunComplete(run: RunState): boolean {
  * it does re-evaluate the **wipe** terminal and, if the current node is the
  * **final** one and the player won, flags the run **complete** (D23). Returns the
  * run's terminal state (`over` from a wipe, or `complete`).
+ *
+ * The node-step is also the **overworld clock's tick** (D35): every node played —
+ * combat *or* rest — advances the caravan one step, so all overworld cooldowns
+ * decrement here ({@link tickCooldowns}).
  */
 export function recordNight(run: RunState, record: Omit<EncounterRecord, "night">): boolean {
   run.history.push({ ...record, night: run.night });
   run.night += 1;
+  tickCooldowns(run.overworld);
   run.over = run.over || isRunOver(run);
   if (!run.over && record.winner !== "enemy" && isFinalRunNode(run)) {
     run.complete = true;
@@ -224,6 +242,11 @@ export interface RunSnapshot {
   path: string[];
   night: number;
   difficultyId: string;
+  /**
+   * The overworld economy state (D35): cooldowns + scouted tiers. Captured so a
+   * save round-trips the action economy, not just the route.
+   */
+  overworld: OverworldEconomy;
 }
 
 /** Capture a snapshot sufficient to reproduce the run's map, route and position. */
@@ -235,5 +258,6 @@ export function snapshotRun(run: RunState): RunSnapshot {
     path: [...run.path],
     night: run.night,
     difficultyId: run.difficultyId,
+    overworld: cloneOverworldEconomy(run.overworld),
   };
 }

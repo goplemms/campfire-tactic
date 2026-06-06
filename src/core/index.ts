@@ -26,6 +26,8 @@ export * from "./turn";
 export * from "./mortality";
 export * from "./upkeep";
 export * from "./intel";
+export * from "./fatigue";
 export * from "./overworld";
+export * from "./overworld-actions";
 export * from "./run";
 export * from "./runloop";

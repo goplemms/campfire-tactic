@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createUnit, type Unit } from "./units";
-import { createRun, currentNode, type RunState } from "./run";
+import { createRun, currentNode, reachableNodes, chooseNode, type RunState } from "./run";
 import { RunLoop, REST } from "./runloop";
 import { getNode } from "./overworld";
+import { cooldownRemaining, SCOUT } from "./overworld-actions";
+import { FATIGUE } from "./fatigue";
 
 function roster(): Unit[] {
   return [
@@ -88,5 +90,82 @@ describe("runloop — autoTraverse determinism (D22)", () => {
     }
     // A clear ends on the final node; a wipe ends wherever the party fell.
     if (loop.isComplete()) expect(run.map.finalIds).toContain(last(route));
+  });
+});
+
+/** Walk to the first node of a given kind, taking an overworld action en route. */
+function toFirstKind(run: RunState, kind: "combat" | "rest"): void {
+  while (true) {
+    const next = reachableNodes(run);
+    const pick = next.find((n) => n.kind === kind) ?? next[0];
+    chooseNode(run, pick.id);
+    if (currentNode(run).kind === kind) return;
+  }
+}
+
+describe("runloop — the unified camp at every node (D35)", () => {
+  it("an overworld action opens (works) at a combat node, then commit runs the encounter", () => {
+    const run = newRun("camp-combat");
+    const loop = new RunLoop(run);
+    toFirstKind(run, "combat");
+    expect(currentNode(run).kind).toBe("combat");
+
+    // The camp surface: fire an overworld action before committing to the fight.
+    const actor = run.party[0];
+    const ahead = reachableNodes(run)[0];
+    if (ahead) {
+      const res = loop.overworldAction(actor, "scout", { targetNodeId: ahead.id });
+      expect(res.applied).toBe(true);
+      expect(actor.fatigue).toBe(SCOUT.cost.fatigue);
+      expect(cooldownRemaining(run.overworld, "scout")).toBe(SCOUT.cost.cooldown);
+    }
+
+    // Commit: the existing camp → encounter → resolution still runs.
+    const before = run.history.length;
+    loop.camp();
+    loop.startEncounter();
+    loop.beginBattle();
+    loop.autoBattle();
+    loop.resolve();
+    expect(run.history.length).toBe(before + 1);
+    // The node-step ticked the cooldown the scout armed.
+    if (ahead) expect(cooldownRemaining(run.overworld, "scout")).toBe(SCOUT.cost.cooldown - 1);
+  });
+
+  it("an overworld action works at a rest node, and committing restores fatigue", () => {
+    const run = newRun("camp-rest");
+    const loop = new RunLoop(run);
+    toFirstKind(run, "rest");
+    expect(currentNode(run).kind).toBe("rest");
+
+    // The camp surface is the same at a rest node — fire an action, spend fatigue.
+    const actor = run.party[0];
+    const ahead = reachableNodes(run)[0]!;
+    const res = loop.overworldAction(actor, "scout", { targetNodeId: ahead.id });
+    expect(res.applied).toBe(true);
+    expect(actor.fatigue).toBeGreaterThan(0);
+
+    // Over-extend another member, then commit the rest → everyone is restored.
+    const other = run.party.find((u) => u.id !== actor.id)!;
+    other.fatigue = FATIGUE.exhausted;
+    const rest = loop.restNode();
+    expect(rest.fatigueRestored).toContain(actor.id);
+    expect(rest.fatigueRestored).toContain(other.id);
+    for (const u of run.party) expect(u.fatigue).toBe(0);
+  });
+
+  it("autoTraverse walks the whole map with the economy ticking, to a terminal", () => {
+    const run = newRun("camp-traverse");
+    const loop = new RunLoop(run);
+    // Arm a cooldown up front, then let the traversal tick it down node by node.
+    run.overworld.cooldowns["scout"] = 99;
+    const route = loop.autoTraverse();
+    expect(loop.isTerminal()).toBe(true);
+    expect(route.length).toBeGreaterThan(1);
+    // The spine ticks once per node-step (recordNight). A losing terminal battle
+    // ends the run without a node-step, so it doesn't tick — count the rest.
+    const losses = run.history.filter((h) => h.winner === "enemy").length;
+    const ticks = run.history.length - losses;
+    expect(cooldownRemaining(run.overworld, "scout")).toBe(99 - ticks);
   });
 });

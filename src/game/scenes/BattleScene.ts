@@ -13,7 +13,6 @@ import {
   isValidSkillTarget,
   makeTrap,
   // M5b — logistics / deployment gamble
-  addItem,
   removeItem,
   countOf,
   slotsUsed,
@@ -24,16 +23,11 @@ import {
   placementCost,
   freeCaptive,
   // M5 — camp / morale
-  applyCampSkill,
   moraleTier,
   moraleModifiers,
   // M6 — the run loop
-  combatRoster,
-  runDifficulty,
   currentEncounter,
   computeUpkeep,
-  triageHeal,
-  chunkHp,
   type RunState,
   type RunLoop,
   type IntelReport,
@@ -54,10 +48,12 @@ interface TextButton {
  * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
  * run the {@link "./OverworldScene"} hands it. It owns no rules — the
  * {@link RunLoop} (already positioned at the chosen node) stages the encounter and
- * applies Upkeep/recovery/rewards/mortality. This scene walks the chosen node's
- * Camp → Deployment → Battle → Resolution, then **returns to the overworld** so the
- * player can pick the next node; the overworld owns the run-end / run-complete
- * terminals. The run + loop are passed in (and back) so map position persists.
+ * applies Upkeep/recovery/rewards/mortality. **Since M8 (D35)** the pre-fight camp
+ * lives on the unified overworld camp ({@link "./OverworldScene"}); this scene runs
+ * the silent Upkeep/RP bookkeeping then walks **Deployment → Battle → Resolution**,
+ * and **returns to the overworld** so the player can pick the next node; the
+ * overworld owns the run-end / run-complete terminals. The run + loop are passed in
+ * (and back) so map position persists.
  */
 export class BattleScene extends Phaser.Scene {
   private run!: RunState;
@@ -65,7 +61,7 @@ export class BattleScene extends Phaser.Scene {
   private grid!: TileGrid;
   private battle!: Battle;
 
-  private phase: "camp" | "deployment" | "battle" | "resolution" = "camp";
+  private phase: "deployment" | "battle" | "resolution" = "deployment";
 
   // Board rendering (rebuilt each encounter).
   private gridGfx?: Phaser.GameObjects.Graphics;
@@ -130,16 +126,17 @@ export class BattleScene extends Phaser.Scene {
   // --- Combat node lifecycle (one chosen mission) ---------------------------
 
   /**
-   * Stage the chosen combat node: run the **Meta/camp** phase (Upkeep, RP, dying
-   * clocks — D3/D9/D15), build the board for the node's seeded encounter, read
-   * intel (D10), and enter Camp. If a dying clock runs out at camp and wipes the
-   * party, return straight to the overworld's run-end.
+   * Stage the chosen combat node: run the silent **Upkeep/RP/dying-clock**
+   * bookkeeping (D3/D9/D15 — the pre-fight *camp actions* now live on the unified
+   * overworld camp, D35), build the board for the node's seeded encounter, read
+   * intel (D10), and go straight to **Deployment**. If a dying clock runs out and
+   * wipes the party, return straight to the overworld's run-end.
    */
   private startCombatNode(): void {
     for (const o of this.overlay) o.destroy();
     this.overlay = [];
 
-    // Between-battle camp: pay Upkeep, bank RP, tick dying clocks (D9/D15).
+    // Between-battle bookkeeping: pay Upkeep, bank RP, tick dying clocks (D9/D15).
     const camp = this.loop.camp();
     if (this.loop.isOver()) return this.returnToOverworld();
 
@@ -155,10 +152,16 @@ export class BattleScene extends Phaser.Scene {
     this.placedTraps = [];
     this.rebuildBoard();
 
-    // Intel read before provisioning (D10).
+    // Intel read (D10), then straight into Deployment.
     this.intel = this.loop.intel();
-
-    this.enterCamp(camp);
+    this.refreshCampText();
+    this.refreshIntelText();
+    const upkeepNote =
+      camp.upkeep.underfunded.length > 0
+        ? `Underfunded ${camp.upkeep.underfunded.join(" + ")} — morale took a hit.`
+        : `Upkeep paid (${camp.upkeep.paid}g).`;
+    this.enterDeploy();
+    this.setHint(`${upkeepNote} +${camp.rpAdded} RP banked. Deploy your party, then Start Battle.`);
   }
 
   private rebuildBoard(): void {
@@ -175,92 +178,6 @@ export class BattleScene extends Phaser.Scene {
 
     this.drawGrid();
     this.spawnUnits();
-  }
-
-  // --- Phase: Camp -----------------------------------------------------------
-
-  private enterCamp(camp: { upkeep: { paid: number; underfunded: string[] }; rpAdded: number }): void {
-    this.phase = "camp";
-    const node = this.run.map.nodes[this.run.mapNodeId];
-    this.titleText.setText(`Camp — Night ${this.run.night + 1} (Mission ${node.id}, layer ${node.layer})`);
-    this.refreshCampText();
-    this.refreshIntelText();
-
-    const upkeepNote =
-      camp.upkeep.underfunded.length > 0
-        ? `Underfunded ${camp.upkeep.underfunded.join(" + ")} — morale took a hit.`
-        : `Upkeep paid (${camp.upkeep.paid}g).`;
-    this.setHint(`${upkeepNote} +${camp.rpAdded} RP banked. Provision, then deploy.`);
-
-    const specs: { text: string; description?: string; onClick: () => void }[] = [];
-    for (const u of this.run.party) {
-      for (const skill of unitSkills(u, "meta")) {
-        specs.push({
-          text: `${u.name}: ${skill.name}`,
-          description: `${skill.name} — ${skill.description}`,
-          onClick: () => this.useCampSkill(skill),
-        });
-      }
-    }
-    specs.push({
-      text: "Load Trap Kit",
-      description: "Buy a Trap Kit into storage (1 slot) for the Survivalist.",
-      onClick: () => this.provisionTrapKit(),
-    });
-    specs.push({
-      text: "Triage Heal",
-      description: "Spend Rest Points to heal the most-wounded fighter one chunk (D9).",
-      onClick: () => this.triage(),
-    });
-    this.layoutActionRow(specs);
-    this.setPrimary("Proceed to Deployment");
-  }
-
-  private useCampSkill(skill: SkillDef): void {
-    const out = applyCampSkill(skill, this.run.camp);
-    if (out.storage) this.run.inventory.storageCap = this.run.camp.storageCap;
-    this.refreshCampText();
-    const parts: string[] = [];
-    if (out.gold) parts.push(`+${out.gold} gold`);
-    if (out.storage) parts.push(`+${out.storage} storage`);
-    if (out.morale) parts.push(`+${out.morale} morale`);
-    if (out.bankedHeal) parts.push(`banked +${out.bankedHeal} HP/unit`);
-    this.setHint(`${skill.name}: ${parts.join(", ")}.`);
-  }
-
-  private provisionTrapKit(): void {
-    const cost = 15;
-    if (this.run.camp.gold < cost) {
-      this.setHint("Not enough gold for a Trap Kit (15g).");
-      return;
-    }
-    if (addItem(this.run.inventory, "trap-kit", 1)) {
-      this.run.camp.gold -= cost;
-      this.refreshCampText();
-      this.setHint(`Bought a Trap Kit (${countOf(this.run.inventory, "trap-kit")} carried).`);
-    } else {
-      this.setHint("Storage full — have the Merchant Trade for more slots.");
-    }
-  }
-
-  private triage(): void {
-    const policy = runDifficulty(this.run);
-    const wounded = combatRoster(this.run)
-      .filter((u) => u.hp < u.maxHp)
-      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-    if (!wounded) {
-      this.setHint("No wounded fighters to heal.");
-      return;
-    }
-    if (this.run.rp < policy.rpPerChunk) {
-      this.setHint(`Not enough RP (need ${policy.rpPerChunk} for a ${chunkHp(wounded)} HP chunk).`);
-      return;
-    }
-    const res = triageHeal(wounded, policy.rpPerChunk, policy);
-    this.run.rp -= res.rpSpent;
-    this.refreshHp();
-    this.refreshCampText();
-    this.setHint(`Triaged ${wounded.name}: +${res.hpHealed} HP for ${res.rpSpent} RP.`);
   }
 
   // --- Phase: Deployment -----------------------------------------------------
@@ -466,8 +383,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onPrimary(): void {
-    if (this.phase === "camp") this.enterDeploy();
-    else if (this.phase === "deployment") this.startBattle();
+    if (this.phase === "deployment") this.startBattle();
     else if (this.phase === "battle") this.onAdvance();
     else if (this.phase === "resolution") this.returnToOverworld();
   }
