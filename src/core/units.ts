@@ -46,6 +46,11 @@ export interface UnitSpec extends UnitStats {
    * intel floor (how much it sees before a fight). Distinct from awareness.
    */
   intelligence?: number;
+  /**
+   * Overworld fatigue (D29/D35); defaults to 0 ("Rested"). Overworld-only — spent
+   * by overworld actions, restored by rest, **never** read by combat (D29).
+   */
+  fatigue?: number;
 }
 
 /**
@@ -69,6 +74,11 @@ export interface Unit extends UnitStats {
   awareness: number;
   /** Intel-gathering stat (D10): raises the party's passive intel floor. */
   intelligence: number;
+  /**
+   * Overworld fatigue (D29/D35): spent by overworld actions, restored by rest.
+   * **Overworld-only** — ignored by the CT clock and every combat stat (D29).
+   */
+  fatigue: number;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -94,6 +104,7 @@ export function createUnit(spec: UnitSpec): Unit {
     alive: true,
     awareness: spec.awareness ?? 0,
     intelligence: spec.intelligence ?? 0,
+    fatigue: spec.fatigue ?? 0,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,
