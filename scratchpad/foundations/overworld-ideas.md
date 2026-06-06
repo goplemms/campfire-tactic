@@ -37,6 +37,32 @@
   - **Dispatched-but-unplayed caravans WAIT** (paused at their node) rather than
     ticking a clock or auto-resolving (auto-resolve is rejected — it dilutes the
     hand-played tactical core, the crown jewel).
+- **Q3 — A caravan = persistent, typed, upgradeable vessel + uniform slots.**
+  - You **own/acquire a stable of caravans** (need ≥2 for multiple-at-once), each a
+    persistent upgradeable asset on a tradeoff axis: *small/fast/cheap/low-capacity*
+    (scout cart, short sidequests) ↔ *large/slow/costly/high-capacity* (supply train,
+    deep main-quest hauls). Pick the right vessel per quest. The Merchant raising
+    storage (D14) becomes "upgrade a caravan's capacity."
+  - A caravan bundles: **party slots + storage (D14 cap) + loaded supplies + locked
+    equipment** (unavailable to other caravans until it returns). Thematically it
+    doubles as the **overworld camp** (the mobile campfire the overworld is drawn as).
+  - **Slots are UNIFORM** (any character fits any slot) so bringing a baker genuinely
+    costs a warrior — caravan *size* is the only dial. (Role-segmented slots rejected:
+    they'd make support picks "free" and kill the tension.)
+- **Q4 — Unkillable guild + Fire-Emblem "lords."**
+  - The guild **never hard-fails**: there's always a cheap repeating sidequest to
+    rebuild, so stakes come from permanent **losses**, not a fail screen. (Two loss
+    tiers already exist: *mission loss* per node (D13/D21) and *caravan wipe* =
+    lose that caravan's people (permadeath) + its locked gear, guild survives.)
+  - **EXCEPT 2–3 named campaign "lords"** (à la Fire Emblem): if a lord dies during
+    the campaign it's **game-over → reload last save**. An optional **hardcore/ironman**
+    mode makes even that permanent. ⇒ implies a **save system** for the campaign
+    (ironman = no reload).
+  - **Tension this buys:** a lord in a caravan that wipes = game-over, so risking a
+    lord on a deep node is a real gamble.
+  - **Endings (answers the M7-deferred terminal-design):** campaign-complete = clear
+    the **main quest** (epilogue + unlocks that seed Endless); campaign-defeat = a
+    **lord falls**; **Endless = depth/score, no terminal**, no lords.
 
 ## North-star framing (emerging)
 
