@@ -63,6 +63,29 @@
   - **Endings (answers the M7-deferred terminal-design):** campaign-complete = clear
     the **main quest** (epilogue + unlocks that seed Endless); campaign-defeat = a
     **lord falls**; **Endless = depth/score, no terminal**, no lords.
+- **Q5 — Travel/rest paid in GOLD; D15 stands (no physical rations).** Food stays a
+  gold Upkeep line; no carried larder, no spoilage. ⇒ **gold = universal solvent**:
+  travel, rest, provisioning, gear, bribes, debt all draw one pool, so the map is an
+  **economic** routing problem ("can I afford this route + a rest?"). Caravan storage
+  still gates **gear/ammo/consumables** (D14/D20), just not food. **Consequence:** the
+  faucet/sink balance (Q7) matters *more* — a slack economy trivializes the map.
+- **Q6 — Overworld is a data-driven hook surface (extends D3); abilities declare
+  their own limiter from a small menu.** "Ability" is general — different overworld
+  abilities use different costs:
+  - **Fatigue / exhaustion (NEW, per-character)** — e.g. the Merchant *can* hike to
+    town but not night-over-night; a single **shared per-character** stamina meter that
+    overworld actions spend and **rest restores** (gives rest a 2nd job; fits the
+    caravan-as-people fantasy). Keep it one meter, not per-ability.
+  - **Vancian charges** — **spells with overworld effects** (scry for intel, travel/
+    forage) spend castings from the D17 pool. Magic unified across tiers.
+  - **Node-refresh / gold cost / step-cooldown** — for whatever fits.
+  - Principle: ability = data declaring **phase + cost** (D3/D4). Keep the limiter
+    menu short (D15 "low meter count" restraint).
+- **Q7 — Active theft vector (the sink-side partner to the gold faucets).** Pilfering
+  is a real risk: **thief/bandit event nodes** skim gold on the overworld AND a
+  **gold/item-stealing enemy archetype** mid-battle. Makes the **Banker** a real pick
+  (protect/debt/interest in a live faucet↔risk loop). Cost = thief enemy + theft
+  events to build (fits the planned event-node batch).
 
 ## North-star framing (emerging)
 
