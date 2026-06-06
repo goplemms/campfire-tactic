@@ -393,6 +393,67 @@ rather than scattering.
     currency + the Noble's Influence-spending verbs; the **thief event-node + enemy
     archetype** with steal + recover-on-win/escape-keeps-it (the D30/D23 event batch).
 
+- **Q15–Q16 — The overworld action economy (the structural twin of the combat CT
+  clock; the last load-bearing overworld system).** D29 pinned that the overworld is a
+  second hook surface denominated in node-steps/cooldowns, with a limiter menu (fatigue
+  / vancian / cooldown / gold) — but not *where* actions happen or *what paces* them.
+  - **Q15 — Camp at EVERY node: one unified between-nodes surface.** Arriving at any
+    node opens a between-nodes **overworld camp** (the "interactable camp" / title
+    callback): take overworld actions there, then choose the next edge. **The node-step
+    is the tick** (the caravan advances node→node together). This **collapses three
+    surfaces into one** — the old overworld map screen (D23/D24), the interactable-camp
+    brain-dump, and the pre-combat **Meta phase** (D3/D23) are now the *same* surface.
+    - **Resolves the three-camp muddle** down to **two clean tiers:** the **guild hall**
+      (between *adventures*, D25) and the **overworld camp** (between *nodes*). Every node
+      is a campfire.
+    - **The Meta phase stops being a separate screen** — it becomes "the camp actions you
+      take at a **combat** node before you commit to the fight"; committing triggers
+      Deployment+Battle. A **rest** node is simply the node themed on recovery (D23).
+    - (Rejected: keeping D23's travel-screen/camp-phase split — more surfaces to build.
+      Rejected: a per-node Action-Point budget — heavier rules layer; see Q16.)
+  - **Q16 — Cooldowns are the spine; Fatigue is a loose over-extension guardrail.**
+    Resolved in two beats with a design principle in the middle:
+    - **The principle (why this split):** **cooldowns encourage engagement, depleting
+      pools punish it.** A node-step **cooldown** is use-it-or-waste-it — if it's up you
+      fire it, so the only decision is **timing** ("burn market access here, or hold it
+      for the cheaper town two nodes deeper?"). A tight hoardable **stamina pool** does
+      the opposite: players hoard, under-use the fun abilities, and the "interesting
+      choice" curdles into an **agonized spreadsheet** (the classic stamina-meter
+      failure). The player flagged exactly this risk.
+    - **Cooldowns = the spine (a definite yes).** Each overworld ability carries its own
+      **node-step cooldown** (market, scout, scry, …) → makes every ability *non-trivial
+      to time* **even when you have the specialist** (a Merchant doesn't get to market
+      every node). Timing is the core texture, and it *encourages* use.
+    - **Fatigue = a LOOSE guardrail, not a tight pool.** Kept, but in this codebase's
+      existing **shallow asymmetric-floor** shape (D7/D11 deployment overdraw; D8 morale's
+      "never kick a player when down"): a **generous per-character allowance that's
+      invisible in normal play and only bites when you greedily skip rest and
+      over-extend** night after night. Keeps the over-extension *stake* **and** rest's
+      second job (D29) **without** the per-camp agony. The interesting choice surfaces
+      only when you're genuinely pushing your luck — which is exactly when you want one.
+    - **Restored at rest nodes** (rest's D29 job). **Overworld-only** — fatigue does
+      **not** bleed into combat readiness (D29 two-economies separation; a tired character
+      isn't combat-penalized).
+    - **Vancian charges + gold (purse)** remain from the D29 menu as **per-ability costs**
+      on specific abilities (a scry spends a casting; a town-buy spends purse gold), layered
+      on top of the cooldown spine — not the global pace.
+    - (Rejected: cooldowns-only/no-fatigue — loses the over-extension tension + a rest job.
+      Rejected: cooldowns + a tight rationed fatigue pool — the agony version the player
+      explicitly warned against.)
+  - **The overworld tier, assembled:** **tick** = node-step; **surface** = one unified
+    overworld camp at every node (guild hall stays separate); **spine** = per-ability
+    node-step cooldowns (timing is the texture); **guardrail** = a loose, asymmetric-floor
+    fatigue meter against greed, restored by rest; **per-ability costs** = vancian/gold
+    where they fit. A genuine twin to the combat CT clock (D5), one tier up.
+  - **Reusable principle to record:** *cooldowns to encourage engagement (decision =
+    timing); avoid tight hoardable pools that punish use — when a depleting meter is
+    wanted, give it the shallow asymmetric-floor shape (generous allowance, bites only on
+    greed)* — now applied three times (D7/D11, D8, fatigue).
+  - **Cost / what to build:** node-step **cooldown** tracking per overworld ability; the
+    unified **overworld-camp surface** (folding the Meta phase in); a per-character
+    **fatigue** meter with an asymmetric-floor curve + rest restoration; wiring vancian/
+    gold as per-ability costs.
+
 ## Suggested next threads to harden (when ready)
 1. **Time model for parallel adventures** (the fork that reshapes existing code).
 2. **The gold faucet/sink economy** as explicit loops (so Banker/Noble/thief get
