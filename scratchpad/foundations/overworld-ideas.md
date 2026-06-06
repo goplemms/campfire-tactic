@@ -86,6 +86,36 @@
   **gold/item-stealing enemy archetype** mid-battle. Makes the **Banker** a real pick
   (protect/debt/interest in a live faucet↔risk loop). Cost = thief enemy + theft
   events to build (fits the planned event-node batch).
+- **Q8 — One distinct verb per economy class; Noble income = POLITICAL.**
+  - **Merchant = ACCESS** (markets in the field: basic anywhere via the fatigue-gated
+    town-trip, premium at town nodes, better prices everywhere).
+  - **Banker = TIME-SHIFT + SECURE** (buy-on-debt auto-repaid from future gold,
+    passive *financial* interest, theft protection).
+  - **Noble = INFLUENCE** (bribe enemies to turncoat / sway-avoid fights, leaning on
+    the intel preview) **+ *political* income** (patronage, town levies, stipend,
+    reputation) — deliberately distinct from Banker's *financial* interest so the two
+    aren't redundant faucets.
+- **Q9 — Support classes: ALWAYS on the combat map + a defendable supply wagon.**
+  - The caravan's **supplies are an on-map asset** (wagon/camp object = a **D4 field
+    entity** with position/state) that can be attacked and defended — and it's the
+    **in-combat target of the Q7 thief archetype** ("protect your investment" becomes
+    a concrete *defend-the-wagon* objective, not a vague escort).
+  - **Support units deploy far back near the wagon, low enemy-targeting priority by
+    default** → not a constant babysit; the escort tension only spikes on a real
+    threat. **Positional abilities:** strong in their home zone, weak if dragged out
+    (e.g. **Chef by the campfire = bonus damage / hot-pan attack**). Campfire literally
+    on the battle map = title callback + ties to the overworld-camp visual.
+  - **Rule to pin:** enemy AI **deprioritizes** non-combat units + the wagon **except
+    the thief archetype**, which actively seeks the supplies — that exception *is* the
+    bodyguard gameplay.
+- **Q10 — Secondary classes = FFT-style; non-combat levels passively+on-use.**
+  - **FFT job model:** one active **primary** (defines stats/growth) + a **slotted
+    subset** of a secondary class's abilities, re-arranged at the guild. More
+    balance-controllable than simultaneous dual-class (a weaker slot-saver, accepted).
+  - **Leveling:** secondary abilities level through **use** (slower — primary is mostly
+    active). **Non-combat jobs** level via a **passive trickle WHILE DEPLOYED + a bump
+    per successful ability use** (benched = no growth); combat jobs via combat XP.
+    ("Level the secondary by using it" and "non-combat use-bonus" are one mechanism.)
 
 ## North-star framing (emerging)
 
