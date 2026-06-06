@@ -129,6 +129,32 @@ export function createRun(seed: string | number, opts: CreateRunOptions): RunSta
   };
 }
 
+/**
+ * Build a run **from a caravan** (M9, D25/D26) — the guild-tier entry point. A
+ * `Guild` of N runs ({@link "./guild"}) dispatches a caravan by deriving a run
+ * from its bundle: the caravan's **party** (a copy, so permadeath can splice it
+ * without touching the assembled caravan), its per-caravan **storage cap**, its
+ * **loaded supplies** (the starting inventory), and its **purse** (the run's gold
+ * — `camp.gold` *is* the purse; the treasury is new on the guild, D34). The `seed`
+ * is the **quest's** seed, so the same guild seed + same dispatch choices
+ * reproduce each caravan's map + outcomes exactly (D22). The existing
+ * {@link createRun} options overload stays for tests.
+ */
+export function createRunFromCaravan(
+  seed: string | number,
+  caravan: { party: Unit[]; storageCap: number; supplies: Record<string, number>; purse: number },
+  opts: { difficultyId?: string; morale?: number } = {},
+): RunState {
+  return createRun(seed, {
+    party: [...caravan.party],
+    storageCap: caravan.storageCap,
+    inventory: { ...caravan.supplies },
+    gold: caravan.purse,
+    difficultyId: opts.difficultyId,
+    morale: opts.morale,
+  });
+}
+
 /** The difficulty policy this run consults (D9). */
 export function runDifficulty(run: RunState): DifficultyPolicy {
   return getDifficulty(run.difficultyId);

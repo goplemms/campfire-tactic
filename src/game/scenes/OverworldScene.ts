@@ -1,9 +1,7 @@
 import Phaser from "phaser";
 import {
-  createRun,
   RunLoop,
   previewNode,
-  createUnit,
   slotsUsed,
   countOf,
   moraleTier,
@@ -28,6 +26,7 @@ import {
   type OverworldAbility,
   type ActionResult,
   type SkillDef,
+  type Guild,
 } from "../../core";
 
 /** A small text button with a hover highlight. */
@@ -40,6 +39,10 @@ interface TextButton {
 export interface RunHandoff {
   run: RunState;
   loop: RunLoop;
+  /** The owning guild (M9) — threaded so a terminal can return to the hall. */
+  guild?: Guild;
+  /** The caravan whose run this is — the hall resolves it on a terminal (D27). */
+  caravanId?: string;
 }
 
 /**
@@ -63,6 +66,8 @@ export interface RunHandoff {
 export class OverworldScene extends Phaser.Scene {
   private run!: RunState;
   private loop!: RunLoop;
+  private guild?: Guild;
+  private caravanId?: string;
 
   private graph?: Phaser.GameObjects.Graphics;
   private nodePos = new Map<string, { x: number; y: number }>();
@@ -82,27 +87,24 @@ export class OverworldScene extends Phaser.Scene {
     super("OverworldScene");
   }
 
-  /** Resume data: an in-flight run+loop handed back from a BattleScene. */
+  /** Resume data: an in-flight run+loop (from the hall, or back from a BattleScene). */
   init(data?: Partial<RunHandoff>): void {
     this.run = data?.run as RunState;
     this.loop = data?.loop as RunLoop;
+    this.guild = data?.guild;
+    this.caravanId = data?.caravanId;
   }
 
   create(): void {
-    // Seed bar (the re-enterable replay field) + New Run button.
-    const seedInput = document.getElementById("seed") as HTMLInputElement | null;
+    // The New Guild button returns to the hall (M9 — the guild owns runs now).
     const newRunBtn = document.getElementById("newrun") as HTMLButtonElement | null;
-    if (newRunBtn) newRunBtn.onclick = () => this.scene.start("OverworldScene");
+    if (newRunBtn) newRunBtn.onclick = () => this.scene.start("GuildScene");
 
-    // Fresh run from the seed field unless we're resuming an in-flight one.
+    // The overworld is now ONE caravan's run, handed in by the guild hall. With
+    // nothing handed in (e.g. a direct boot), bounce back to the hall.
     if (!this.run || !this.loop) {
-      let seed = seedInput?.value.trim() ?? "";
-      if (!seed) {
-        seed = `run-${Date.now()}`;
-        if (seedInput) seedInput.value = seed;
-      }
-      this.run = createRun(seed, { party: this.startingRoster(), difficultyId: "normal", gold: 120, storageCap: 6 });
-      this.loop = new RunLoop(this.run);
+      this.scene.start("GuildScene");
+      return;
     }
 
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
@@ -117,16 +119,6 @@ export class OverworldScene extends Phaser.Scene {
     if (this.loop.isComplete()) return this.runComplete();
 
     this.drawMap();
-  }
-
-  /** The starting party: two fighters + camp-only Chef and Merchant (D3). */
-  private startingRoster(): Unit[] {
-    return [
-      createUnit({ id: "Rook", side: "player", pos: { col: 0, row: 1 }, name: "Rook", jobId: "soldier", awareness: 4, intelligence: 4, speed: 12, maxHp: 30, attack: 9, defense: 3, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Vale", side: "player", pos: { col: 0, row: 4 }, name: "Vale", jobId: "survivalist", awareness: 2, intelligence: 2, speed: 10, maxHp: 24, attack: 11, defense: 2, moveRange: 4, sightRadius: 5 }),
-      createUnit({ id: "Pip", side: "player", pos: { col: -1, row: -1 }, name: "Pip", jobId: "chef", speed: 8, maxHp: 18, attack: 3, defense: 1, moveRange: 3, sightRadius: 4 }),
-      createUnit({ id: "Coin", side: "player", pos: { col: -1, row: -1 }, name: "Coin", jobId: "merchant", speed: 8, maxHp: 16, attack: 2, defense: 1, moveRange: 3, sightRadius: 4 }),
-    ];
   }
 
   // --- Map drawing ----------------------------------------------------------
@@ -456,7 +448,7 @@ export class OverworldScene extends Phaser.Scene {
     this.campNode = undefined;
     if (node.kind === "combat") {
       // Hand the run off to the battle flow; it returns to this scene when done.
-      this.scene.start("BattleScene", { run: this.run, loop: this.loop } as RunHandoff);
+      this.scene.start("BattleScene", { run: this.run, loop: this.loop, guild: this.guild, caravanId: this.caravanId } as RunHandoff);
     } else {
       this.playRest();
     }
@@ -492,35 +484,39 @@ export class OverworldScene extends Phaser.Scene {
 
   private runComplete(): void {
     const won = this.run.history.filter((h) => h.winner === "player").length;
+    const toHall = !!this.guild;
     const lines = [
-      "You cleared the final mission — the run is complete!",
+      "The caravan cleared its final mission — the quest is complete!",
       "",
       `Survived ${this.run.night} night(s), won ${won} encounter(s).`,
-      `Final gold ${this.run.camp.gold}.`,
+      `Surviving purse ${this.run.camp.gold}g (flows back to the treasury).`,
       "",
-      `Seed:  ${this.run.seed}`,
-      "Re-enter the seed above and press New Run to replay this exact map.",
+      toHall ? "Return to the guild hall — survivors, gear and purse come home." : `Seed:  ${this.run.seed}`,
     ];
-    this.titleText.setText("Run Complete");
-    this.showOverlay("Run Complete!", lines.join("\n"), true, 560, 250);
-    this.setHint("Run complete. Re-enter the seed above and press New Run to replay the same map.");
+    this.titleText.setText("Quest Complete");
+    this.showOverlay("Quest Complete!", lines.join("\n"), true, 560, 250, toHall ? () => this.returnToHall() : undefined);
+    this.setHint(toHall ? "Quest complete. Return to the hall to bank the survivors, gear and purse." : "Run complete.");
   }
 
   private runEnd(): void {
     const won = this.run.history.filter((h) => h.winner === "player").length;
     const last = this.run.history[this.run.history.length - 1];
+    const toHall = !!this.guild;
     const lines = [
-      last && last.winner === "enemy" ? "The party was overwhelmed." : "The run has ended.",
+      last && last.winner === "enemy" ? "The caravan was overwhelmed." : "The caravan is lost.",
       "",
       `Survived ${this.run.night} night(s), won ${won} encounter(s).`,
-      `Final gold ${this.run.camp.gold}.`,
       "",
-      `Seed:  ${this.run.seed}`,
-      "Re-enter the seed above and press New Run to replay this run.",
+      toHall ? "Return to the guild hall — the caravan's people and gear are lost, but the guild survives." : `Seed:  ${this.run.seed}`,
     ];
-    this.titleText.setText("Run Over");
-    this.showOverlay("Run Over", lines.join("\n"), false, 560, 250);
-    this.setHint("Run over. Re-enter the seed above and press New Run to replay the same run.");
+    this.titleText.setText("Caravan Wiped");
+    this.showOverlay("Caravan Wiped", lines.join("\n"), false, 560, 250, toHall ? () => this.returnToHall() : undefined);
+    this.setHint(toHall ? "Caravan wiped. Return to the hall — the guild survives; rebuild with a mercenary." : "Run over.");
+  }
+
+  /** Hand the run's terminal back to the guild hall, which resolves it (D27). */
+  private returnToHall(): void {
+    this.scene.start("GuildScene", { guild: this.guild, resolveCaravanId: this.caravanId });
   }
 
   // --- UI helpers ------------------------------------------------------------

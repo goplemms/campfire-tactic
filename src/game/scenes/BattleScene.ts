@@ -58,6 +58,9 @@ interface TextButton {
 export class BattleScene extends Phaser.Scene {
   private run!: RunState;
   private loop!: RunLoop;
+  /** The owning guild + caravan (M9) — threaded back to the overworld/hall. */
+  private guild?: RunHandoff["guild"];
+  private caravanId?: string;
   private grid!: TileGrid;
   private battle!: Battle;
 
@@ -107,6 +110,8 @@ export class BattleScene extends Phaser.Scene {
   init(data: RunHandoff): void {
     this.run = data.run;
     this.loop = data.loop;
+    this.guild = data.guild;
+    this.caravanId = data.caravanId;
   }
 
   create(): void {
@@ -583,7 +588,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Hand the run back to the overworld so the player can pick the next node. */
   private returnToOverworld(): void {
-    this.scene.start("OverworldScene", { run: this.run, loop: this.loop } as RunHandoff);
+    this.scene.start("OverworldScene", { run: this.run, loop: this.loop, guild: this.guild, caravanId: this.caravanId } as RunHandoff);
   }
 
   private showOverlay(title: string, body: string, good: boolean, w = 480, h = 170): void {

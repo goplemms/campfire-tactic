@@ -15,11 +15,91 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M6 — Roguelike run loop (seeded, permadeath, meta) | done (in-browser gate confirmed 2026-06-05) |
 | M7 — The overworld (seeded branching run map) | done (gate confirmed 2026-06-05; terminal-ending *design* deferred) |
 | M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | done (accepted as prototype 2026-06-06; numbers/behavior to tune later) |
+| M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** M9 — The guild & caravan tier (D25–D27, D32 seam): `run.ts` → a
+  **Guild of N runs**. **TESTABLE** — code complete 2026-06-06, awaiting the in-browser
+  gate. `npm test` **202/202 green** (173 prior + 29 new), `npm run build` clean, `core/`
+  free of Phaser/DOM **and** `Math.random` (grep test still enforces it). **Why:** M7/M8
+  built the per-run overworld; M9 reshapes the **container** around the run — the run
+  becomes **one caravan's adventure** and a persistent **guild** owns several (D25–D27).
+  M7/M8 per-run machinery (overworld DAG, camp, cooldowns, fatigue, the phase pipeline)
+  is **untouched** — M9 wraps it.
+  - **What landed (M9 core, all pure/headless):**
+    - `caravan.ts` — the expedition vessel + the **lock ledger** (D25). A `VesselType`
+      is **data** (`capacity`/`storageCap`/`speed`/`cost`; scout-cart ↔ supply-train);
+      a `Caravan` bundles the four committed scarcities — **uniform** party slots
+      (any character fits, capped at vessel capacity), per-caravan **storage**, **loaded
+      supplies**, **locked gear**, and a **purse** (D34). `assignMember`/`lockGear`
+      validate **capacity + the cross-caravan lock** (`memberRefusal`/`gearRefusal` +
+      `committedMemberIds`/`committedGearIds`) so the same person/gear can't ride two
+      caravans. `loadPurse`/`loadSupply`/`resetCaravan`.
+    - `guild.ts` — the persistent home that **owns N runs** (D25–D27). A `Guild` holds
+      the **roster pool**, the **armory**, a **pure treasury** (D34), a **stable** of
+      caravans, a **never-empty quest board** (a main quest + a repeating generated
+      sidequest stream — `refillBoard`), and `runs` (one `RunState` per dispatched
+      caravan). `dispatch` debits the purse from the treasury, builds a deterministic
+      run from the caravan targeting the quest's seed, **locks** the caravan out of the
+      pool, takes the quest off the board (refilling the stream). `resolveReturn` reads
+      the run's terminal: a **return** (complete) rejoins survivors, unlocks gear, flows
+      the surviving purse home; a **wipe** (`isRunOver`) removes the caravan's people
+      (permadeath) + loses its gear + purse while **the guild survives**, flagging
+      `lordLost` if a named lord was aboard (D27 seam — no game-over built).
+      `hireMercenary` is the **"never hard-fails" valve** (D27): treasury gold → a
+      deterministic `rollMercenary` (`streamFor(seed,"merc:N")`) into the pool. Model C
+      (D26): commitment parallel, **play serial** — the guild ticks no clock and never
+      auto-resolves; waiting caravans sit untouched.
+    - `run.ts` — `createRunFromCaravan(seed, caravan)` builds a run from a caravan's
+      bundle (party **copy** so permadeath can't shrink the caravan, storage cap,
+      supplies → inventory, purse → `camp.gold`). The existing `createRun` options
+      overload is kept for tests. `camp.gold` **is** the purse; the treasury is new on
+      the guild.
+    - `leveling.ts` — the **D32 thin seam**: per-character `level`/`xp` on `Unit` +
+      the recorded rule **"deployed grows, benched doesn't"** (`accrueDeployedXp`
+      trickles only the passed-in deployed party; `grantCombatXp`/`grantAbilityUseXp`).
+      The full FFT secondary-class slotting UI is a later pass (not built).
+  - **What landed (M9 render):** a new **`GuildScene`** — the app's **new entry point**
+    (boots first): the roster pool, the armory, the treasury, the never-empty quest
+    board, a **caravan-assembly panel** (pick a vessel, fill uniform slots from the
+    pool, lock gear, set the purse via a treasury→purse stepper) → **Dispatch**, and a
+    **stable** showing each caravan's status (assembling / in-flight) with a **▶ Play**
+    on dispatched ones. `OverworldScene` is now **one caravan's run**: its New-Run entry
+    is gone (the guild dispatches it in via `RunHandoff` carrying `guild` + `caravanId`);
+    on a terminal it returns to `GuildScene` (`resolveCaravanId`), which **resolves the
+    return/wipe and surfaces the result** at the hall (who/what was lost/returned, purse
+    reconciled). `BattleScene` threads `guild`/`caravanId` through the round-trip.
+  - **Tests (new):** `caravan.test.ts` (uniform slots capped at capacity; baker-costs-a-
+    warrior; the person/gear lock; purse/supplies/reset; per-caravan storage).
+    `guild.test.ts` (dispatch builds a deterministic run from the bundle + locks the
+    pool; N caravans in flight, played serially, **waiting ones untouched**; **return**
+    flows survivors/gear/purse home + mid-run deaths don't rejoin; **wipe** costs
+    people+gear+purse, guild survives, `lordLost` flag; the board is **never empty**;
+    a wiped-bare guild **hires a merc** to rebuild; deterministic merc rolls).
+    `guild-determinism.test.ts` (same guild seed + same dispatch choices ⇒ identical
+    per-caravan maps/paths/histories via each run's own seed). `leveling.test.ts`
+    (deployed accrues, **benched doesn't**; combat XP increments level; the dead don't).
+  - **Seams honored (thin, full behavior later):** the **lord** loss-tier is a typed
+    flag (`isLord` + `lordLost`) only — **no save/reload or game-over path** (D27 later);
+    the two-pool economy is only the **treasury↔purse plumbing dispatch needs** (faucets/
+    sinks/theft/Banker/Noble/Influence are M10); recruitment is only the **mercenary
+    rebuild valve** (companions/lords + authored-cast data shape are M10/deferred);
+    leveling is the **field-only seam** (no secondary-class slot UI — D32 later).
+  - **Out of scope (not built):** the gold-economy verbs / theft / Banker / Noble /
+    Influence (M10); companion & lord recruitment + authored-cast data shape; the save
+    system + lord game-over/ironman; the interleaved global guild clock (model A —
+    D26 keeps the path); auto-resolve of waiting caravans (rejected).
+  - **Next:** confirm the in-browser gate (open the hall → assemble ≥2 caravans → lock
+    gear/purse → dispatch both → play one to a terminal while the other waits → see a
+    wipe cost people+gear with the guild surviving, or a return flow survivors/gear/purse
+    home → re-enter the guild seed to reproduce), then PROGRESS M9 → done + the M9 row in
+    plan.md; commit/push.
+
+<details><summary>M8 — The overworld action economy — DONE (prototype, 2026-06-06)</summary>
 
 - **Milestone:** M8 — The overworld action economy (camp at every node + cooldown
   spine + loose fatigue). **DONE** — accepted as the **prototype** for the overworld
@@ -92,6 +172,8 @@ States: `todo` → `in-progress` → `testable` → `done`
     reachable node gets its own button but they share one per-ability cooldown — by
     design, possibly worth a clearer presentation); Market is job-ungated by design
     (any actor can trade) — revisit if it should require a Merchant.
+
+</details>
 
 <details><summary>M7 — The overworld (seeded branching run map) — DONE (gate, 2026-06-05)</summary>
 
@@ -419,9 +501,10 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step:** **M9** — the guild & caravan tier (D25–D27/D32), `run.ts` → a Guild
-  of N runs. (M8 accepted as the overworld-mechanics prototype; its number/behavior
-  tuning is a tracked non-blocking follow-up, see the M8 block.)
+- **Next step:** confirm the **M9** in-browser gate (the guild hall flow), then mark
+  M9 done; **M10** — the gold economy & recruitment (D28/D30/D33/D34) is the next build.
+  (M8 accepted as the overworld-mechanics prototype; its number/behavior tuning is a
+  tracked non-blocking follow-up, see the M8 block.)
 - **Blockers:** none.
 
 <details><summary>Stale footer (M2-era notes, kept for history)</summary>

@@ -51,6 +51,19 @@ export interface UnitSpec extends UnitStats {
    * by overworld actions, restored by rest, **never** read by combat (D29).
    */
   fatigue?: number;
+  /**
+   * Character level (D32 leveling seam); defaults to 1. Grows via combat XP and a
+   * passive trickle **while deployed** ({@link "./leveling"}); benched = no growth.
+   */
+  level?: number;
+  /** Accumulated experience toward the next level (D32); defaults to 0. */
+  xp?: number;
+  /**
+   * Named campaign **lord** flag (D27 stakes seam); defaults to false. A lord
+   * riding a caravan that wipes carries the `lordLost` terminal flag — the
+   * game-over/reload path itself is a later pass (not built in M9).
+   */
+  isLord?: boolean;
 }
 
 /**
@@ -79,6 +92,12 @@ export interface Unit extends UnitStats {
    * **Overworld-only** — ignored by the CT clock and every combat stat (D29).
    */
   fatigue: number;
+  /** Character level (D32): grows deployed, never benched ({@link "./leveling"}). */
+  level: number;
+  /** Experience toward the next level (D32). */
+  xp: number;
+  /** Named campaign lord (D27 stakes seam); a wipe carrying one flags `lordLost`. */
+  isLord: boolean;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -105,6 +124,9 @@ export function createUnit(spec: UnitSpec): Unit {
     awareness: spec.awareness ?? 0,
     intelligence: spec.intelligence ?? 0,
     fatigue: spec.fatigue ?? 0,
+    level: spec.level ?? 1,
+    xp: spec.xp ?? 0,
+    isLord: spec.isLord ?? false,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,

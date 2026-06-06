@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { GuildScene } from "./scenes/GuildScene";
 import { OverworldScene } from "./scenes/OverworldScene";
 import { BattleScene } from "./scenes/BattleScene";
 
@@ -9,6 +10,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   backgroundColor: "#11141b",
-  // The overworld boots first; it hands combat nodes to the BattleScene.
-  scene: [OverworldScene, BattleScene],
+  // The guild hall boots first (M9); it dispatches a caravan to the OverworldScene,
+  // which hands combat nodes to the BattleScene and returns to the hall on a terminal.
+  scene: [GuildScene, OverworldScene, BattleScene],
 };
