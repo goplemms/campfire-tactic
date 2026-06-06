@@ -325,9 +325,10 @@ rather than scattering.
       currency** spent in the field. ⇒ run = tight local pressure; guild = persistent
       wealth. Matches D30's "run gold is a flow" and the portfolio fantasy (D25/D26).
     - **Where each flow lands (mostly mechanical):** **loot → purse** (won in the
-      field); **quest payouts + passive faucets → treasury** (paid at the guild);
-      **travel / rest / field-buys / bribes → drawn from the purse**; **Upkeep → drawn
-      from the treasury** between runs.
+      field); **quest payouts → treasury** (paid at the guild); **travel / rest /
+      field-buys / bribes → drawn from the purse**; **Upkeep → drawn from the treasury**
+      between runs. (See the **Q14 clarification** below: no *passive* gold faucet feeds
+      the treasury — quest payouts are its only inflow.)
     - (Rejected: one shared pool — a rich guild trivializes any single run, and you lose
       the "provision the caravan with money" commitment. Also rejected: one pool with
       field access gated by class verbs — clever but more complex to reason about.)
@@ -348,7 +349,8 @@ rather than scattering.
       "political income" is no longer gold-flavoured — Influence *is* the Noble's whole
       economy (the patronage/reputation line of D30, made a currency).
     - **Banker financial interest stays gold** but is **flat / diminishing AND offset by
-      its paired debt-interest sink** — self-balancing.
+      its paired debt-interest sink** — self-balancing. **(Clarified below: it accrues on
+      the PURSE during a run, not the treasury.)**
     - **Net principle — the field is the faucet, the guild is the buffer:** the only real
       path to wealth is **loot + quest payouts**, gated by the hand-played tactical core
       (the crown jewel). Passive income *smooths*, it can't *replace* winning fights — so
@@ -359,9 +361,24 @@ rather than scattering.
       low-meter-count restraint — accepted because it *retires* a gold faucet rather than
       adding one, and it gives the Noble a distinct identity. (Influence = the
       "reputation" already named in D30 — one thing, not two.)
+  - **Q14 clarification (2026-06-06) — the Banker is an OVERWORLD actor; the treasury is
+    a vault.** The Banker's kit **fires only in the overworld**, all scoped to the
+    **purse**: interest accrues on the carried purse, buy-on-debt repays from incoming
+    **run** gold, theft protection guards the purse (the thief vector also hits the
+    purse). Faucet *and* sink both live on the purse, in the field — fully self-contained,
+    and exactly the D29 hook-surface pattern (the Banker acts on the overworld, like the
+    Merchant's field markets). The **guild treasury is a pure vault** — fluff: it has its
+    own **"treasurer"** who simply holds the money between runs; the Banker doesn't touch
+    it. **Consequence (the model tightens):** with the Banker off the treasury and the
+    Noble's income now **Influence** (not gold), **NO passive gold faucet feeds the
+    treasury** — its **only** inflow is **earned quest payouts**. This is the strongest
+    form of *"the field is the faucet, the guild is the buffer"*: the treasury literally
+    cannot grow except by completing field work. Does **not** overturn Q14 — it sharpens
+    it.
   - **The explicit loops this yields (each faucet paired to a sink):**
-    1. **Banker loop:** financial interest (faucet, treasury, flat/diminishing) ↔
-       buy-on-debt interest + theft protection (sinks/risk). Self-balancing.
+    1. **Banker loop (PURSE-scoped, overworld):** interest on the carried purse
+       (faucet, flat/diminishing) ↔ buy-on-debt interest + theft protection (sinks/risk).
+       Self-balancing, entirely within a run.
     2. **Noble loop:** political income → **Influence** (faucet) ↔ bribes / sway-avoid /
        access (Influence sinks). Walled off from gold entirely.
     3. **Thief loop (the sink-side risk):** thief event-nodes skim the **purse** + a
