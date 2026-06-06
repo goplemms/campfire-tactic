@@ -4,7 +4,7 @@ This folder is the **living vision** for the game's systems. It is intentionally
 separate from the build plan in [`scratchpad/foundations/`](../../scratchpad/foundations/),
 which tracks *milestones and status*; these docs track *what the game is*.
 
-> Architectural calls that back these docs are logged as decisions **D1–D7** in
+> Architectural calls that back these docs are logged as decisions **D1–D32** in
 > [`scratchpad/foundations/decisions.md`](../../scratchpad/foundations/decisions.md).
 
 ## Identity
@@ -89,9 +89,14 @@ pseudo-example**:
 These span multiple phases and are documented independently so each phase can
 reference them rather than re-explain:
 
+- **[The guild & caravans](systems/guild.md)** — the persistent **home** tier above
+  the overworld: one shared guild fed by a campaign + endless quest board, caravans as
+  upgradeable vessels with uniform slots, stakes via permanent loss + Fire-Emblem
+  lords, and class/secondary-job leveling (decisions D25–D27, D32).
 - **[The overworld](systems/overworld.md)** — the seeded, branching run **map**
-  that wraps the mission loop; layered node DAG, combat/rest nodes, and the banded
-  intel preview that informs each branch (decisions D22–D24).
+  that wraps the mission loop; layered node DAG, combat/rest nodes, the banded intel
+  preview that informs each branch, and (as a second hook surface) the gold routing
+  economy (decisions D22–D24, D28–D30).
 - **[Action economy](systems/action-economy.md)** — the CT clock and charged
   abilities (combat).
 - **[Magic](systems/magic.md)** — Vancian spells (scribed castings, scrolls, runes, a

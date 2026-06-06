@@ -1,7 +1,9 @@
 # System — Stats
 
 > Referenced by: [Deployment](../02-deployment.md), [Combat](../03-combat.md),
-> [Action economy](action-economy.md).
+> [Action economy](action-economy.md), [The overworld](overworld.md),
+> [The guild & caravans](guild.md).
+> Decisions: **D29** (Fatigue), **D32** (leveling).
 
 ## Description
 
@@ -37,6 +39,16 @@ so they don't overlap.
   paying. A *different* stat from Awareness, held by *different* archetypes.
 - **Naming note:** "Intelligence" may collide with a future magic-power stat; treat
   it as provisional (candidates: Insight, Lore, Cunning). The role is settled.
+
+#### Fatigue *(overworld meter, D29)*
+
+- **Overworld:** a single **shared per-character** stamina meter that **overworld
+  abilities spend and rest restores**. It is the limiter for the overworld
+  [hook surface](overworld.md) — the Merchant *can* hike to town, but not night after
+  night. Deliberately **one meter, not per-ability** (D15 restraint): an ability is
+  data declaring *phase + cost*, and Fatigue is one of the costs it may name.
+- **Not a combat stat:** Fatigue governs the *overworld* action economy (node-steps),
+  not the CT clock. Keep it off the combat block.
 
 ### The deliberate split
 
@@ -75,4 +87,8 @@ edge of capture.
   defined with M3. (Sight radius drives the **Seen** state, [vision](vision.md).)
 - Intel is **resolved** — it is its own stat (Intelligence) feeding the three intel
   lanes; see [intel](intel.md) (D10). The stat *name* remains provisional.
-- Stat growth/leveling across a run: deferred to the run-loop milestone (M6).
+- Stat growth/leveling **direction is set (D32)**: **combat jobs** level via combat
+  XP; **secondary** (FFT-style) abilities level through **use**; **non-combat jobs**
+  level via a **passive trickle while deployed + a per-successful-use bump** (benched =
+  no growth). The concrete curves/numbers remain to be tuned. See
+  [the guild & caravans](guild.md).

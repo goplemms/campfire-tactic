@@ -534,3 +534,207 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md),
   [`docs/design/systems/intel.md`](../../docs/design/systems/intel.md).
 - **Superseded by:** —
+
+## D25 — The guild/caravan layer: a three-tier strategic stack
+
+- **Status:** Decided (overworld/guild design pass, 2026-06-06)
+- **Context:** M7's overworld borrowed Slay-the-Spire's *shape* without its
+  *engine* — in STS the map means something because every fight feeds the deck and
+  **HP is the currency you spend to route**. Campfire has no deck; its equivalent of
+  "the deck getting stronger" is **roster + stores + gear** = **logistics**. The
+  run-frame also needs a persistent home so "between adventures" and "between fights"
+  stop both fighting for the word *camp*.
+- **Decision:** A **three-tier stack** sitting above the phase pipeline (D3):
+  - **Guild hall** (NEW, persistent) — home *between* adventures: the roster pool,
+    the armory, caravan assembly, several expeditions in flight.
+  - **Overworld** — **one caravan's** adventure: the layered DAG of D22, now scoped
+    to a single caravan (UI: drawn as a small mobile camp).
+  - **Camp / Mission** — one node: Camp → Deployment → Battle → Resolution (D3),
+    unchanged.
+  - **A caravan is a persistent, typed, upgradeable vessel** bundling **party slots +
+    storage (the D14 cap) + loaded supplies + locked equipment**. You own a **stable**
+    of them on a size/speed/cost/capacity axis (*scout cart* ↔ *supply train*); pick
+    the right vessel per quest. The Merchant raising storage (D14) becomes "upgrade a
+    caravan's capacity." The caravan doubles as the **overworld camp** visual.
+  - **Slots are UNIFORM** — any character fits any slot — so bringing a baker genuinely
+    costs a warrior; caravan *size* is the only dial. (Role-segmented slots rejected:
+    they make support picks "free" and kill the tension.)
+  - **Three on-theme scarcities** this layer creates: **slots** (baker-vs-warrior),
+    **the vessel** (which wagon's capacity), **locked equipment** (gear committed to one
+    caravan is unavailable to others — can't field one good sword twice).
+- **Spec:** [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md),
+  [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D26 — Run model & parallel adventures: one shared guild, two feeds, serial play
+
+- **Status:** Decided (design pass, 2026-06-06)
+- **Context:** How do **campaign** and **endless** relate, and how do "multiple
+  adventures at once" work atop a synchronous node loop (`run.ts` holds exactly one
+  map + position)?
+- **Options considered (time model):** A **global guild clock** (interleaved) / B
+  **focus-one, background the rest** (auto-resolve) / C **sequential with shared
+  standing state**.
+- **Decision:**
+  - **ONE shared persistent guild** (one roster, one armory, one progression).
+    Campaign and Endless are two **content feeds**, not separate saves. Accepted
+    tradeoff: story-earned and sandbox-earned progress share a save (revisit cosmetic
+    separation only if it feels muddy).
+  - **A quest board** makes the two feeds concrete: **main quest** (campaign spine +
+    ending) → **authored sidequests** (finite hand-made pool) → **repeating generated
+    sidequests** (the infinite "endless" tail). The board is never empty, so idle
+    caravans always have somewhere to go. Parallelism is **asymmetric** — one main
+    thrust + a renewable side stream (Darkest Dungeon / Three Houses shape), not
+    symmetric juggling.
+  - **Model C — commitment parallel, play serial.** Commit people + gear across
+    several caravans at once (the lock = the portfolio cost), but **play one caravan
+    through at a time**; the guild clock advances between dispatches. Every fight stays
+    hand-played. **Auto-resolve is rejected** — it dilutes the hand-played tactical
+    core (the crown jewel). Clear path to graduate toward an interleaved global clock
+    (model A) later.
+  - **Dispatched-but-unplayed caravans WAIT** (paused at their node) — they don't tick
+    a clock or auto-resolve.
+  - **Code shape:** a **`Guild` owns N run states**; today's single map + position
+    becomes one of many.
+- **Spec:** [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md),
+  [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D27 — Stakes via permanent loss: unkillable guild + Fire-Emblem lords
+
+- **Status:** Decided (design pass, 2026-06-06) · resolves the M7-deferred
+  terminal-*meaning* design
+- **Context:** What does failure mean now there's a persistent guild? The M7 endings
+  ship functional, but their *meaning/rewards* were deferred.
+- **Decision:**
+  - **The guild never hard-fails** — there's always a cheap repeating sidequest to
+    rebuild, so stakes come from permanent **losses**, not a fail screen. Two loss
+    tiers already exist: **mission loss** per node (D13/D21) and **caravan wipe** =
+    lose that caravan's people (permadeath) + its locked gear; the **guild survives**
+    (Darkest Dungeon / Battle Brothers stakes).
+  - **EXCEPT 2–3 named campaign "lords"** (Fire-Emblem-style): a lord dying *during the
+    campaign* is **game-over → reload last save** ⇒ implies a **save system** for the
+    campaign. An optional **hardcore/ironman** mode makes even that permanent (no
+    reload). A lord in a caravan that wipes = game-over, so risking a lord on a deep
+    node is a real gamble.
+  - **Endings:** campaign-complete = clear the **main quest** (epilogue + unlocks that
+    seed Endless); campaign-defeat = a **lord falls**; **Endless = depth/score, no
+    terminal**, no lords.
+- **Spec:** [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md),
+  [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md) (Run
+  terminals).
+- **Superseded by:** —
+
+## D28 — Overworld currency is gold; no physical rations (confirms D15)
+
+- **Status:** Decided (design pass, 2026-06-06) · also resolves the parked
+  "rations-as-routing-currency" idea
+- **Context:** Does travel/rest spend a **physical ration item** or **gold**? The
+  parking-lot notes floated rations as the routing currency; this resolves it the
+  other way, preserving D15's restraint.
+- **Decision:** **Travel and rest are paid in GOLD; D15 stands — no carried larder,
+  no spoilage.** Food stays a gold **Upkeep** line. ⇒ **gold is the universal
+  solvent**: travel, rest, provisioning, gear, bribes, debt all draw one pool, so the
+  overworld is an **economic routing problem** ("can I afford this route + a rest?").
+  Caravan **storage still gates gear/ammo/consumables** (D14/D20) — just not food.
+  **Consequence:** the faucet/sink balance (D30) matters *more* — a slack economy
+  trivializes the map. (Supersedes the note's "rations as routing currency" in favour
+  of gold.)
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (Upkeep), [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D29 — The overworld is a data-driven hook surface; abilities declare their limiter
+
+- **Status:** Decided (design pass, 2026-06-06) · **provisional** on the limiter menu
+- **Context:** Classes want to *act* on the overworld (Merchant hikes to town, mage
+  scries for intel). The combat tier is already a hook surface (D3/D4); the overworld
+  should be its twin rather than a difficulty menu.
+- **Decision:** **The overworld is a second hook surface with its own action economy**
+  (denominated in **node-steps / cooldowns**), alongside the combat CT clock (D5). An
+  overworld ability is **data declaring a phase + a cost**, drawn from a deliberately
+  **short limiter menu** (D15 restraint):
+  - **Fatigue / exhaustion (NEW per-character meter)** — a single **shared** stamina
+    meter overworld actions spend and **rest restores** (gives rest a second job; fits
+    the caravan-as-people fantasy). E.g. the Merchant *can* hike to town, but not night
+    after night. Keep it **one meter, not per-ability**.
+  - **Vancian charges** — spells with overworld effects (scry for intel, forage) spend
+    castings from the D17 pool. Magic unified across tiers.
+  - **Node-refresh / gold cost / step-cooldown** — for whatever else fits.
+- **Spec:** [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
+  (Fatigue), [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md),
+  [`docs/design/systems/magic.md`](../../docs/design/systems/magic.md).
+- **Superseded by:** —
+
+## D30 — The gold economy: one verb per economy class + an active theft vector
+
+- **Status:** Decided (design pass, 2026-06-06)
+- **Context:** With gold as the master currency (D28), the economy classes risk being
+  three flavours of "gives gold," and faucets without sinks make **Upkeep (D15)**
+  toothless.
+- **Decision:** **One distinct verb per economy class, balanced by an active sink.**
+  - **Merchant = ACCESS** — markets in the field (basic anywhere via the fatigue-gated
+    town-trip, premium at town nodes, better prices everywhere). In-field buys use
+    **run gold** (a flow), distinct from the **guild armory** (locked stock).
+  - **Banker = TIME-SHIFT + SECURE** — buy-on-debt (auto-repaid from future gold),
+    passive **financial** interest, and **theft protection**.
+  - **Noble = INFLUENCE** — bribe enemies to turncoat / sway-avoid fights (leans on the
+    D24 intel preview) **+ *political* income** (patronage, town levies, stipend,
+    reputation) — deliberately distinct from the Banker's *financial* interest so the
+    two aren't redundant faucets.
+  - **Active theft vector (the sink-side partner):** pilfering is a real risk —
+    **thief/bandit event nodes** skim gold on the overworld **and** a
+    **gold/item-stealing enemy archetype** mid-battle — which is what gives the Banker's
+    protect/debt/interest kit teeth (a live faucet↔risk loop). Cost = a thief enemy +
+    theft events (fits the next event-node batch, D23).
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (Economy), [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D31 — Support units on the battle map + the defendable supply wagon
+
+- **Status:** Decided (design pass, 2026-06-06)
+- **Context:** Non-combat classes should be physically present as a "resource to
+  protect," but classic escort gameplay is famously tedious (the Fire-Emblem "keep the
+  green unit alive" groan).
+- **Options considered:** opt-in fielding / always on the field / abstracted off-map.
+- **Decision:** **Support classes are ALWAYS on the combat map, guarding a defendable
+  supply wagon.**
+  - The caravan's **supplies are an on-map asset** — a wagon/camp object modeled as a
+    **D4 field entity** (position + state) that can be attacked and defended, and it is
+    the **in-combat target of the D30 thief archetype**. "Protect your investment"
+    becomes a concrete *defend-the-wagon* objective, not a vague escort.
+  - **Support units deploy far back near the wagon and are low enemy-targeting priority
+    by default** → not a constant babysit; the escort tension only spikes on a real
+    threat. **Positional abilities:** strong in their home zone, weak if dragged out
+    (e.g. **Chef by the campfire = bonus damage / hot-pan attack**) — the campfire
+    literally on the battle map is a title callback and ties to the overworld-camp
+    visual.
+  - **Rule to pin:** enemy AI **deprioritizes** non-combat units + the wagon **except
+    the thief archetype**, which actively seeks the supplies — that exception *is* the
+    bodyguard gameplay.
+- **Spec:** [`docs/design/systems/field-entities.md`](../../docs/design/systems/field-entities.md)
+  (supply wagon), [`docs/design/02-deployment.md`](../../docs/design/02-deployment.md),
+  [`docs/design/03-combat.md`](../../docs/design/03-combat.md).
+- **Superseded by:** —
+
+## D32 — Secondary classes (FFT-style) & non-combat leveling
+
+- **Status:** Decided (design pass, 2026-06-06)
+- **Context:** Characters should gain versatility via a second class, and non-combat
+  classes need a way to level without fighting.
+- **Options considered:** simultaneous dual-class (both active, growth split) /
+  FFT-style primary + slotted secondary subset.
+- **Decision:**
+  - **FFT job model:** one active **primary** (defines stats/growth) + a **slotted
+    subset** of a secondary class's abilities, re-arranged at the guild. More
+    balance-controllable than simultaneous dual-class (a weaker slot-saver, accepted) —
+    and it ties the secondary into the same slot economy (versatility per slot).
+  - **Leveling:** **secondary** abilities level through **use** (slower — the primary is
+    mostly active). **Non-combat jobs** level via a **passive trickle WHILE DEPLOYED +
+    a bump per successful ability use** (benched = no growth, so the guild isn't free
+    training); **combat jobs** level via combat XP as before. ("Level the secondary by
+    using it" and "non-combat use-bonus" are one mechanism.)
+- **Spec:** [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
+  (leveling), [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md).
+- **Superseded by:** —

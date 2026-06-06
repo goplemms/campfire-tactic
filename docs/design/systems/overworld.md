@@ -1,8 +1,11 @@
 # System — The overworld (seeded branching run map)
 
 > Referenced by: [Design Overview](../README.md) (the loop), [Pre-deployment](../01-pre-deployment.md)
-> (camp), [Intel](intel.md), [Mortality, recovery & difficulty](mortality-recovery.md).
-> Decisions: **D22** (shape), **D23** (node kinds & camp), **D24** (intel preview).
+> (camp), [Intel](intel.md), [Mortality, recovery & difficulty](mortality-recovery.md),
+> [The guild & caravans](guild.md).
+> Decisions: **D22** (shape), **D23** (node kinds & camp), **D24** (intel preview),
+> **D25–D27** (the guild/caravan layer that wraps this), **D28** (gold as the routing
+> currency), **D29** (the overworld as a hook surface), **D30** (the gold economy).
 
 ## Description
 
@@ -16,6 +19,14 @@ This is the **run frame** — it does not change combat, camp, logistics, or
 mortality; it only chooses *which encounter to play next*. The
 [phase pipeline](../README.md) (Camp → Deployment → Battle → Resolution) runs
 **inside** a combat node, exactly as before.
+
+> **Scope note (D25–D27).** A later design pass wraps this overworld in a persistent
+> **guild** tier: the overworld is now **one caravan's** adventure, and the guild owns
+> several. The shape, determinism, and node loop below are unchanged — what changes is
+> the *ownership* (`run.ts` → a `Guild` of N run states) and the *meaning* of a
+> terminal (a wipe loses a **caravan**, not the guild). See
+> [the guild & caravans](guild.md). The rest of this doc describes a single caravan's
+> run.
 
 ### Shape — a layered node DAG (D22)
 
@@ -104,6 +115,51 @@ live RNG, fully replayable.
 - **Run complete** — a **final-layer** node is cleared. A new terminal the
   overworld surfaces, distinct from a wipe.
 
+## Gold is the routing currency (D28)
+
+The overworld is an **economic routing problem**, not a difficulty menu. **Travel and
+rest are paid in gold** (D15 stands — no carried larder, no food spoilage); food stays
+a gold [Upkeep](logistics.md) line. So **gold is the universal solvent** — travel, rest,
+provisioning, gear, bribes, and debt all draw one pool, and the question at every branch
+is *"can I afford this route **and** a rest at the end of it?"* Caravan **storage still
+gates gear / ammo / consumables** (D14/D20); it just no longer gates food. Because one
+pool funds everything, the **faucet ↔ sink balance** (below) is what keeps the map
+meaningful — a slack economy trivializes routing.
+
+## The overworld as a hook surface (D29)
+
+The overworld is a **second hook surface** — the twin of the combat tier (D3/D4) — with
+**its own action economy** denominated in **node-steps / cooldowns**, alongside the
+combat CT clock (D5). An **overworld ability** is **data declaring a phase + a cost**,
+drawn from a deliberately short limiter menu (D15 restraint):
+
+- **Fatigue** (a new per-character meter, see [stats](stats.md)) — a single shared
+  stamina pool overworld actions spend and **rest restores**. The Merchant *can* hike to
+  town, but not every single night.
+- **Vancian charges** — spells with overworld effects (scry for intel, forage) spend
+  castings from the [magic](magic.md) pool.
+- **Node-refresh / gold cost / step-cooldown** — for whatever else fits.
+
+## The gold economy: faucets, sinks & theft (D30)
+
+Each economy class earns its caravan slot with **one distinct verb** so they are not
+three flavours of "gives gold":
+
+- **Merchant = ACCESS** — markets in the field (basic anywhere via the fatigue-gated
+  town-trip, premium at town nodes, better prices everywhere). In-field buys use **run
+  gold** (a flow), distinct from the **guild armory** (locked stock).
+- **Banker = TIME-SHIFT + SECURE** — buy-on-debt (auto-repaid from future gold), passive
+  *financial* interest, and **theft protection**.
+- **Noble = INFLUENCE** — bribe enemies to turncoat / sway-avoid fights (leans on the
+  D24 preview) **+ *political* income** (patronage, town levies, stipend), kept distinct
+  from the Banker's *financial* interest so the two aren't redundant faucets.
+
+**An active theft vector** is the sink-side partner that gives the Banker teeth:
+**thief/bandit event nodes** skim gold on the overworld, and a **gold/item-stealing
+enemy archetype** does so mid-battle (it targets the [supply wagon](field-entities.md),
+D31). Every faucet is paired with a sink so gold stays scarce and **Upkeep keeps
+mattering** (D15).
+
 ## Pseudo-example
 
 > A fresh run loads from seed `emberfall`. The overworld draws **7 layers**. The
@@ -129,16 +185,21 @@ live RNG, fully replayable.
 
 ## Open questions / future scope (the **next** batch, out of M7 scope)
 
-- **Route endings (deferred at the M7 gate).** M7 ships **functional** terminals —
-  a *run-complete* screen on clearing the final node and a *run-over* screen on a
-  wipe, both surfacing the replay seed — but *what an ending should **mean*** is an
-  open design question: end-of-run **rewards**, any **meta-progression** carried
-  between runs, and the **framing** of victory vs. defeat. The complete-vs-wipe
-  *mechanics* are settled (and tested); their content/payoff is the next pass.
-- **More node kinds:** shops/merchants-as-nodes, **recruitment** of new party
-  members, **event** nodes (random encounters with choices), narrative beats.
+- **Route endings — *resolved* (D27).** The *meaning* M7 deferred is now decided: a
+  wipe loses a **caravan**, not the guild; a **campaign-complete** = clearing the main
+  quest (epilogue + unlocks that seed Endless); **campaign-defeat** = a **lord** falls;
+  **Endless** has no terminal (depth/score). The remaining open piece is the concrete
+  **reward/unlock content** of each ending. See [the guild & caravans](guild.md).
+- **More node kinds** — partly specced now: **town** nodes (Merchant premium markets,
+  D30) and **thief/bandit event** nodes (the theft vector, D30) are decided in shape;
+  **recruitment** nodes (gain party members / lords) and general **event** nodes with
+  choices remain to be designed (see [guild.md](guild.md) open questions).
+- **The parallel-adventures time model (D26).** Today `run.ts` holds exactly one map +
+  position; "multiple at once" needs a **`Guild` of N run states** (model C: serial
+  play, parallel commitment), with a path to an interleaved global clock later.
 - **Map shape tuning:** layer count / width / fan-out / rest frequency as a
   difficulty or biome dial; elite/boss nodes and their tuning.
 - **Pathing texture:** one-way shortcuts, locked nodes, intel that reveals deeper
   layers than the immediate next one.
-- **Persistence:** on-disk save slots (M7 is in-memory + the re-enterable seed).
+- **Persistence:** on-disk save slots — now **required** by the lord/ironman rule
+  (D27), not just nice-to-have (M7 is in-memory + the re-enterable seed).

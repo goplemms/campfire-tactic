@@ -1,10 +1,14 @@
 # Overworld — captured ideas (parking lot)
 
-> **Status: UNSORTED / NOT YET DECIDED.** This is a holding pen for an in-progress
-> design discussion about the **overworld / run-frame** (the part that feels less
-> ironed-out than the iso combat map). Nothing here is committed. When an item
-> firms up it should graduate to a **decision** (`decisions.md`, D25+) and a spec
-> under `docs/design/`. Until then: capture, don't build.
+> **Status: GRADUATED (2026-06-06).** The "Resolved" Q1–Q10 below have been promoted
+> to formal decisions **D25–D32** in [`decisions.md`](decisions.md) and written up in
+> the specs (new [`guild.md`](../../docs/design/systems/guild.md); extended
+> [`overworld.md`](../../docs/design/systems/overworld.md),
+> [`logistics.md`](../../docs/design/systems/logistics.md),
+> [`stats.md`](../../docs/design/systems/stats.md),
+> [`field-entities.md`](../../docs/design/systems/field-entities.md)). This file is
+> kept as the **reasoning trail / parking lot** for the not-yet-decided remainder
+> (the round-2 threads at the bottom). Capture here; the decisions are the record.
 >
 > Context: M7 shipped the overworld as a seeded Slay-the-Spire-style layered DAG
 > (D22–D24) with `combat`/`rest` nodes. The discussion below is about what the

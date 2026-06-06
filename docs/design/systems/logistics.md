@@ -1,8 +1,10 @@
 # System — Logistics & inventory
 
 > Referenced by: [Pre-deployment](../01-pre-deployment.md),
-> [Deployment](../02-deployment.md), [Resolution](../04-resolution.md).
-> Decision: **D6**. This is the game's **headline pillar**.
+> [Deployment](../02-deployment.md), [Resolution](../04-resolution.md),
+> [The overworld](overworld.md), [The guild & caravans](guild.md).
+> Decisions: **D6**, **D14** (slotted storage), **D15** (Upkeep), **D28** (gold as the
+> routing currency), **D30** (the gold economy). This is the game's **headline pillar**.
 
 ## Description
 
@@ -83,6 +85,31 @@ line** when broke (the *choice* — what do I let slide?):
   grace, then blanket combat penalties — gear wear with no per-weapon meter. (Distinct
   from entity `durability`, D13.)
 - Sustained **Low** [morale](morale.md), night over night, risks **desertion**.
+
+### Gold as the routing currency & the economy (D28, D30)
+
+Once the run is wrapped in [the overworld](overworld.md), logistics scales up from a
+per-night chore to the **campaign-scale routing problem**. **Travel and rest are paid
+in gold** (D28; D15 stands — no carried larder, no spoilage), so **gold is the
+universal solvent**: travel, rest, provisioning, gear, bribes, and debt all draw one
+pool. Caravan **storage still gates gear/ammo/consumables** (D14/D20) — just not food.
+The map question becomes *"can I afford this route **and** a rest at the end?"*
+
+Because one pool funds everything, the economy must keep gold **scarce** or Upkeep
+stops biting. So every **faucet is paired with a sink**, and the economy classes each
+get **one distinct verb** (D30):
+
+| Class | Verb | Faucet / sink |
+|---|---|---|
+| **Merchant** | **access** | field markets, better prices (a value faucet); buys are a sink |
+| **Banker** | **time-shift + secure** | passive *financial* interest (faucet) ↔ buy-on-debt interest + **theft protection** (sinks/insurance) |
+| **Noble** | **influence** | *political* income — patronage/levies/stipend (faucet) ↔ bribe-to-turncoat (sink) |
+
+The **active theft vector** (D30) is the sink that gives the Banker teeth:
+**thief/bandit event nodes** skim gold on the overworld, and a **gold/item-stealing
+enemy archetype** raids the [supply wagon](field-entities.md) mid-battle. "In-field"
+buys spend **run gold** (a flow); the **guild armory** is separate locked stock
+([guild.md](guild.md)).
 
 ### The loop (why it's a pillar, not a chore)
 
