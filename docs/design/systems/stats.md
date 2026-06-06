@@ -3,7 +3,7 @@
 > Referenced by: [Deployment](../02-deployment.md), [Combat](../03-combat.md),
 > [Action economy](action-economy.md), [The overworld](overworld.md),
 > [The guild & caravans](guild.md).
-> Decisions: **D29** (Fatigue), **D32** (leveling).
+> Decisions: **D29** (Fatigue), **D32** (leveling), **D35** (Fatigue as a loose guardrail).
 
 ## Description
 
@@ -40,15 +40,22 @@ so they don't overlap.
 - **Naming note:** "Intelligence" may collide with a future magic-power stat; treat
   it as provisional (candidates: Insight, Lore, Cunning). The role is settled.
 
-#### Fatigue *(overworld meter, D29)*
+#### Fatigue *(overworld meter, D29 · shaped by D35)*
 
-- **Overworld:** a single **shared per-character** stamina meter that **overworld
-  abilities spend and rest restores**. It is the limiter for the overworld
-  [hook surface](overworld.md) — the Merchant *can* hike to town, but not night after
-  night. Deliberately **one meter, not per-ability** (D15 restraint): an ability is
-  data declaring *phase + cost*, and Fatigue is one of the costs it may name.
+- **Overworld:** a single **per-character** stamina meter that **overworld abilities
+  spend and rest restores** — restored chiefly at **rest nodes** (rest's second job).
+  Deliberately **one meter, not per-ability** (D15 restraint).
+- **A LOOSE guardrail, not a tight pool (D35).** Fatigue is **not** the spine of the
+  overworld action economy — **per-ability cooldowns are** (see
+  [the overworld action economy](overworld.md#the-overworld-action-economy-d35)). Fatigue
+  follows the codebase's **shallow asymmetric-floor** shape (D7/D11 deployment overdraw,
+  D8 morale): a **generous allowance, invisible in normal play, that bites only when you
+  greedily skip rest and over-extend** night after night. The point is the
+  *over-extension stake*, not a per-camp rationing chore — a depleting meter is used here
+  *because* it has been given the shallow-floor shape that avoids hoarding/agony.
 - **Not a combat stat:** Fatigue governs the *overworld* action economy (node-steps),
-  not the CT clock. Keep it off the combat block.
+  not the CT clock, and **does not affect combat readiness** (D29's two-economies
+  separation). Keep it off the combat block.
 
 ### The deliberate split
 

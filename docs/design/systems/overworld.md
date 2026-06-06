@@ -5,7 +5,9 @@
 > [The guild & caravans](guild.md).
 > Decisions: **D22** (shape), **D23** (node kinds & camp), **D24** (intel preview),
 > **D25–D27** (the guild/caravan layer that wraps this), **D28** (gold as the routing
-> currency), **D29** (the overworld as a hook surface), **D30** (the gold economy).
+> currency), **D29** (the overworld as a hook surface), **D30** (the gold economy),
+> **D33** (recruitment vectors), **D34** (run purse), **D35** (the overworld action
+> economy: camp at every node + cooldown spine + loose fatigue).
 
 ## Description
 
@@ -74,10 +76,12 @@ the loop:
 | **combat** | A fight. Reuses `generation.ts` for the encounter and runs the full **Camp → Deployment → Battle → Resolution** flow. Difficulty scales with **map depth** (the node's layer is the encounter index). |
 | **rest** | **No fight.** A night of [Upkeep](logistics.md) plus a recovery bonus: extra [Rest Points](mortality-recovery.md), auto-triage of the most-wounded, and a small [morale](morale.md) uptick. The between-battle camp beat as a *node*. |
 
-**Camp stays the Meta phase (D3)** that runs *before* a chosen **combat** node
-(pay upkeep, bank RP, tick dying clocks, provision, read intel). The **rest node**
-is a distinct, lighter recovery beat. The **overworld** is simply the screen you
-return to between nodes to pick the next one.
+> **Updated by D35.** The Meta phase no longer lives on a separate screen: the overworld
+> is rendered as **one unified camp surface shown at every node** (below). The old
+> "Camp = Meta phase before a combat node" becomes *"the camp actions you take at a
+> **combat** node before committing to the fight"* (pay upkeep, bank RP, tick dying
+> clocks, provision, read intel); a **rest** node is simply the node themed on recovery.
+> One surface, one clock — see [The overworld action economy](#the-overworld-action-economy-d35).
 
 A combat node's encounter is derived as:
 
@@ -140,6 +144,34 @@ drawn from a deliberately short limiter menu (D15 restraint):
   castings from the [magic](magic.md) pool.
 - **Node-refresh / gold cost / step-cooldown** — for whatever else fits.
 
+## The overworld action economy (D35)
+
+D29 named the *menu*; D35 assembles it into a working economy — the genuine **twin of the
+combat CT clock** (D5), one tier up.
+
+- **Surface — camp at every node.** Arriving at *any* node opens **one unified overworld
+  camp** (the "interactable camp," the literal title callback): take overworld actions,
+  then choose the next edge. This **collapses three surfaces into one** — the map screen,
+  the interactable-camp idea, and the pre-combat **Meta phase** (D3/D23) — leaving **two
+  clean camp tiers** (the [guild hall](guild.md) between *adventures*; this overworld camp
+  between *nodes*). A **combat** node adds a "commit → Deployment + Battle" exit; a **rest**
+  node is themed on recovery.
+- **Tick — the node-step.** The caravan advances node→node *together*; one step is one
+  tick of the overworld clock. Cooldowns and the fatigue curve are measured in node-steps.
+- **Spine — per-ability cooldowns.** Each overworld ability carries its own **node-step
+  cooldown** (market, scout, scry, …), so every ability is **non-trivial to time even with
+  the specialist** — a Merchant can't market every node; the decision is *when* to spend
+  the charge. **Why cooldowns:** they *encourage* engagement (use-it-or-waste-it), whereas
+  a tight hoardable pool *punishes* use (players hoard, the choice curdles into agony).
+- **Guardrail — loose fatigue.** [Fatigue](stats.md#fatigue-overworld-meter-d29) is **not**
+  a tight rationed pool — it follows the codebase's **shallow asymmetric-floor** shape
+  (D7/D11 deployment overdraw, D8 morale): a **generous allowance, invisible in normal
+  play, that bites only when you greedily skip rest and over-extend**. It keeps the
+  over-extension stake and gives **rest a second job** (restore fatigue) without per-camp
+  agony. **Overworld-only** — no bleed into combat readiness.
+- **Per-ability costs.** **Vancian charges** ([magic](magic.md)) and **purse gold** (D34)
+  ride on top as costs *specific* abilities name — not the global pace.
+
 ## The gold economy: faucets, sinks & theft (D30)
 
 Each economy class earns its caravan slot with **one distinct verb** so they are not
@@ -148,17 +180,32 @@ three flavours of "gives gold":
 - **Merchant = ACCESS** — markets in the field (basic anywhere via the fatigue-gated
   town-trip, premium at town nodes, better prices everywhere). In-field buys use **run
   gold** (a flow), distinct from the **guild armory** (locked stock).
-- **Banker = TIME-SHIFT + SECURE** — buy-on-debt (auto-repaid from future gold), passive
-  *financial* interest, and **theft protection**.
+- **Banker = TIME-SHIFT + SECURE** — buy-on-debt (auto-repaid from future run gold),
+  *financial* interest, and **theft protection**. **Purse-scoped (D34):** the Banker's
+  whole kit fires **only in the field**, on the **run purse**, and never touches the guild
+  treasury.
 - **Noble = INFLUENCE** — bribe enemies to turncoat / sway-avoid fights (leans on the
-  D24 preview) **+ *political* income** (patronage, town levies, stipend), kept distinct
-  from the Banker's *financial* interest so the two aren't redundant faucets.
+  D24 preview) **+ *political* income**. **Refined by D34:** that income is a separate
+  **Influence** currency (patronage/reputation) spent *only* on the Noble's verbs — it
+  **cannot pay Upkeep**, so it is the Noble's whole economy rather than a redundant gold
+  faucet.
+
+> **Pool & currency structure (D34).** Gold is **two pools** — a persistent guild
+> **treasury** (a vault whose only inflow is quest payouts) and a per-caravan **run purse**
+> (the field-spent flow, filled by loot, chosen at dispatch, lost on a wipe). Plus the
+> Noble's **Influence**. See [logistics.md](logistics.md#two-pools-treasury-stock-vs-run-purse-flow-d34).
 
 **An active theft vector** is the sink-side partner that gives the Banker teeth:
-**thief/bandit event nodes** skim gold on the overworld, and a **gold/item-stealing
-enemy archetype** does so mid-battle (it targets the [supply wagon](field-entities.md),
-D31). Every faucet is paired with a sink so gold stays scarce and **Upkeep keeps
-mattering** (D15).
+**thief/bandit event nodes** skim the **purse** on the overworld, and a **gold/item-
+stealing enemy archetype** does so mid-battle (it targets the
+[supply wagon](field-entities.md), D31). A thief you **kill drops what it stole**; one that
+**escapes off-map keeps it** (the D13/D21 control principle). Every faucet is paired with a
+sink so gold stays scarce and **Upkeep keeps mattering** (D15).
+
+> **Doubles as recruitment (D33).** The Noble's **bribe-to-turncoat** and the rescue of a
+> captured enemy are also the **mid-combat recruitment** vectors: a bribed/freed **authored**
+> character **joins the roster permanently** after the battle, while a bribed **generic**
+> enemy only fights for the rest of the fight. See [guild.md](guild.md#recruitment-a-three-tier-roster-d33).
 
 ## Pseudo-example
 
@@ -191,9 +238,10 @@ mattering** (D15).
   **Endless** has no terminal (depth/score). The remaining open piece is the concrete
   **reward/unlock content** of each ending. See [the guild & caravans](guild.md).
 - **More node kinds** — partly specced now: **town** nodes (Merchant premium markets,
-  D30) and **thief/bandit event** nodes (the theft vector, D30) are decided in shape;
-  **recruitment** nodes (gain party members / lords) and general **event** nodes with
-  choices remain to be designed (see [guild.md](guild.md) open questions).
+  D30), **thief/bandit event** nodes (the theft vector, D30), and **recruiter** nodes (the
+  mercenary pool, D33) are decided in shape. The **recruitment model** itself is resolved
+  (D33, three-tier roster); only the **authored-cast data shape** is deferred. General
+  **event** nodes with choices remain to be designed (see [guild.md](guild.md)).
 - **The parallel-adventures time model (D26).** Today `run.ts` holds exactly one map +
   position; "multiple at once" needs a **`Guild` of N run states** (model C: serial
   play, parallel commitment), with a path to an interleaved global clock later.

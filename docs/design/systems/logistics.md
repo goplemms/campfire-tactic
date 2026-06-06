@@ -4,7 +4,8 @@
 > [Deployment](../02-deployment.md), [Resolution](../04-resolution.md),
 > [The overworld](overworld.md), [The guild & caravans](guild.md).
 > Decisions: **D6**, **D14** (slotted storage), **D15** (Upkeep), **D28** (gold as the
-> routing currency), **D30** (the gold economy). This is the game's **headline pillar**.
+> routing currency), **D30** (the gold economy), **D34** (two pools + Influence). This is
+> the game's **headline pillar**.
 
 ## Description
 
@@ -95,21 +96,43 @@ universal solvent**: travel, rest, provisioning, gear, bribes, and debt all draw
 pool. Caravan **storage still gates gear/ammo/consumables** (D14/D20) — just not food.
 The map question becomes *"can I afford this route **and** a rest at the end?"*
 
-Because one pool funds everything, the economy must keep gold **scarce** or Upkeep
-stops biting. So every **faucet is paired with a sink**, and the economy classes each
-get **one distinct verb** (D30):
+#### Two pools: treasury (stock) vs. run purse (flow) (D34)
 
-| Class | Verb | Faucet / sink |
-|---|---|---|
-| **Merchant** | **access** | field markets, better prices (a value faucet); buys are a sink |
-| **Banker** | **time-shift + secure** | passive *financial* interest (faucet) ↔ buy-on-debt interest + **theft protection** (sinks/insurance) |
-| **Noble** | **influence** | *political* income — patronage/levies/stipend (faucet) ↔ bribe-to-turncoat (sink) |
+Gold is not one number. It lives in **two pools**, which is what makes the run *locally*
+tight while the guild accumulates:
 
-The **active theft vector** (D30) is the sink that gives the Banker teeth:
-**thief/bandit event nodes** skim gold on the overworld, and a **gold/item-stealing
-enemy archetype** raids the [supply wagon](field-entities.md) mid-battle. "In-field"
-buys spend **run gold** (a flow); the **guild armory** is separate locked stock
-([guild.md](guild.md)).
+| Pool | Nature | Funds | Inflow |
+|---|---|---|---|
+| **Guild treasury** | persistent **stock** (a vault; fluff: a **treasurer** holds it) | Upkeep, armory, caravan upgrades | **earned quest payouts only** |
+| **Run purse** | per-caravan **flow** committed at dispatch | travel, rest, field-buys, bribes | **loot** |
+
+The player **chooses the purse size at dispatch** and a **wipe loses it** (D27) — so the
+purse is a **fourth committed scarcity** ([guild.md](guild.md#money-the-guild-treasury-vs-the-run-purse-d34)).
+Crucially, **no passive faucet feeds the treasury**: the **field is the faucet, the guild
+is the buffer** — wealth comes from winning fights and completing quests, not from sitting
+at home.
+
+#### One verb per class, each a closed faucet↔sink loop (D30, D34)
+
+Because gold must stay **scarce** or Upkeep stops biting, the economy classes each get
+**one distinct verb** and every faucet is paired with a sink:
+
+| Class | Verb | Tier | Loop |
+|---|---|---|---|
+| **Merchant** | **access** | overworld | field markets / better prices (a value faucet) ↔ buys are a sink |
+| **Banker** | **time-shift + secure** | **overworld / purse-scoped** | interest on the **carried purse** (flat/diminishing faucet) ↔ buy-on-debt interest + **theft protection** (sinks/insurance). Fires **only in the field**; **does not touch the treasury**. |
+| **Noble** | **influence** | overworld | political income → a separate **Influence** currency (faucet) ↔ bribes / sway-avoid / access (Influence sinks). Influence **cannot pay Upkeep**, so it can never slacken the central pressure. |
+
+**Influence** is a purpose-bound currency (= the Noble's whole economy), deliberately
+**walled off from gold** — it retires a gold faucet rather than adding one.
+
+The **active theft vector** (D30) is the sink-side risk that gives the Banker teeth:
+**thief/bandit event nodes** skim the **purse** on the overworld, and a
+**gold/item-stealing enemy archetype** raids the [supply wagon](field-entities.md)
+mid-battle. Recovery follows the D13/D21 control principle: **kill the thief → it drops
+what it stole; a thief that escapes off-map keeps it** (a "chase the thief" tension, not a
+flat loss). In-field buys spend the **purse**; the **guild armory** is separate locked
+stock ([guild.md](guild.md)).
 
 ### The loop (why it's a pillar, not a chore)
 

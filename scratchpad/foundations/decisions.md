@@ -738,3 +738,122 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
   (leveling), [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md).
 - **Superseded by:** —
+
+## D33 — Recruitment: a three-tier roster (the BG3 split)
+
+- **Status:** Decided (overworld/guild design pass round 2, 2026-06-06)
+- **Context:** Where do party members come from? A flat "hire from a pool" answer would
+  make every roster member interchangeable and waste the permadeath/lord stakes (D27).
+- **Decision:** Members come from **two sources** feeding **three tiers** — the
+  generic-mercenaries + authored-companions split (à la Baldur's Gate 3):
+  - **Tier 1 — Mercenaries:** *randomized* (rolled stats/class), **gold-hired** from a
+    **refreshing pool** (guild hall + future recruiter nodes, D23). Fully **expendable** —
+    the literal **rebuild-after-wipe valve** that keeps the guild unkillable (D27).
+  - **Tier 2 — Companions:** *authored*, **named, distinct, fixed class/identity**, gained
+    **not with gold** but through **guild conversation, special quests, and mid-combat**.
+    They still **level like anyone** (D32). Permadeath stakes, but **earned, not bought**.
+  - **Tier 3 — Lords:** the **apex of the authored tier** — the **2–3** whose death is
+    game-over (D27). "Authored cast" is thus a **spectrum**: lords → other named companions
+    → mercenaries.
+  - **Mid-combat recruitment reuses existing machinery** (zero new systems): a **bribed**
+    (Noble INFLUENCE, D30) or **freed** (rescue, D21) **authored** character **joins the
+    roster permanently** after the battle; a bribed **generic** enemy only **fights for the
+    rest of the fight** (temporary, no roster bloat). The temp(generic)↔permanent(authored)
+    flag is the whole new rule — the Noble's bribe verb and the rescue system **double as
+    recruitment vectors**.
+  - **"Guild conversation" = the guild-hall form of the interactable-camp idea** — you
+    recruit some companions by talking to them at the hall (keep it visually distinct from
+    the overworld camp, D35).
+- **Deferred (per discussion):** the **authored-cast data shape** — how a companion
+  declares its fixed identity + recruit hooks (conversation / quest-reward / combat-
+  defector) — **depends deeply on mechanics not yet pinned**, so it is intentionally left
+  for later rather than forced now.
+- **Spec:** [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md)
+  (Recruitment).
+- **Superseded by:** —
+
+## D34 — The gold economy: two pools, a purse stake, purpose-bound currencies
+
+- **Status:** Decided (design pass round 2, 2026-06-06) · refines D30
+- **Context:** With gold the universal solvent (D28), the economy classes risked being
+  three flavours of "gives gold," and faucets without sinks make Upkeep (D15) toothless.
+  D30 gestured at "run gold (a flow)" vs. the guild armory but never settled the **gold
+  pool structure** itself.
+- **Decision:**
+  - **TWO pools.** A persistent **guild treasury** (a **stock**: funds Upkeep, the armory,
+    caravan upgrades between runs) and a per-caravan **run purse** (a **flow**: the tight,
+    local **routing currency** spent in the field). Run = tight local pressure; guild =
+    persistent wealth.
+  - **Where each flow lands:** **loot → purse**; **quest payouts → treasury**; **travel /
+    rest / field-buys / bribes → drawn from the purse**; **Upkeep → drawn from the
+    treasury** between runs.
+  - **Player-chosen purse, LOST ON WIPE.** At dispatch the player **allocates how much
+    treasury gold to load** into the caravan's purse — a real risk dial; a **wipe loses it**
+    like the people and locked gear (D27); **surviving purse returns** to the treasury on
+    completion. The purse becomes a **FOURTH committed scarcity** (slots / vessel / locked
+    gear / **purse**, extending D25). Theft now bites twice: skimmed purse gold can be lost
+    entirely on a later wipe.
+  - **Purpose-bound currencies keep passive faucets from trivializing Upkeep:**
+    - **Noble political income → a separate INFLUENCE / reputation resource**, spent **only**
+      on the Noble's verbs (bribes, sway-avoid, access). It **cannot pay Upkeep**, so it can
+      never slacken the central pressure. (**Sharpens D30:** Influence *is* the Noble's whole
+      economy; "political income" is no longer gold.)
+    - **Banker is an OVERWORLD/PURSE actor.** Its whole kit fires **only in the overworld**,
+      scoped to the **purse**: interest accrues on the carried purse, buy-on-debt repays from
+      incoming run gold, theft protection guards the purse. Interest is **flat/diminishing +
+      self-cancels** against its debt sink. The Banker **does not touch the treasury**.
+    - **The guild treasury is a pure vault** (fluff: a guild **"treasurer"** holds it). With
+      the Banker off it and the Noble's income now Influence, **no passive gold faucet feeds
+      the treasury — its only inflow is earned quest payouts.**
+  - **Headline principle — the field is the faucet, the guild is the buffer:** the only real
+    path to wealth is loot + quest payouts, gated by the hand-played tactical core (the crown
+    jewel). Passive income *smooths*, it never *replaces* winning fights.
+  - **The explicit faucet↔sink loops:** **Banker** (purse interest ↔ debt + theft) ·
+    **Noble** (political income → Influence ↔ bribes/sway/access) · **thief** (event-node +
+    enemy archetype skim the purse ↔ Banker protection + recover-on-win: kill the thief → it
+    drops the loot, a thief that escapes off-map keeps it, per the D13/D21 control principle)
+    · **field-as-engine** (loot → purse, payouts → treasury).
+  - **Discipline note:** Influence is one new currency (brushes D15's low-meter restraint) —
+    accepted because it *retires* a gold faucet rather than adding one.
+- **Spec:** [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (Economy), [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (treasury/
+  purse), [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md).
+- **Superseded by:** —
+
+## D35 — The overworld action economy: camp at every node; cooldown spine + loose fatigue
+
+- **Status:** Decided (design pass round 2, 2026-06-06) · details D29
+- **Context:** D29 pinned that the overworld is a second hook surface denominated in
+  node-steps/cooldowns with a limiter menu (fatigue / vancian / cooldown / gold), but not
+  *where* actions happen or *what paces* them — and three "camp"-ish surfaces (guild hall,
+  overworld map screen, pre-combat Meta phase) were fighting for meaning.
+- **Decision:**
+  - **Camp at EVERY node — one unified between-nodes surface.** Arriving at any node opens
+    an **overworld camp** (the "interactable camp" / title callback): take overworld actions,
+    then choose the next edge. **The node-step is the tick** (the caravan advances node→node
+    together). This **collapses three surfaces into one** — the old map screen (D23/D24), the
+    interactable-camp idea, and the pre-combat **Meta phase** (D3/D23) are now the *same*
+    surface — resolving the muddle to **two clean tiers: the guild hall** (between
+    *adventures*) and **the overworld camp** (between *nodes*). The Meta phase becomes "the
+    camp actions you take at a **combat** node before committing to the fight"; a **rest**
+    node is simply the node themed on recovery (D23).
+  - **Cooldowns are the spine.** Each overworld ability carries its own **node-step
+    cooldown** (market, scout, scry, …) → every ability is **non-trivial to time even with
+    the specialist** (a Merchant can't market every node). **Design principle:** *cooldowns
+    encourage engagement* (use-it-or-waste-it → the decision is timing), whereas *tight
+    hoardable pools punish use* (players hoard, the choice curdles into agony).
+  - **Fatigue is a LOOSE over-extension guardrail, not a tight pool.** Kept, but in this
+    codebase's **shallow asymmetric-floor** shape (D7/D11 deployment overdraw, D8 morale): a
+    **generous per-character allowance, invisible in normal play, that bites only when you
+    greedily skip rest and over-extend**. Keeps the over-extension stake **and** rest's
+    second job (D29) without the per-camp agony. **Restored at rest nodes; overworld-only**
+    (no bleed into combat readiness — D29's two-economies separation).
+  - **Vancian charges + purse gold** remain (from the D29 menu) as **per-ability costs** on
+    specific abilities, layered on the cooldown spine — not the global pace.
+  - **Reusable principle recorded:** prefer **cooldowns** (decision = timing) to tight
+    hoardable pools; when a depleting meter *is* wanted, give it the **shallow asymmetric-
+    floor** shape — now applied three times (D7/D11, D8, fatigue).
+- **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
+  (hook surface), [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
+  (Fatigue).
+- **Superseded by:** —

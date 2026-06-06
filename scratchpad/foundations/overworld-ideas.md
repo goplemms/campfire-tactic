@@ -267,8 +267,14 @@ rather than scattering.
 
 ## Round 2 — resolved (design session, 2026-06-06)
 
-> New threads opened after the D25–D32 graduation. Same style: **agreed in
-> discussion**, graduate to `decisions.md` (D33+) + specs at the next write-up pass.
+> **Status: GRADUATED (2026-06-06).** Q11–Q16 below are promoted to formal decisions
+> **D33** (recruitment / three-tier roster), **D34** (two pools + purse + Influence),
+> **D35** (the overworld action economy) in [`decisions.md`](decisions.md) and written
+> into the specs ([`guild.md`](../../docs/design/systems/guild.md),
+> [`logistics.md`](../../docs/design/systems/logistics.md),
+> [`overworld.md`](../../docs/design/systems/overworld.md),
+> [`stats.md`](../../docs/design/systems/stats.md)). Kept below as the reasoning trail.
+> **Deferred:** the authored-cast *data shape* (D33) — mechanics-dependent.
 
 - **Q11 — Recruitment: a THREE-TIER roster (the BG3 split).** "Where do party members
   come from?" resolves into two sources feeding three tiers, not one flat pool.
