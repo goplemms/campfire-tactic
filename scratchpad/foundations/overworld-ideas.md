@@ -12,6 +12,32 @@
 
 ---
 
+## Resolved (design session, 2026-06-06)
+
+> Working through the open questions one-by-one (same style as the D8–D16 pass).
+> These are **agreed in discussion**; they graduate to `decisions.md` (D25+) +
+> `docs/design/` when we do a write-up pass.
+
+- **Q1 — Mode × guild: ONE SHARED persistent guild.** Campaign and Endless are two
+  *content feeds* into a single guild (one roster, one armory, one progression).
+  Max reuse; accepted tradeoff = story-earned and sandbox-earned progress share a
+  save (revisit cosmetic separation only if it feels muddy).
+- **Q2 — Parallel adventures: model C (sequential play, shared standing state)** +
+  a renewable quest board + dispatched caravans **wait**.
+  - **Commitment is parallel, play is serial:** commit people + gear across several
+    caravans at once (the lock = the portfolio cost), but play one caravan through at
+    a time; the guild clock advances between dispatches. Every fight stays
+    hand-played. Clear path to graduate toward an interleaved clock (model A) later.
+  - **Quest board (the "one shared guild, two feeds" made concrete):** **main quest**
+    (campaign spine, arc + ending) → **authored sidequests** (finite hand-made pool)
+    → **repeating generated sidequests** (the infinite tail = "endless," integrated).
+    The board is never empty, so idle caravans always have somewhere to go.
+  - **Parallelism is asymmetric:** one main thrust + a renewable side-content stream
+    (Darkest Dungeon / Three Houses shape), not symmetric juggling.
+  - **Dispatched-but-unplayed caravans WAIT** (paused at their node) rather than
+    ticking a clock or auto-resolving (auto-resolve is rejected — it dilutes the
+    hand-played tactical core, the crown jewel).
+
 ## North-star framing (emerging)
 
 - **Run model:** a **designed campaign** *and* an **endless mode**. Both ride the
