@@ -56,6 +56,13 @@ export interface Quest {
   generated: boolean;
   /** The run seed this quest dispatches with — deterministic from the guild seed. */
   seed: string;
+  /**
+   * The gold **payout** (M10, D34) — earned on completion and routed to the
+   * **TREASURY** (not the purse). The treasury's **only** faucet is these payouts
+   * (plus a returning purse); there is no passive growth (D34). Deterministic from
+   * the guild seed.
+   */
+  payout: number;
 }
 
 /** A dispatched caravan's in-flight run (D26): the guild owns N of these. */
@@ -63,6 +70,8 @@ export interface GuildRun {
   caravanId: string;
   questId: string;
   run: RunState;
+  /** The quest's gold payout (M10, D34) — banked to the treasury on completion. */
+  payout: number;
 }
 
 /** The persistent guild — the home that owns N runs (D25–D27). */
@@ -72,8 +81,20 @@ export interface Guild {
   roster: Unit[];
   /** Shared gear stock (gear ids). */
   armory: string[];
-  /** The pure gold vault (D34). */
+  /** The pure gold vault (D34) — fed only by quest payouts + returning purses. */
   treasury: number;
+  /**
+   * **Influence** (M10, D34) — the Noble's purpose-bound currency: earned as
+   * political income, spendable **only** on the Noble's verbs (bribe/sway). It is
+   * walled off from gold — it can **never** pay Upkeep or buy gear
+   * ({@link "./economy"}).
+   */
+  influence: number;
+  /**
+   * The refreshing **mercenary pool** (M10, D33) at the hall — several rolled,
+   * gold-hired recruits beyond the single rebuild valve ({@link "./recruitment"}).
+   */
+  mercPool: Unit[];
   /** The stable of caravans. */
   caravans: Caravan[];
   /** The quest board — never empty (D26). */
@@ -85,6 +106,8 @@ export interface Guild {
   questCounter: number;
   /** Monotonic counter for deterministic mercenary rolls (the rebuild valve). */
   mercCounter: number;
+  /** Monotonic counter for deterministic Noble political-income rolls (M10, D34). */
+  politicsCounter: number;
 }
 
 /** Guild tuning — data, a numbers pass later (D27/D34). */
@@ -93,6 +116,11 @@ export const GUILD = {
   sidequestPoolSize: 2,
   /** Treasury cost to hire one mercenary (the rebuild valve, D27). */
   mercCost: 30,
+  /** Main-quest gold payout → treasury on completion (M10, D34). */
+  mainPayout: 300,
+  /** Generated-sidequest payout band → treasury on completion (M10, D34). */
+  sidePayoutMin: 60,
+  sidePayoutMax: 140,
 } as const;
 
 /** Options for {@link createGuild}. */
@@ -100,6 +128,8 @@ export interface CreateGuildOptions {
   roster?: Unit[];
   armory?: string[];
   treasury?: number;
+  /** Starting Influence (M10, D34); defaults to 0. */
+  influence?: number;
   caravans?: Caravan[];
   difficultyId?: string;
   /** Label for the main quest (data; the campaign spine, D26). */
@@ -113,12 +143,15 @@ export function createGuild(seed: string | number, opts: CreateGuildOptions = {}
     roster: opts.roster ?? [],
     armory: opts.armory ?? [],
     treasury: opts.treasury ?? 0,
+    influence: opts.influence ?? 0,
+    mercPool: [],
     caravans: opts.caravans ?? [],
     board: [],
     runs: {},
     difficultyId: opts.difficultyId ?? "normal",
     questCounter: 0,
     mercCounter: 0,
+    politicsCounter: 0,
   };
   // The main quest (campaign spine) — a fixed, seed-derived record (D26).
   guild.board.push({
@@ -127,6 +160,7 @@ export function createGuild(seed: string | number, opts: CreateGuildOptions = {}
     kind: "main",
     generated: false,
     seed: `${seed}#quest:main`,
+    payout: GUILD.mainPayout,
   });
   refillBoard(guild);
   return guild;
@@ -146,6 +180,7 @@ function generateSidequest(guild: Guild): Quest {
     kind: "side",
     generated: true,
     seed: `${guild.seed}#quest:${n}`,
+    payout: rng.range(GUILD.sidePayoutMin, GUILD.sidePayoutMax),
   };
 }
 
@@ -214,7 +249,7 @@ export function dispatch(guild: Guild, caravan: Caravan, quest: Quest): GuildRun
   guild.board = guild.board.filter((q) => q.id !== quest.id);
   refillBoard(guild);
 
-  const gr: GuildRun = { caravanId: caravan.id, questId: quest.id, run };
+  const gr: GuildRun = { caravanId: caravan.id, questId: quest.id, run, payout: quest.payout };
   guild.runs[caravan.id] = gr;
   return gr;
 }
@@ -248,6 +283,12 @@ export interface CaravanResolution {
   purseReturned: number;
   /** Purse gold lost (a wipe). */
   purseLost: number;
+  /**
+   * Quest **payout** banked to the treasury (M10, D34) — only on a completed
+   * **return**; a wipe earns nothing. The treasury's only faucet (with the
+   * returning purse) — there is no passive growth.
+   */
+  payout: number;
   /** D27 stakes seam: a named lord was aboard a wiped caravan (no game-over built). */
   lordLost: boolean;
 }
@@ -268,6 +309,7 @@ export interface CaravanResolution {
 export function resolveReturn(guild: Guild, caravan: Caravan, run: RunState): CaravanResolution {
   const wiped = isRunOver(run);
   const questId = guild.runs[caravan.id]?.questId ?? "";
+  const questPayout = guild.runs[caravan.id]?.payout ?? 0;
   const survivorIds = new Set(run.party.map((u) => u.id));
 
   const survivors: string[] = [];
@@ -315,6 +357,11 @@ export function resolveReturn(guild: Guild, caravan: Caravan, run: RunState): Ca
     guild.treasury += purseReturned;
   }
 
+  // Payout (M10, D34): a **completed** quest banks its payout to the treasury —
+  // the treasury's only earned faucet. A wipe (or an incomplete return) earns none.
+  const payout = !wiped && run.complete ? questPayout : 0;
+  guild.treasury += payout;
+
   resetCaravan(caravan);
   delete guild.runs[caravan.id];
 
@@ -328,6 +375,7 @@ export function resolveReturn(guild: Guild, caravan: Caravan, run: RunState): Ca
     gearLost,
     purseReturned,
     purseLost,
+    payout,
     lordLost,
   };
 }

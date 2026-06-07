@@ -18,10 +18,18 @@ import {
   chunkHp,
   runDifficulty,
   combatRoster,
+  // M10 — the gold economy verbs (D30/D34) + theft (D30)
+  merchantBuy,
+  bankerEngageInterest,
+  bankerBorrow,
+  bankerProtect,
+  collectPoliticalIncome,
+  ECONOMY,
   type RunState,
   type MapNode,
   type NodePreview,
   type RestResult,
+  type EventResult,
   type Unit,
   type OverworldAbility,
   type ActionResult,
@@ -175,13 +183,14 @@ export class OverworldScene extends Phaser.Scene {
       this.drawNode(node, pos, { reachable, current, visited });
     }
 
-    this.setHint("Click a highlighted node to preview it; click again to commit. Combat nodes start a mission; rest nodes recover.");
+    this.setHint("Click a highlighted node to preview it; click again to commit. ⚔ combat starts a mission, ❄ rest recovers, $ event = a thief skims the purse.");
     this.previewText.setText("");
   }
 
   private drawNode(node: MapNode, pos: { x: number; y: number }, state: { reachable: boolean; current: boolean; visited: boolean }): void {
     const isFinal = node.layer === this.run.map.layers - 1;
-    const baseColor = node.kind === "rest" ? 0x57b07a : isFinal ? 0xd6b24a : 0xc6584f;
+    const baseColor =
+      node.kind === "rest" ? 0x57b07a : node.kind === "event" ? 0x8a6fc0 : isFinal ? 0xd6b24a : 0xc6584f;
     const radius = isFinal ? 20 : 15;
 
     let alpha = 0.32;
@@ -196,7 +205,7 @@ export class OverworldScene extends Phaser.Scene {
     this.nodeObjects.push(circle);
 
     // Kind glyph.
-    const glyph = node.kind === "rest" ? "❄" : isFinal ? "★" : "⚔";
+    const glyph = node.kind === "rest" ? "❄" : node.kind === "event" ? "$" : isFinal ? "★" : "⚔";
     const label = this.add.text(pos.x, pos.y, glyph, { color: "#11141b", fontSize: isFinal ? "16px" : "13px" }).setOrigin(0.5).setDepth(2);
     this.nodeObjects.push(label);
 
@@ -222,6 +231,7 @@ export class OverworldScene extends Phaser.Scene {
 
   private describePreview(p: NodePreview): string {
     if (p.kind === "rest") return `Layer ${p.layer} · Rest — ${p.restHint}`;
+    if (p.kind === "event") return `Layer ${p.layer} · Event — ${p.eventHint}`;
     const parts = [`Layer ${p.layer} · Combat (${p.encounterType})`];
     if (p.intel?.types) parts.push(`enemies: ${p.intel.types.join(", ")}`);
     else parts.push("enemies: unknown");
@@ -260,7 +270,8 @@ export class OverworldScene extends Phaser.Scene {
     this.refreshCampText();
 
     const isCombat = node.kind === "combat";
-    this.titleText.setText(`Camp — Night ${this.run.night + 1} · ${isCombat ? `Combat (layer ${node.layer})` : "Rest"}`);
+    const kindLabel = isCombat ? `Combat (layer ${node.layer})` : node.kind === "event" ? "Event (Thief on the road)" : "Rest";
+    this.titleText.setText(`Camp — Night ${this.run.night + 1} · ${kindLabel}`);
     this.setHint("Take overworld actions (cooldown- and fatigue-gated), then commit. Cooldowns tick as you advance.");
 
     const cx = this.scale.width / 2;
@@ -307,6 +318,26 @@ export class OverworldScene extends Phaser.Scene {
     this.campButton(colX, y, 360, 24, "Load Trap Kit (15g)", true, () => this.provisionTrapKit(), "Buy a Trap Kit into storage (1 slot) for the Survivalist.");
     y += rowH;
     this.campButton(colX, y, 360, 24, "Triage Heal", true, () => this.triage(), "Spend Rest Points to heal the most-wounded fighter one chunk (D9).");
+    y += rowH + 8;
+
+    // --- The gold economy verbs (M10, D30/D34): purse-scoped, never the treasury ---
+    this.campObjects.push(
+      this.add.text(colX - 10, y, "Economy (Merchant / Banker / Noble)", { color: "#e0b552", fontSize: "14px" }).setOrigin(0, 0.5).setDepth(11),
+    );
+    y += 22;
+    // Merchant ACCESS — buy supply into storage from the PURSE, node-tier price.
+    const buyPrice = node.kind === "rest" ? ECONOMY.merchant.townPrice : ECONOMY.merchant.wildPrice;
+    this.campButton(colX, y, 360, 24, `Merchant: Buy Trap Kit (${buyPrice}g purse, ${node.kind === "rest" ? "town" : "wild"})`, true, () => this.merchantBuyKit(), "Merchant ACCESS (D30): spend run-gold to buy a Trap Kit into storage — cheaper at a town/rest node.");
+    y += rowH;
+    // Banker TIME-SHIFT + SECURE — purse interest, buy-on-debt, theft protection.
+    this.campButton(colX, y, 360, 24, "Banker: Engage Purse Interest", true, () => this.bankerInterest(), "Banker TIME-SHIFT (D30): the carried purse accrues flat interest each node-step. Purse only — never the treasury.");
+    y += rowH;
+    this.campButton(colX, y, 360, 24, "Banker: Buy-on-Debt (+40g now)", true, () => this.bankerBorrow40(), "Banker (D30): overspend now; auto-repaid from incoming run gold.");
+    y += rowH;
+    this.campButton(colX, y, 360, 24, `Banker: Theft Protection (${ECONOMY.banker.protectionCost}g)`, true, () => this.bankerProtect(), "Banker SECURE (D30): blunt a thief's skim — battle thief and event node alike.");
+    y += rowH;
+    // Noble INFLUENCE — political income → Influence (a walled-off currency).
+    this.campButton(colX, y, 360, 24, "Noble: Collect Political Income", !!this.guild, () => this.nobleIncome(), "Noble INFLUENCE (D30/D34): earn Influence — a separate currency that can never pay Upkeep. Bribe enemies mid-battle.");
     const leftBottom = y + 16;
 
     // --- Fatigue meter (per-character, banded — à la the morale readout) ---
@@ -319,7 +350,11 @@ export class OverworldScene extends Phaser.Scene {
 
     // --- Commit — placed below all content so it never collides with buttons ---
     const contentBottom = Math.max(leftBottom, meterBottom);
-    const commitLabel = isCombat ? "Commit — Begin Mission" : "Commit — Make Camp (Rest)";
+    const commitLabel = isCombat
+      ? "Commit — Begin Mission"
+      : node.kind === "event"
+        ? "Commit — Brave the Road"
+        : "Commit — Make Camp (Rest)";
     const commit = this.makeTextButton(cx, contentBottom + 26, 240, 34, commitLabel, 0x2f6b46, 0x57b07a, () => this.commit());
     this.campObjects.push(commit.bg, commit.label);
 
@@ -423,6 +458,40 @@ export class OverworldScene extends Phaser.Scene {
     this.setHint(`Triaged ${wounded.name}: +${res.hpHealed} HP for ${res.rpSpent} RP.`);
   }
 
+  // --- The gold economy verbs (M10, D30/D34) --------------------------------
+
+  private merchantBuyKit(): void {
+    const node = this.campNode!;
+    const res = merchantBuy(this.run, "trap-kit", node.kind);
+    this.renderCamp();
+    this.setHint(res.applied ? `${res.detail}` : `Can't: ${res.reason}`);
+  }
+
+  private bankerInterest(): void {
+    const perStep = bankerEngageInterest(this.run);
+    this.renderCamp();
+    this.setHint(perStep > 0 ? `Banker: purse interest engaged — +${perStep}g per node-step (purse only).` : "No purse to earn interest on.");
+  }
+
+  private bankerBorrow40(): void {
+    const res = bankerBorrow(this.run, 40);
+    this.renderCamp();
+    this.setHint(res.applied ? `Borrowed 40g (debt ${res.debt}g) — auto-repaid from incoming loot.` : `Can't: ${res.reason}`);
+  }
+
+  private bankerProtect(): void {
+    const res = bankerProtect(this.run);
+    this.renderCamp();
+    this.setHint(res.applied ? `Theft protection engaged (skims blunted ${Math.round((res.protection ?? 0) * 100)}%).` : `Can't: ${res.reason}`);
+  }
+
+  private nobleIncome(): void {
+    if (!this.guild) return this.setHint("No guild to bank Influence.");
+    const gained = collectPoliticalIncome(this.guild);
+    this.renderCamp();
+    this.setHint(`Noble: +${gained} Influence (guild total ${this.guild.influence}). Influence can never pay Upkeep.`);
+  }
+
   /** A camp button that greys out (non-interactive) when disabled, with a reason on hover. */
   private campButton(x: number, y: number, w: number, h: number, text: string, enabled: boolean, onClick: () => void, description: string): void {
     const fill = enabled ? 0x26314a : 0x1b2030;
@@ -449,9 +518,37 @@ export class OverworldScene extends Phaser.Scene {
     if (node.kind === "combat") {
       // Hand the run off to the battle flow; it returns to this scene when done.
       this.scene.start("BattleScene", { run: this.run, loop: this.loop, guild: this.guild, caravanId: this.caravanId } as RunHandoff);
+    } else if (node.kind === "event") {
+      this.playEvent();
     } else {
       this.playRest();
     }
+  }
+
+  // --- Event node (the thief, no battle, D30) -------------------------------
+
+  private playEvent(): void {
+    const res = this.loop.eventNode();
+    this.refreshCampText();
+    this.showEventScreen(res);
+  }
+
+  private showEventScreen(res: EventResult): void {
+    const lines: string[] = [];
+    if (res.stolen > 0) {
+      lines.push(`A thief skimmed ${res.stolen}g off the purse on the road.`);
+      const eco = this.run.overworld;
+      if (eco.protection > 0) lines.push(`The Banker's protection blunted the loss (${Math.round(eco.protection * 100)}%).`);
+      else lines.push("Buy the Banker's theft protection to blunt the next one.");
+    } else {
+      lines.push("The road was clear — the purse is intact.");
+    }
+    lines.push(`Purse now ${res.purseAfter}g.`);
+    this.showOverlay("Thief on the Road", lines.join("\n"), res.stolen === 0, 520, 200, () => {
+      if (this.loop.isOver()) return this.runEnd();
+      if (this.loop.isComplete()) return this.runComplete();
+      this.drawMap();
+    });
   }
 
   // --- Rest node (D23) -------------------------------------------------------
@@ -523,9 +620,17 @@ export class OverworldScene extends Phaser.Scene {
 
   private refreshCampText(): void {
     const tier = moraleTier(this.run.camp.morale);
+    const eco = this.run.overworld;
+    // The PURSE is camp.gold (D34); surface the Banker's purse-scoped state too.
+    const bank: string[] = [];
+    if (eco.interestPerStep > 0) bank.push(`int +${eco.interestPerStep}/step`);
+    if (eco.debt > 0) bank.push(`debt ${eco.debt}g`);
+    if (eco.protection > 0) bank.push(`protect ${Math.round(eco.protection * 100)}%`);
+    const bankStr = bank.length ? `  ·  ${bank.join(" · ")}` : "";
+    const influenceStr = this.guild ? `  ·  Influence ${this.guild.influence}` : "";
     this.campText.setText(
-      `Gold ${this.run.camp.gold}  ·  Morale ${tier} (${this.run.camp.morale})  ·  ` +
-        `Storage ${slotsUsed(this.run.inventory)}/${this.run.inventory.storageCap}  ·  Kits ${countOf(this.run.inventory, "trap-kit")}  ·  RP ${this.run.rp}`,
+      `Purse ${this.run.camp.gold}g  ·  Morale ${tier} (${this.run.camp.morale})  ·  ` +
+        `Storage ${slotsUsed(this.run.inventory)}/${this.run.inventory.storageCap}  ·  Kits ${countOf(this.run.inventory, "trap-kit")}  ·  RP ${this.run.rp}${bankStr}${influenceStr}`,
     );
   }
 

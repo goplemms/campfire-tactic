@@ -33,7 +33,7 @@ import type { Unit } from "./units";
 import type { RunState } from "./run";
 import { spendFatigue, fatiguePenalty } from "./fatigue";
 import { reachableFrom } from "./overworld";
-import { applyCampSkill } from "./camp";
+import { applyCampSkill, type Camp } from "./camp";
 import { getJob } from "./jobs";
 
 /**
@@ -137,16 +137,33 @@ export interface OverworldEconomy {
   cooldowns: Record<string, number>;
   /** Extra intel tiers bought per node id (Scout), fed to `previewNode`. */
   scouted: Record<string, number>;
+  /**
+   * The **Banker's** purse-scoped sub-state (M10, D30/D34) — **never** touches the
+   * guild treasury. All three are off (0) until a Banker verb engages them
+   * ({@link "./economy-actions"}).
+   */
+  /** Flat purse interest credited per node-step once the Banker engages it (0 = off). */
+  interestPerStep: number;
+  /** Outstanding buy-on-debt principal — auto-repaid from incoming run gold. */
+  debt: number;
+  /** Theft-protection level (0 = none) — blunts a thief's skim ({@link "./theft"}). */
+  protection: number;
 }
 
 /** A fresh, fully-ready economy (every ability off cooldown, nothing scouted). */
 export function createOverworldEconomy(): OverworldEconomy {
-  return { cooldowns: {}, scouted: {} };
+  return { cooldowns: {}, scouted: {}, interestPerStep: 0, debt: 0, protection: 0 };
 }
 
 /** A deep copy of the economy (for snapshots / round-trips). */
 export function cloneOverworldEconomy(eco: OverworldEconomy): OverworldEconomy {
-  return { cooldowns: { ...eco.cooldowns }, scouted: { ...eco.scouted } };
+  return {
+    cooldowns: { ...eco.cooldowns },
+    scouted: { ...eco.scouted },
+    interestPerStep: eco.interestPerStep,
+    debt: eco.debt,
+    protection: eco.protection,
+  };
 }
 
 /** Node-steps remaining on an ability's cooldown (0 = ready). */
@@ -170,6 +187,19 @@ export function tickCooldowns(eco: OverworldEconomy): void {
     if (next <= 0) delete eco.cooldowns[id];
     else eco.cooldowns[id] = next;
   }
+}
+
+/**
+ * Accrue the **Banker's** flat purse interest one node-step (M10, D30/D34): credit
+ * `interestPerStep` to the carried purse (`camp.gold`). Called once per node played
+ * from {@link "./run".recordNight}, right alongside {@link tickCooldowns}. A pure
+ * **purse** faucet — it **never** touches the guild treasury (D34). Returns the
+ * gold credited (0 when no Banker interest is engaged).
+ */
+export function accruePurseInterest(eco: OverworldEconomy, camp: Camp): number {
+  if (eco.interestPerStep <= 0) return 0;
+  camp.gold += eco.interestPerStep;
+  return eco.interestPerStep;
 }
 
 // --- The resolver -----------------------------------------------------------

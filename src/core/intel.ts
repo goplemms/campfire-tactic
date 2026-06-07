@@ -152,6 +152,8 @@ export interface NodePreview {
   rewardHint?: string;
   /** Rest only: a recovery hint (no enemies to read). */
   restHint?: string;
+  /** Event only (M10): a hazard hint — the thief event skims the purse (D30). */
+  eventHint?: string;
 }
 
 /**
@@ -169,6 +171,10 @@ export function previewNode(run: RunState, nodeId: string, extraTier = 0): NodeP
   const preview: NodePreview = { nodeId, kind: node.kind, layer: node.layer };
   if (node.kind === "rest") {
     preview.restHint = "A safe camp — rest and recover. No fight.";
+    return preview;
+  }
+  if (node.kind === "event") {
+    preview.eventHint = "A thief on the road — it skims the purse (Banker protection blunts it).";
     return preview;
   }
   const def = nodeEncounter(run.seed, node);

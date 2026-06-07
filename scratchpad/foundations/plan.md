@@ -231,6 +231,59 @@ exercise in the browser.
 - See [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (D25–D27, D32,
   D34) and the kickoff brief [`M9-kickoff.md`](M9-kickoff.md).
 
+### M10 — The gold economy & recruitment (the two-pool economy gets verbs + a refreshing roster) — *testable (code complete 2026-06-07; awaiting in-browser gate)*
+
+- *Adjustment (not a pivot): the north star is unchanged; this fills M9's structural
+  treasury↔purse plumbing with **faucets and sinks**, and fills the roster pool with
+  **sources**.* It is the last of the post-M7 batch (M8 = the overworld action economy;
+  M9 = the guild tier; **M10 = this**), building **D28/D30/D33/D34**.
+- **Scope call (kept as one milestone, not split into M10/M10b):** the economy verbs +
+  theft *and* recruitment landed together — the recruitment loop leans on the Noble's
+  bribe verb (D33's mid-combat vector), so splitting would have cut a seam mid-feature.
+- core: **`economy.ts`** — the two-pool routing + faucet/sink ledger: `gainRunGold`
+  (loot → **purse**, auto-repaying Banker debt first), `routePayoutToTreasury` (quest
+  payout → **treasury**, the vault's only earned faucet), `payTreasuryUpkeep` (Upkeep =
+  the treasury-side sink), and **Influence** — a purpose-bound currency on the guild
+  (`addInfluence`/`spendInfluence`) that can **never** pay Upkeep or buy gear (D34).
+  **`economy-actions.ts`** — the three verbs as data + resolvers: **Merchant ACCESS**
+  (purse-funded field buys, node-tier-gated price — town/rest cheaper than the wild),
+  **Banker TIME-SHIFT + SECURE** (purse interest accruing on the node-step tick,
+  buy-on-debt auto-repaid from incoming gold, theft protection) — **purse-only, never
+  the treasury** — and **Noble INFLUENCE** (political income → Influence; a bribe that
+  reads the D24 preview for its price). **`theft.ts`** — the active sink: a thief
+  **enemy archetype** (`generation.ts` `ENEMY_TEMPLATES`) that skims the purse and can
+  flee off-map (kill-to-recover / escaped-keeps-it, D13/D21), a thief **event node** (new
+  `NodeKind "event"` in `overworld.ts`), both **blunted by Banker protection**.
+  **`recruitment.ts`** — a refreshing, seeded **mercenary pool** at the hall
+  (`refreshMercPool`/`hireFromPool`, treasury-debited) beyond the single rebuild valve,
+  plus the mid-combat bribe/rescue → roster vector: the **temp(generic)↔permanent
+  (authored)** flag (the whole new rule, D33; the authored-cast *data shape* stays a
+  deferred typed seam). Loot now routes through `gainRunGold` in `runloop.resolve`;
+  purse interest accrues in `run.recordNight`; quest **payouts** flow to the treasury in
+  `guild.resolveReturn`.
+- render: `GuildScene` surfaces **Treasury vs. Influence** in the header, a **refreshing
+  merc pool** (hire several) + a treasury-funded **armory buy**, and the **payout** on a
+  return. `OverworldScene`'s camp gains the **economy verbs** (Merchant buy, Banker
+  interest/debt/protect, Noble income) with live purse/debt/protection/Influence
+  readouts, and the **thief event node** ($-glyph, purple) surfaced like rest. `BattleScene`
+  gets the **thief that skims the purse** (kill-to-recover / flees-off-map, surfaced in
+  Resolution) and a **mid-combat Bribe** (guild Influence) that flips an enemy
+  (temp generic / permanent authored → joins the roster).
+- **User-testable gate:** `npm run dev` → quest **payouts grow the treasury** (the only
+  faucet that does), **loot fills the purse**; the **Merchant/Banker/Noble** each have
+  their one verb (Influence never pays Upkeep, the Banker never touches the treasury); a
+  **thief steals the purse** and can be **killed-to-recover** or **flee with it**, blunted
+  by **Banker protection**; the hall offers a **refreshing merc pool** and the
+  **bribe/rescue → roster** vector works (temp generic / permanent authored); replaying a
+  guild seed + the same choices reproduces every number. `npm test` green (economy
+  faucets/sinks + two-pool routing, Banker interest/debt/protect, Noble influence/bribe,
+  theft steal/recover, recruitment pool + temp↔perm); `npm run build` clean; `core/` free
+  of Phaser/DOM **and** `Math.random`.
+- See [`docs/design/systems/logistics.md`](../../docs/design/systems/logistics.md)
+  (D28/D30/D34, the economy) and
+  [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (D33 recruitment,
+  D34 two pools + Influence).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).

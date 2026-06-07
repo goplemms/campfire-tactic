@@ -36,6 +36,12 @@ export interface EnemyTemplate {
   awareness: number;
   /** Relative pick weight. */
   weight: number;
+  /**
+   * The **thief archetype** (D30): a fast, fragile raider that skims the run
+   * **purse** mid-battle and bolts for the map edge ({@link "./theft"}). Killed
+   * before it escapes drops the loot; escaped keeps it. Data, not a branch.
+   */
+  thief?: boolean;
 }
 
 /** The enemy roster table (D4 ethos: enemies are data). */
@@ -44,6 +50,9 @@ export const ENEMY_TEMPLATES: readonly EnemyTemplate[] = [
   { id: "brute", name: "Brute", speed: 7, maxHp: 30, attack: 9, defense: 3, moveRange: 3, sightRadius: 4, awareness: 2, weight: 3 },
   { id: "archer", name: "Archer", speed: 10, maxHp: 18, attack: 8, defense: 1, moveRange: 4, sightRadius: 6, awareness: 3, weight: 3 },
   { id: "warg", name: "Warg", speed: 14, maxHp: 20, attack: 7, defense: 2, moveRange: 5, sightRadius: 5, awareness: 3, weight: 2 },
+  // The thief (D30): fast + fragile, light pick weight. Its `thief` flag arms the
+  // mid-battle purse-skim vector ({@link "./theft"}); the Banker's protection blunts it.
+  { id: "thief", name: "Thief", speed: 15, maxHp: 14, attack: 5, defense: 1, moveRange: 6, sightRadius: 6, awareness: 4, weight: 2, thief: true },
 ];
 
 /** A material drop (an id + how many). */
@@ -163,6 +172,7 @@ export function generateEncounter(rng: Rng, index: number): EncounterDef {
       moveRange: tpl.moveRange,
       sightRadius: tpl.sightRadius,
       awareness: tpl.awareness,
+      thief: tpl.thief,
     });
   }
 

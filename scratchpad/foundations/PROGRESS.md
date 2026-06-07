@@ -16,11 +16,81 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M7 — The overworld (seeded branching run map) | done (gate confirmed 2026-06-05; terminal-ending *design* deferred) |
 | M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | done (accepted as prototype 2026-06-06; numbers/behavior to tune later) |
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
+| M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** M10 — The gold economy & recruitment (D28/D30/D33/D34): the two pools
+  get **verbs** and the roster becomes a **loop**. **TESTABLE** — code complete
+  2026-06-07, awaiting the in-browser gate. `npm test` **243/243 green** (202 prior + 41
+  new), `npm run build` clean, `core/` free of Phaser/DOM **and** `Math.random` (the grep
+  test still enforces it). **Why:** M8 built the overworld action economy; M9 built the
+  guild tier + the structural treasury↔purse plumbing; **M10 fills that plumbing with
+  faucets/sinks and the roster pool with sources** — the last of the post-M7 batch.
+  - **What landed (M10 core, all pure/headless):**
+    - `economy.ts` — the **two-pool routing**: `gainRunGold` (loot → **purse**,
+      auto-repaying Banker debt first), `routePayoutToTreasury` (quest payout →
+      **treasury** — the vault's only earned faucet), `payTreasuryUpkeep` (Upkeep = the
+      treasury-side sink, reusing `computeUpkeep`), and **Influence**
+      (`addInfluence`/`spendInfluence`/`canAffordInfluence`) — a purpose-bound currency
+      on the guild that can **never** pay Upkeep or buy gear (D34, by construction — no
+      gold sink reads it).
+    - `economy-actions.ts` — the **three verbs** as data (`ECONOMY`) + resolvers:
+      **Merchant ACCESS** (`merchantBuy`, purse-funded, `merchantPrice` node-tier-gated —
+      rest/town < wild), **Banker TIME-SHIFT + SECURE** (`bankerEngageInterest` →
+      per-node-step purse interest, `bankerBorrow` buy-on-debt, `bankerProtect` theft
+      protection) — **purse-only, never the treasury** — and **Noble INFLUENCE**
+      (`collectPoliticalIncome` → Influence; `bribeEnemy`/`bribeCost` reading the D24
+      preview for the sway price).
+    - `theft.ts` — the **active sink**: `rollSkim` (deterministic, blunted by protection),
+      `thiefSteal`/`thiefEventSkim` (deduct from the purse), `recoverStolen`
+      (kill-to-recover) / `thiefEscapes` (escaped-keeps-it, D13/D21). The **thief enemy
+      archetype** is data in `generation.ts` `ENEMY_TEMPLATES` (`thief: true`); the thief
+      **event node** is a new `NodeKind "event"` in `overworld.ts` (rare, interior),
+      played by `RunLoop.eventNode()`.
+    - `recruitment.ts` — the refreshing **mercenary pool** (`refreshMercPool`/`mercPool`/
+      `hireFromPool`, treasury-debited, deterministic via the shared `mercCounter`) and
+      the **temp↔permanent vector** (`recruitClassify`/`recruitToRoster`): authored →
+      permanent join, generic → temporary (the whole new rule, D33). The authored-cast
+      *data shape* stays a deferred typed seam (`Unit.authored`).
+    - Wiring: loot routes through `gainRunGold` in `runloop.resolve`; purse interest
+      accrues in `run.recordNight` (`accruePurseInterest`); quest **payouts** flow to the
+      treasury in `guild.resolveReturn` (`Quest.payout`/`GuildRun.payout`/
+      `CaravanResolution.payout`); `Guild` gained `influence`/`mercPool`/`politicsCounter`;
+      `OverworldEconomy` gained `interestPerStep`/`debt`/`protection`; `Unit` gained
+      `authored`/`thief`.
+  - **What landed (M10 render):** `GuildScene` — Treasury **+ Influence** in the header, a
+    **refreshing merc pool** (hire several) + a treasury-funded **armory buy**, and the
+    **payout** surfaced on a return banner. `OverworldScene` — the camp gains the **economy
+    verbs** (Merchant buy / Banker interest·debt·protect / Noble income) with live
+    purse/debt/protection/Influence readouts, and the **thief event node** ($-glyph,
+    purple) surfaced like rest, with a skim screen. `BattleScene` — the **thief** skims the
+    purse on its turn (kill-to-recover / flees-off-map, reported in Resolution) and a
+    **mid-combat Bribe** (guild Influence) flips an enemy (temp generic / permanent
+    authored → joins the roster).
+  - **Tests (new, 41):** `economy.test.ts` (loot→purse + debt repay; payout→treasury +
+    wipe pays nothing; the treasury has **no passive faucet**; Upkeep drawn from the
+    treasury; Influence walled off — can't pay Upkeep). `economy-actions.test.ts` (Merchant
+    node-tier price from the purse; Banker interest on the tick / debt auto-repay / protect
+    — never the treasury; Noble income → Influence; bribe reads the preview, temp generic
+    vs perm authored). `theft.test.ts` (skim/recover/escape; protection blunts both vectors;
+    event-node skim; determinism). `recruitment.test.ts` (pool refreshes deterministically;
+    hiring debits the treasury; temp generic vs perm authored joins). Existing
+    `guild.test.ts` updated for the new return payout.
+  - **Seams honored (thin, full behavior later):** the **authored-cast data shape** is a
+    `Unit.authored` flag only (no cast authored, D33); the **lord** game-over/save path
+    stays the M9 seam (D27); **event nodes** = only the thief node the theft loop needs
+    (the shops/recruiter/story batch is later, D23); **one** new currency (Influence) — no
+    second (D34 restraint).
+  - **Next:** confirm the in-browser gate (payouts grow the treasury / loot the purse;
+    each class's one verb; a thief steals + kill-to-recover or flees, blunted by the
+    Banker; the merc pool refreshes + bribe/rescue recruits; replay reproduces the
+    numbers), then PROGRESS M10 → done + the M10 row in plan.md; commit/push.
+
+<details><summary>M9 — The guild & caravan tier — TESTABLE (code complete 2026-06-06)</summary>
 
 - **Milestone:** M9 — The guild & caravan tier (D25–D27, D32 seam): `run.ts` → a
   **Guild of N runs**. **TESTABLE** — code complete 2026-06-06, awaiting the in-browser
@@ -98,6 +168,8 @@ States: `todo` → `in-progress` → `testable` → `done`
     wipe cost people+gear with the guild surviving, or a return flow survivors/gear/purse
     home → re-enter the guild seed to reproduce), then PROGRESS M9 → done + the M9 row in
     plan.md; commit/push.
+
+</details>
 
 <details><summary>M8 — The overworld action economy — DONE (prototype, 2026-06-06)</summary>
 
@@ -501,10 +573,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step:** confirm the **M9** in-browser gate (the guild hall flow), then mark
-  M9 done; **M10** — the gold economy & recruitment (D28/D30/D33/D34) is the next build.
-  (M8 accepted as the overworld-mechanics prototype; its number/behavior tuning is a
-  tracked non-blocking follow-up, see the M8 block.)
+- **Next step:** confirm the **M10** in-browser gate (the gold economy verbs + theft +
+  recruitment), then mark M10 done; M9's hall-flow gate is still pending too (both are
+  code-complete/testable). With M10 the post-M7 batch (M8/M9/M10) is built — the next
+  build is open (per the run-frame's queued batch: terminal-ending design, shops/recruiter/
+  story event nodes, the save system + lords). (M8 accepted as the overworld-mechanics
+  prototype; its number/behavior tuning is a tracked non-blocking follow-up.)
 - **Blockers:** none.
 
 <details><summary>Stale footer (M2-era notes, kept for history)</summary>

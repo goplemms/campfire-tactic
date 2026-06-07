@@ -28,13 +28,24 @@ import {
   // M6 — the run loop
   currentEncounter,
   computeUpkeep,
+  // M10 — theft (D30) + mid-combat bribe → recruitment (D33)
+  thiefSteal,
+  recoverStolen,
+  thiefEscapes,
+  previewNode,
+  scoutedTier,
+  bribeEnemy,
+  bribeCost,
+  recruitToRoster,
   type RunState,
   type RunLoop,
   type IntelReport,
   type DeployExposure,
   type GridCoord,
   type Unit,
+  type Side,
   type SkillDef,
+  type TheftAttempt,
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
 
@@ -101,6 +112,16 @@ export class BattleScene extends Phaser.Scene {
   private armedSkill: SkillDef | null = null;
   private busy = false;
   private over = false;
+
+  // M10 — theft (D30) + bribe→recruitment (D33).
+  /** Live thief skims, keyed by the thief unit id (kill → recover, escape → lost). */
+  private theftAttempts = new Map<string, TheftAttempt>();
+  /** Total gold thieves got away with this battle (for the Resolution readout). */
+  private goldStolen = 0;
+  private goldRecovered = 0;
+  /** Bribe targeting mode (the Noble's Influence verb), and pending permanent joins. */
+  private bribeArmed = false;
+  private pendingRecruits: Unit[] = [];
 
   constructor() {
     super("BattleScene");
@@ -361,6 +382,11 @@ export class BattleScene extends Phaser.Scene {
     this.phase = "battle";
     this.titleText.setText("Battle");
     this.clearActionButtons();
+    this.theftAttempts.clear();
+    this.goldStolen = 0;
+    this.goldRecovered = 0;
+    this.pendingRecruits = [];
+    this.bribeArmed = false;
     this.deployActor = null;
     this.safeZoneGfx?.clear();
     this.highlightTile(null);
@@ -410,9 +436,50 @@ export class BattleScene extends Phaser.Scene {
 
   private showSkillButtons(actor: Unit): void {
     const skills = unitSkills(actor, "battle");
-    this.layoutActionRow(
-      skills.map((skill) => ({ text: skill.name, description: `${skill.name} — ${skill.description}`, onClick: () => this.onSkillButton(actor, skill) })),
-    );
+    const specs = skills.map((skill) => ({ text: skill.name, description: `${skill.name} — ${skill.description}`, onClick: () => this.onSkillButton(actor, skill) }));
+    // The Noble's mid-combat BRIBE (D30/D33): spend guild Influence to sway an enemy.
+    if (this.guild && this.battle.units.some((u) => u.side === "enemy" && u.alive)) {
+      const cost = bribeCost(this.currentPreview());
+      const affordable = this.guild.influence >= cost;
+      specs.push({
+        text: `Bribe (${cost} Inf)`,
+        description: affordable
+          ? "Bribe an enemy (Noble Influence): a generic turns coat for the fight; an authored one joins the guild permanently."
+          : `Not enough Influence (need ${cost}).`,
+        onClick: () => {
+          if (!affordable) return this.setHint(`Not enough Influence to bribe (need ${cost}).`);
+          this.bribeArmed = true;
+          this.armedSkill = null;
+          this.setHint(`Bribe: click an enemy to sway it (or click ${actor.name} to cancel).`);
+        },
+      });
+    }
+    this.layoutActionRow(specs);
+  }
+
+  /** The current combat node's banded preview (D24) — leverage for the Noble's bribe. */
+  private currentPreview() {
+    return previewNode(this.run, this.run.mapNodeId, scoutedTier(this.run.overworld, this.run.mapNodeId));
+  }
+
+  /** Spend guild Influence to sway an enemy (D30/D33). Consumes the actor's turn. */
+  private doBribe(actor: Unit, foe: Unit): void {
+    if (!this.guild) return;
+    const res = bribeEnemy(this.guild, foe, this.currentPreview());
+    this.bribeArmed = false;
+    if (!res.applied) return this.setHint(`Can't bribe: ${res.reason}`);
+    // Turncoat: flip the enemy to the player's side for the rest of the fight.
+    (foe as unknown as { side: Side }).side = "player";
+    const view = this.views.get(foe.id);
+    view?.body.setFillStyle(0xffcf6b).setStrokeStyle(2, 0x6b4a1c);
+    if (res.outcome?.permanent) this.pendingRecruits.push(foe);
+    this.waitingFor = null;
+    this.busy = true;
+    this.clearActionButtons();
+    this.highlightTile(null);
+    this.battle.endTurn(actor, { acted: true });
+    this.afterTurn();
+    if (!this.over) this.setHint(res.detail ?? `${foe.name} swayed.`);
   }
 
   private onSkillButton(actor: Unit, skill: SkillDef): void {
@@ -439,11 +506,36 @@ export class BattleScene extends Phaser.Scene {
   private runEnemyTurn(actor: Unit): void {
     this.busy = true;
     this.setHint(`${actor.name} (enemy) acts…`);
+    // The thief archetype (D30): on its first turn it skims the run PURSE, then
+    // bolts for the edge. Kill it before it escapes to recover the gold.
+    if (actor.thief && actor.alive && !this.theftAttempts.has(actor.id)) {
+      const attempt = thiefSteal(this.run, `thief:${actor.id}`);
+      if (attempt.stolen > 0) {
+        this.theftAttempts.set(actor.id, attempt);
+        this.goldStolen += attempt.stolen;
+        this.refreshCampText();
+        this.setHint(`${actor.name} lifted ${attempt.stolen}g off the purse! Cut it down before it escapes to recover the gold.`);
+      }
+    }
     const plan = this.battle.runEnemyTurn(actor);
     this.animateMove(actor, plan.path, () => {
       if (plan.target) this.flashAttack(actor, plan.target);
       this.afterTurn();
     });
+  }
+
+  /** Recover loot from any thief that has just died (kill-to-recover, D13/D21). */
+  private resolveTheftDeaths(): void {
+    for (const [id, attempt] of this.theftAttempts) {
+      if (attempt.resolved) continue;
+      const thief = this.battle.units.find((u) => u.id === id);
+      if (thief && !thief.alive) {
+        const back = recoverStolen(this.run, attempt);
+        this.goldRecovered += back;
+        this.refreshCampText();
+        this.setHint(`Recovered ${back}g from the slain thief.`);
+      }
+    }
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
@@ -462,6 +554,17 @@ export class BattleScene extends Phaser.Scene {
     const actor = this.waitingFor;
     if (this.over || this.busy || !actor) return;
     const clicked = this.battle.units.find((u) => u.alive && u.pos.col === tile.col && u.pos.row === tile.row);
+
+    if (this.bribeArmed) {
+      if (clicked === actor) {
+        this.bribeArmed = false;
+        this.setHint(`${actor.name}'s turn — move, attack, or use a skill.`);
+        return;
+      }
+      if (clicked && clicked.side === "enemy" && !clicked.captured) this.doBribe(actor, clicked);
+      else this.setHint("Pick an enemy to bribe (or click yourself to cancel).");
+      return;
+    }
 
     if (this.armedSkill) {
       if (clicked === actor) {
@@ -544,6 +647,7 @@ export class BattleScene extends Phaser.Scene {
 
   private afterTurn(): void {
     this.busy = false;
+    this.resolveTheftDeaths();
     this.refreshHud();
     this.highlightTile(null);
     if (this.battle.outcome().over) return this.finishBattle();
@@ -559,7 +663,25 @@ export class BattleScene extends Phaser.Scene {
     this.highlightTile(null);
     this.clearActionButtons();
 
+    // Any thief still standing at the bell got away with its skim (D13/D21).
+    let goldEscaped = 0;
+    for (const [id, attempt] of this.theftAttempts) {
+      if (attempt.resolved) continue;
+      const thief = this.battle.units.find((u) => u.id === id);
+      if (thief && thief.alive) goldEscaped += thiefEscapes(attempt);
+    }
+
     const res = this.loop.resolve();
+
+    // Mid-combat bribe → recruitment (D33): permanent (authored) turncoats join the
+    // guild roster after the battle; generics were temporary (just fought it out).
+    const recruited: string[] = [];
+    if (this.guild) {
+      for (const u of this.pendingRecruits) {
+        if (recruitToRoster(this.guild, u)) recruited.push(u.name);
+      }
+    }
+
     this.refreshCampText();
     this.refreshHp();
     // Re-tint any freed allies.
@@ -578,6 +700,11 @@ export class BattleScene extends Phaser.Scene {
     } else {
       lines.push("The party was overwhelmed.");
     }
+    // Theft + recruitment outcomes (M10).
+    if (this.goldStolen > 0) {
+      lines.push(`Thieves skimmed ${this.goldStolen}g — recovered ${this.goldRecovered}g${goldEscaped > 0 ? `, ${goldEscaped}g escaped` : ""}.`);
+    }
+    if (recruited.length) lines.push(`Swayed to the guild (permanent): ${recruited.join(", ")}.`);
 
     this.showOverlay(title, lines.join("\n"), won);
     this.setHint(`Resolution — ${lines.join("  ")}`);

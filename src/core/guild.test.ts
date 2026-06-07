@@ -171,8 +171,10 @@ describe("guild — return flows survivors/gear/purse home (D27/D34)", () => {
     expect(res.gearReturned).toContain("enchanted-blade");
     expect(res.purseReturned).toBe(140);
 
-    // Pool/armory/treasury reconciled; caravan freed.
-    expect(g.treasury).toBe(treasuryBefore + 140);
+    // Pool/armory/treasury reconciled; caravan freed. A completed return now also
+    // banks the quest payout (M10, D34) on top of the surviving purse.
+    expect(res.payout).toBeGreaterThan(0);
+    expect(g.treasury).toBe(treasuryBefore + 140 + res.payout);
     expect(availableGear(g)).toContain("enchanted-blade");
     expect(availableRoster(g).length).toBe(2);
     expect(c.dispatched).toBe(false);

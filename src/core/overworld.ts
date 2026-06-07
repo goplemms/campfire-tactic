@@ -24,8 +24,14 @@
 import { streamFor } from "./rng";
 import { generateEncounter, type EncounterDef } from "./generation";
 
-/** A node kind (D23). For M7: a fight, or a no-battle recovery camp. */
-export type NodeKind = "combat" | "rest";
+/**
+ * A node kind (D23). A fight (`combat`), a no-battle recovery camp (`rest`), or a
+ * no-battle **event** node (M10): the thief event (D30) — a purse-skim hazard on
+ * the overworld, blunted by the Banker's protection ({@link "./theft"}). The
+ * broader event-node batch (shops, recruiters, story) is later (D23); M10 builds
+ * only the thief event the theft loop needs.
+ */
+export type NodeKind = "combat" | "rest" | "event";
 
 /** A single node on the run map. */
 export interface MapNode {
@@ -64,6 +70,8 @@ export const MAP_GEN = {
   width: 3,
   /** Chance an interior node is a rest node rather than a combat node (D23). */
   restChance: 0.34,
+  /** Chance an interior node is a thief **event** node (D30, M10) — kept rare. */
+  eventChance: 0.14,
   /** Extra forward edges a node may gain beyond its guaranteed one (branchiness). */
   maxFanout: 2,
 } as const;
@@ -81,10 +89,12 @@ function layerWidth(rng: ReturnType<typeof streamFor>, layer: number, layers: nu
   return rng.range(MAP_GEN.minWidth, MAP_GEN.width);
 }
 
-/** Decide a node's kind (start + final are fixed; interior is banded, D23). */
+/** Decide a node's kind (start + final are fixed; interior is banded, D23/D30). */
 function nodeKind(rng: ReturnType<typeof streamFor>, layer: number, layers: number): NodeKind {
   if (layer === 0) return "rest"; // the starting camp — never fought
   if (layer === layers - 1) return "combat"; // the final mission
+  // Interior: a rare thief event node (M10), else a banded rest, else combat.
+  if (rng.chance(MAP_GEN.eventChance)) return "event";
   return rng.chance(MAP_GEN.restChance) ? "rest" : "combat";
 }
 
