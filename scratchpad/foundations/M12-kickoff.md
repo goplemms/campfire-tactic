@@ -145,40 +145,57 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   list; `isCombatant` stops gating on a `noncombat` flag) is what changes. The
   Survivalist/Chef/Merchant stay first-class jobs (not absorbed into a combat class).
 
-### Leveling & growth (gap #2 + the deferred job-model parameters) — *2026-06-07*
+### Leveling & growth (gap #2 + the deferred job-model parameters) — *2026-06-07 (rev.)*
 
-> **Hybrid two-axis growth.** A per-unit **character level** (universal) + per-job
-> **job levels** (specialization). The rule: ***body of your primary (stats), skills of
-> all your jobs (abilities).*** Fixes gap #2 (today `level` is read by nothing).
+> **Hybrid two-axis growth.** A per-unit **character level** (breadth/meta) + per-job
+> **job levels** (depth/specialty). The rule: **primary sets the baseline frame; every
+> job level banks permanent, cumulative stats (a universal floor + a job-weighted bonus).**
+> Fixes gap #2 (today `level` is read by nothing).
 
-- **Character level** — the existing `unit.level`/`xp`, **reframed as the character
-  axis**: universal toughness, mainly **HP** (+ a small base creep). Grows from all
-  combat/deployment.
-- **Job levels** — per job, per unit (`jobLevels[jobId] = {level, xp}`). A job level
-  grants: **(a) ability scaling** (each ability scales with *its own* job's level — the
-  locked scale-by-level principle); **(b) a skill-unlock breakpoint** (start job-L1 with
-  **passive + 1 active**, earn the **2nd active at ~L3**); **(c) a stat-flavor** applied
-  while that job is the unit's **primary** (Knight +def/HP · Scout +speed/move · Hunter
-  +atk · Medic +heal power).
-- **Switching primary to an *unleveled* job ⇒ a weak body** — committing to a class is a
-  real investment (FFT-authentic), not a free respec.
+- **Baseline stats** — set by the **primary class** archetype (Knight starts beefy,
+  Medic frail). The frame the growth below accrues onto.
+- **Character level** (breadth/meta) — the existing `unit.level`/`xp`. The **XP backbone**
+  + a modest **universal toughness (HP)** source, and the **hook for character-wide
+  boons at thresholds**: e.g. **+1 loadout slot** at a level, future **job evolutions /
+  advanced-job gating**, etc. The "you, the person" axis.
+- **Job levels** (depth/specialty) — per job, per unit (`jobLevels[jobId] = {level, xp}`).
+  Each job level-up grants: **(a) ability scaling** (each ability scales with *its own*
+  job's level); **(b) a skill-unlock breakpoint** (start job-L1 with **passive + 1
+  active**, earn the **2nd active at ~L3**); **(c) permanent, cumulative stat gains** —
+  **+1 (min) to all main stats** (a universal floor) **plus a job-weighted bonus** to the
+  stats that job emphasizes (Knight HP/def · Scout speed/move · Hunter atk · Medic heal ·
+  a future **Seer** magic). **Kept forever, regardless of current primary.**
+- **Generalist ↔ specialist axis (emergent):** spreading across jobs banks lots of broad
+  +1s (a jack-of-all-trades); going deep in one stacks its specialty (a master). A real
+  long-term build decision — and the reason multi-job matters beyond borrowing a skill.
+- **Extensible growth table:** per-job growth is **data keyed by stat** (job → weighted
+  stats), so a future **Seer** weighting not-yet-existent **magic** stats *slots in* with
+  no engine change (cf. the status classifier).
+- **No "weak body" penalty** — because job stats are **permanent/cumulative** (not a
+  transient primary-only flavor), switching primary keeps everything you earned. Primary
+  still governs: the **baseline frame**, **XP rate**, the **loadout**, and **class-gated
+  content**.
 - **XP routing:** combat/deploy XP feeds the **character level + the primary job at full
-  rate**; **secondary jobs trickle slower** ("primary = XP rate", now concrete).
-  `grantAbilityUseXp` still bumps a job when its ability is used.
+  rate**; **secondary jobs trickle slower** ("primary = XP rate"). `grantAbilityUseXp`
+  still bumps a job when its ability is used.
 - **Loadout slots (flexible):** a unit wields its **primary's full kit** (passive + 2
-  actives) **+ `loadoutSlots` secondary abilities** drawn from other held jobs.
-  **Defaults to 1** ("main kit + one side-job skill") but is a **tunable knob** — built
-  as a **general slot system** so the cap settles as class design matures (could grow
-  with character level / vary by unit). Keeps button-count legible (honors 2+1).
+  actives) **+ `loadoutSlots` secondary abilities** from other held jobs. **Defaults to
+  1**, and is a **character boon** that can **grow at character-level thresholds** (the
+  axis (a) hook). Built as a general slot system; keeps button-count legible (honors 2+1).
 - **First-slice scope — built vs shaped.** One job per unit, so the slice **BUILDS**:
-  both axes ticking, **stat growth** (the visible gap-#2 fix), **ability scaling by job
-  level**, the **2nd-active unlock**. It **DATA-SHAPES** (structures exist, unexercised
-  in play): the multi-job `jobLevels` map, `primaryJob` + held-jobs list, and the
-  secondary **loadout slots** (default 1, unused at one-job-each). Multi-job slotting UI
-  lands when multi-job units exist.
-- **Code seams:** `leveling.ts` (`level/xp` → character axis; add `jobLevels` + routing
-  + stat-growth application), `units.ts` (`primaryJob`, held-jobs, `loadoutSlots`,
-  derived-stat computation), `jobs.ts` (per-job growth table + per-ability unlock level),
+  both axes ticking, **permanent per-job stat gains** (the visible gap-#2 fix — +1-all +
+  job weight), character-level **HP**, **ability scaling by job level**, the **2nd-active
+  unlock**. It **DATA-SHAPES** (structures exist, unexercised in play): the multi-job
+  `jobLevels` map, `primaryJob` + held-jobs list, the secondary **loadout slots** (default
+  1, unused at one-job-each), and the character-boon thresholds. Multi-job + job
+  evolutions land later as content.
+- **Open detail (tune at build):** define the **"main stat" set** the +1-all floor hits
+  (likely hp/atk/def/speed/move) vs. the stats only reached via job weights
+  (awareness/intelligence/future magic).
+- **Code seams:** `leveling.ts` (`level/xp` → character axis; add `jobLevels` + routing +
+  the cumulative stat-growth application), `units.ts` (`primaryJob`, held-jobs,
+  `loadoutSlots`, baseline + accrued-stat computation), `jobs.ts` (per-job **growth table
+  keyed by stat** + per-ability unlock level + character-boon thresholds),
   `skills.ts`/`resolveSkill` (read job level for ability magnitude), `isCombatant` stops
   reading a `noncombat` flag.
 
@@ -466,3 +483,11 @@ the caster-death cancel).
   fallback + tuning). Deferred: difficulty-scaled competence. **Design phase complete —
   ready to graduate the draft into a final kickoff + plan.md row + decisions.md entries,
   then build in phases.**
+- **2026-06-07 (rev.)** — **Leveling stat-growth revised.** Replaced the transient
+  "primary-only stat flavor / weak-body" rule with **permanent, cumulative per-job-level
+  stat gains**: every job level-up banks **+1 to all main stats (universal floor) + a
+  job-weighted bonus** (data table keyed by stat → future Seer/magic slots in). Kept
+  **hybrid (a)**: a thin **character level** stays as the XP backbone + universal HP +
+  the **character-boon hook** (loadout-slot growth at thresholds, future job evolutions /
+  advanced-job gating). Emergent **generalist↔specialist** build axis. Primary now sets
+  baseline frame + XP rate + loadout + class-gating (no stat penalty for switching).
