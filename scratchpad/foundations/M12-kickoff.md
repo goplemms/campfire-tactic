@@ -527,6 +527,45 @@ chokepoint; (2) snare → **antidote-Cleanse** (logistics reversal cashes in); (
 off. Moderate stakes (sloppy formation / skipping antidotes hurts but is recoverable);
 reward gold + a minor XP tick into the climax.
 
+### Encounter 3 — "The Captain's Holdout" (climax) — LOCKED *(2026-06-07)*
+
+The **test** — everything at once + a **timed objective**. **Map:** the millrace **bridge**
++ approach. **Enemies:** **Bandit Captain** (tough boss, keeps his brawler kit) + a
+**Sapper** + ~1–2 flank-aware escorts.
+
+- **Timing mechanic:** the **Sapper cuts the bridge** on a visible **N-turn timer** (reuses
+  the charge/scheduled-effect gauge, D5 — framed as an environmental objective). Kill or
+  Immobilize the Sapper to **fizzle** it. A *visible race* (more intuitive than an abstract
+  boss charged-attack) that also adds **objective variety** (deny-the-cut, not pure "kill
+  all"). Separate Sapper from Captain → forces a **priority decision** under pressure.
+- **Three outcomes (graded failure):**
+  - **Win** — clear the holdout (Captain down, bridge intact) → quest complete, capstone
+    Resolution ("The Hollow Mill is cleared").
+  - **Quest failure (soft)** — the cut completes: the bridge collapses, units on it are
+    **swept → downed** (resolved per **D9** difficulty, **not** auto-permadeath), the
+    **Captain escapes**, the Mill is **not** cleared → a distinct **"quest failed"** screen.
+    **The party survives / retreats.**
+  - **Party wipe (hard)** — no combat-capable units left → the existing run-over.
+- **Proof beats:** (1) **timing/priority** — peel a striker (Shove the Sapper off the
+  supports / Immobilize / focus it) to stop the cut; (2) **sustained focus** — Mark Prey +
+  Expose + Deadeye downs the high-HP Captain (synergy = the win condition); (3)
+  **Mend-under-fire** charged gamble; (4) **flank-aware escorts** → Knight tarpit/Shove
+  holds formation (+ keep people off the collapsing span); (5) the **full status board**
+  live (Slowed/Exposed/Immobilized/Hastened/Guarded).
+
+> **Principle — graded failure (new, 2026-06-07):** **quest/objective failure is survivable
+> and distinct from a party wipe.** Losing an objective (the cut completes, the boss
+> escapes, a timer is lost) costs the **reward ± downed casualties (per D9)** but the party
+> **retreats alive**; only losing every combat-capable unit is a true **wipe**. This fits
+> the **guild return-vs-wipe** model (a failed quest → the caravan *returns* without the
+> prize; a wipe → the caravan is *lost*). The demo is the **first instance**; the general
+> case (an `objective-failure` resolution distinct from win/wipe) is a small, contained
+> addition to the resolution/run model.
+
+**DEMO QUEST DECIDED** — all five beats locked (Provision → Skirmish → Rest/Level-up →
+Ambush → Captain's Holdout). The design phase (combat slice **+** demo proof) is complete;
+ready to **graduate** the draft.
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -646,3 +685,11 @@ reward gold + a minor XP tick into the climax.
   → antidote payoff), and a **hidden ambush pair gated by the Beat-3 deserter choice**
   (spared=revealed / pressed=must scout; symmetric fog). Teaches tarpit + snare→cleanse
   (logistics reversal) + the marquee Dash→Expose→Mark Prey+Deadeye combo + fog/scouting.
+- **2026-06-07** — **Encounter 3 (Captain's Holdout) LOCKED → DEMO QUEST DECIDED.** Climax
+  on the millrace **bridge**: a **Sapper cuts the bridge** on an N-turn timer (reuses the
+  D5 charge gauge as an environmental objective; kill/Immobilize to fizzle) — a visible
+  race + objective variety. **Graded failure principle (new):** a completed cut = **quest
+  failure** (Captain escapes, swept units **downed per D9 not auto-dead**, party retreats)
+  — distinct from a **party wipe**; fits the guild return-vs-wipe model (general
+  objective-failure resolution = a small contained addition). All five beats now locked.
+  **Design phase complete — ready to graduate (final kickoff + plan.md row + decisions.md).**
