@@ -513,6 +513,20 @@ The party holes up in the mill's grain loft. **Triple duty:**
   blind gamble). One choice teaches **choice-weight + the fog lesson + the logistics
   reversal** (Beat 1 said antidotes low-value; now they matter).
 
+### Encounter 2 — "Ambush at the chokepoint" — LOCKED *(2026-06-07)*
+
+The **combine** fight — full kits online (the 2nd actives unlocked at the rest beat).
+**Map:** the mill interior with a narrow **sluice-bridge chokepoint** (the lesson E1
+withheld) — the tarpit's stage (funnel enemies to speed 1, or make them burn the detour).
+**Enemies (~5):** 2× **Bandit Thug**, 1× **Bandit Bowman** (kites), 1× **Snare-Trapper**
+(the **Immobilize debuffer** → the antidote payoff), 1× **hidden ambush pair** *gated by
+the Beat-3 choice* (spared → pre-revealed; pressed → hidden until **scouted**; symmetric
+fog — the AI doesn't act on them until revealed). **Teaching beats:** (1) tarpit the
+chokepoint; (2) snare → **antidote-Cleanse** (logistics reversal cashes in); (3) the
+**marquee combo** Dash→Expose → Mark Prey + Deadeye melts the prey; (4) fog/scouting pays
+off. Moderate stakes (sloppy formation / skipping antidotes hurts but is recoverable);
+reward gold + a minor XP tick into the climax.
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -627,3 +641,8 @@ The party holes up in the mill's grain loft. **Triple duty:**
   E2/E3 = full kits. Plus a deserter **story choice** (spare→E2 intel + antidote warning /
   press→gold, must scout) feeding E2's fog + the logistics reversal. Universal Defend
   confirmed.
+- **2026-06-07** — **Encounter 2 (Ambush at the chokepoint) LOCKED.** The combine fight:
+  a sluice-bridge **chokepoint** (tarpit stage), a **Snare-Trapper** debuffer (Immobilize
+  → antidote payoff), and a **hidden ambush pair gated by the Beat-3 deserter choice**
+  (spared=revealed / pressed=must scout; symmetric fog). Teaches tarpit + snare→cleanse
+  (logistics reversal) + the marquee Dash→Expose→Mark Prey+Deadeye combo + fog/scouting.
