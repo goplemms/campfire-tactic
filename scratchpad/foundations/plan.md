@@ -325,6 +325,41 @@ exercise in the browser.
   node types / preview) and [`decisions.md`](decisions.md) (D23 the named "next batch", D4
   data + resolver, D30/D33/D34 reuse).
 
+### M12 — Combat depth, the class slice & the demo-quest proof — *design finalized 2026-06-07 (D36–D44); ready to build*
+
+- *Adjustment (not a pivot): the north star is unchanged; M1–M11 built the systems wide
+  but content-thin. M12 is the first slice aimed squarely at **fun** — a small class roster
+  that forces the surrounding combat depth into existence, proven by a hand-crafted demo
+  quest.* Full design: [`M12-kickoff.md`](M12-kickoff.md); decisions **D36–D44**; build
+  kickoff [`M12-build-prompt.md`](M12-build-prompt.md).
+- **Combat slice (core, all pure/headless):** **flanking** (support/pincer positional
+  damage, D36); the **time-based ability economy** (charge-time spine + channels + sparing
+  cooldowns + the Act tax, D37, extending the unused D5 `ScheduledEffect`); the **status
+  set with teeth** (Slowed/Exposed/Immobilized/Hastened/Guarded, classifier-driven, D41) +
+  a **universal Defend**; **four classes** (Heavy Knight / Hunter / Scout / Medic — 2
+  active + 1 passive, synergy-first, the combat↔logistics bridge, D40); the **dissolved job
+  model** (D38) + **hybrid leveling** (character + per-job axes, permanent cumulative stat
+  gains, ability scaling, unlock breakpoints, D39 — fixes the inert `level`); and the
+  **scoring AI** (ranged / flank / tarpit / target-priority + enemy abilities +
+  charge-interrupt + fog-respecting, D42). **Graded failure** (objective-fail ≠ wipe, D43).
+- **Demo quest (the proof, D44):** an **authoring substrate** (`AuthoredEncounter` /
+  `AuthoredQuest` + a demo runner — fills gap #4) and **"The Hollow Mill"**, a 5-beat
+  standalone authored quest (Provision → Skirmish → Rest/Level-up → Ambush at the
+  chokepoint → Captain's Holdout) tuned so every M12 decision has a visible moment.
+- render: the four kits as data-driven buttons (charge/channel/cooldown readouts), **status
+  visual trackers** (icon/tint/tooltip), the level-up/unlock surfacing, the demo-mode entry
+  + beat runner, and the bridge-cut timer in Encounter 3.
+- **User-testable gate:** `npm run dev` → enter **demo mode**, play *The Hollow Mill* end
+  to end: provision herbs under the cap; in E1 isolate-and-flank a straggler and weather a
+  kiting archer; at the rest beat **see stat gains + a 2nd-active unlock** and make the
+  deserter choice; in E2 tarpit the chokepoint, **cleanse a snare with an antidote**, land
+  the Dash→Expose→Mark-Prey→Deadeye combo, and have scouting matter; in E3 **race the
+  bridge-cut timer** and beat the Captain — or **fail the objective and retreat alive**
+  (not a wipe). Replaying reproduces the authored beats. `npm test` green (flanking,
+  ability economy, statuses, leveling, scoring AI, authored encounters); `npm run build`
+  clean; `core/` free of Phaser/DOM **and** `Math.random`.
+- See [`M12-kickoff.md`](M12-kickoff.md) and [`decisions.md`](decisions.md) (D36–D44).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).

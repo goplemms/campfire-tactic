@@ -1,13 +1,15 @@
-# M12 Kickoff (WORKING DRAFT) — Combat depth & the class slice
+# M12 Kickoff — Combat depth, the class slice & the demo-quest proof
 
-> **Status: in discussion.** This is a living working document for the current
-> session. We are settling design points **one at a time**; each locked decision
-> moves from *Open discussion queue* → *Locked decisions* with a date. When the
-> queue is empty this graduates into a final kickoff brief + a `plan.md` row +
-> `decisions.md` entries, matching the M3/M8/M9 kickoff convention.
+> **Status: design FINALIZED (2026-06-07); ready to build.** Graduated from the
+> session working draft: the decisions below are logged as **D36–D44** in
+> [`decisions.md`](decisions.md), the milestone + gate is the **M12** row in
+> [`plan.md`](plan.md), and the build kickoff is
+> [`M12-build-prompt.md`](M12-build-prompt.md). The *Open discussion queue* and
+> *Decisions log* sections are kept below as the design-history record.
 
 Develop on branch `claude/testability-gaps-eval-YO0Kv`. Assumes the repo at the
-end of M11 (D1–D35, all of M1–M11 shipped & green, 269 tests).
+end of M11 (D1–D35, all of M1–M11 shipped & green, 269 tests). New calls here are
+**D36–D44**.
 
 ## Why this milestone (the "baseline fun" evaluation)
 
