@@ -399,6 +399,51 @@ the unseen-enemy fallback), `generation.ts` (a debuff-applying archetype + a ran
 archer archetype), `clock.ts` (expose "is unit charging?" for the interrupt bonus +
 the caster-death cancel).
 
+## Demo quest — the proof harness (in design)
+
+The hand-crafted slice whose job is to make **every M12 decision show up in play** — the
+**proof before we graduate/finalize** the design. Built *after* (or alongside) the combat
+slice; it's how we confirm the decisions actually produce "baseline fun."
+
+**Locked container — *2026-06-07*:**
+- **Shape:** a **short authored quest** — ~3 escalating encounters + a pre-battle
+  **provisioning** step + a mid-quest **rest/level-up** beat.
+- **Plug-in:** **standalone demo mode** — a dedicated entry point that plays the authored
+  quest directly, **bypassing the guild/overworld**. Reuses the combat pipeline
+  (provision/camp → deploy → battle → resolution) with **authored** encounters, not
+  `generation.ts` procedural output.
+
+**Coverage checklist (success criteria — each decision needs a visible moment):** 4
+distinct classes · the synergy loop · flanking · the ability economy (charge/channel/
+cooldown/Act) · all four statuses + visual trackers · the combat↔logistics bridge
+(provisioned herbs + an enemy debuff) · leveling payoff (stat gains + a 2nd-active
+unlock) · smarter AI (kiting archer / flank-aware / tarpit-avoid / debuffer) ·
+fog-respecting AI (scouting first pays off).
+
+**Authoring substrate this requires (new engineering, gap #4):**
+- `AuthoredEncounter` — a **fixed** map (tiles/blocked) + enemy roster & placements +
+  rewards (reuses the `Encounter`/`TileGrid`/unit structures, hand-populated not seeded).
+- `AuthoredQuest` — an ordered list of **beats** (provision | encounter | rest | story) +
+  a starting party + starting inventory.
+- a **demo runner/scene** + a demo entry point that walks the beats.
+
+**Arc skeleton — PROPOSED (confirm, then detail each beat one at a time):**
+1. **Provision (camp)** — load the Medic's herbs (salve/stimulant/antidote) under the
+   storage cap; a brief intel preview. *Proves: logistics-bridge setup, intel.*
+2. **Encounter 1 — "Skirmish" (teach)** — ~4 loose enemies incl. 1 archer, open map.
+   Introduces the four kits + flanking (isolate a straggler) + ranged AI. Gentle.
+3. **Rest + Level-up (+ light story beat)** — recover; a level-up shows **stat gains + a
+   2nd-active unlock**; a short story/choice beat (flavor + a small logistics choice).
+   *Proves: leveling payoff, the story seam.*
+4. **Encounter 2 — "Ambush at the chokepoint" (synergy + fog)** — a **debuffer** enemy
+   (snare→Immobilize, so antidote matters) + a kiting archer + a chokepoint for the
+   tarpit; a group **hidden until scouted**. *Proves: synergy loop, statuses + cleanse,
+   fog AI, tarpit.*
+5. **Encounter 3 — "The holdout / mini-boss" (climax)** — a tougher mini-boss + escorts;
+   forces **charged commits** (Mend under fire, Mark Prey ramp), all four statuses live,
+   flank-aware AI punishing bad formation. Win = quest complete + capstone reward.
+   *Proves: ability economy under pressure, full synergy, smart AI.*
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -491,3 +536,10 @@ the caster-death cancel).
   the **character-boon hook** (loadout-slot growth at thresholds, future job evolutions /
   advanced-job gating). Emergent **generalist↔specialist** build axis. Primary now sets
   baseline frame + XP rate + loadout + class-gating (no stat penalty for switching).
+- **2026-06-07** — **Demo quest = the proof harness** (design it before graduating).
+  Locked container: a **short authored quest** (~3 escalating encounters + provisioning +
+  a mid rest/level-up), played in a **standalone demo mode** (bypasses guild/overworld,
+  reuses the combat pipeline with authored encounters). Needs an **authoring substrate**
+  (AuthoredEncounter/AuthoredQuest + a demo runner) — fills gap #4. Coverage checklist =
+  the success criteria. Proposed a 5-beat arc skeleton (provision → teach → rest/level →
+  synergy+fog → mini-boss climax); detailing each beat next.
