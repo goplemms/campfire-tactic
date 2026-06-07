@@ -25,11 +25,16 @@ import {
   bankerProtect,
   collectPoliticalIncome,
   ECONOMY,
+  // M11 — the data-driven event-node registry (D4/D23)
+  eventForNode,
+  storyForNode,
   type RunState,
   type MapNode,
   type NodePreview,
   type RestResult,
-  type EventResult,
+  type EventOutcome,
+  type EventChoice,
+  type EventKind,
   type Unit,
   type OverworldAbility,
   type ActionResult,
@@ -183,14 +188,26 @@ export class OverworldScene extends Phaser.Scene {
       this.drawNode(node, pos, { reachable, current, visited });
     }
 
-    this.setHint("Click a highlighted node to preview it; click again to commit. ⚔ combat starts a mission, ❄ rest recovers, $ event = a thief skims the purse.");
+    this.setHint("Click a node to preview it; click again to commit. ⚔ combat · ❄ rest · events: $ thief · ⚖ shop · ✚ recruiter · ? story.");
     this.previewText.setText("");
+  }
+
+  /** Glyph + tint for an event node, keyed by which event it runs (M11). */
+  private eventVisual(node: MapNode): { glyph: string; color: number } {
+    switch (eventForNode(this.run.seed, node).kind as EventKind) {
+      case "shop": return { glyph: "⚖", color: 0xc9a24a };
+      case "recruiter": return { glyph: "✚", color: 0x4aa6c9 };
+      case "story": return { glyph: "?", color: 0xb06fc0 };
+      case "thief":
+      default: return { glyph: "$", color: 0x8a6fc0 };
+    }
   }
 
   private drawNode(node: MapNode, pos: { x: number; y: number }, state: { reachable: boolean; current: boolean; visited: boolean }): void {
     const isFinal = node.layer === this.run.map.layers - 1;
+    const event = node.kind === "event" ? this.eventVisual(node) : undefined;
     const baseColor =
-      node.kind === "rest" ? 0x57b07a : node.kind === "event" ? 0x8a6fc0 : isFinal ? 0xd6b24a : 0xc6584f;
+      node.kind === "rest" ? 0x57b07a : event ? event.color : isFinal ? 0xd6b24a : 0xc6584f;
     const radius = isFinal ? 20 : 15;
 
     let alpha = 0.32;
@@ -204,8 +221,8 @@ export class OverworldScene extends Phaser.Scene {
     else circle.setStrokeStyle(1, 0x222b40, 0.8);
     this.nodeObjects.push(circle);
 
-    // Kind glyph.
-    const glyph = node.kind === "rest" ? "❄" : node.kind === "event" ? "$" : isFinal ? "★" : "⚔";
+    // Kind glyph (event nodes carry a per-event glyph, M11).
+    const glyph = node.kind === "rest" ? "❄" : event ? event.glyph : isFinal ? "★" : "⚔";
     const label = this.add.text(pos.x, pos.y, glyph, { color: "#11141b", fontSize: isFinal ? "16px" : "13px" }).setOrigin(0.5).setDepth(2);
     this.nodeObjects.push(label);
 
@@ -270,7 +287,11 @@ export class OverworldScene extends Phaser.Scene {
     this.refreshCampText();
 
     const isCombat = node.kind === "combat";
-    const kindLabel = isCombat ? `Combat (layer ${node.layer})` : node.kind === "event" ? "Event (Thief on the road)" : "Rest";
+    const kindLabel = isCombat
+      ? `Combat (layer ${node.layer})`
+      : node.kind === "event"
+        ? `Event — ${this.loop.eventDef().name}`
+        : "Rest";
     this.titleText.setText(`Camp — Night ${this.run.night + 1} · ${kindLabel}`);
     this.setHint("Take overworld actions (cooldown- and fatigue-gated), then commit. Cooldowns tick as you advance.");
 
@@ -353,7 +374,7 @@ export class OverworldScene extends Phaser.Scene {
     const commitLabel = isCombat
       ? "Commit — Begin Mission"
       : node.kind === "event"
-        ? "Commit — Brave the Road"
+        ? "Commit — Approach the Event"
         : "Commit — Make Camp (Rest)";
     const commit = this.makeTextButton(cx, contentBottom + 26, 240, 34, commitLabel, 0x2f6b46, 0x57b07a, () => this.commit());
     this.campObjects.push(commit.bg, commit.label);
@@ -525,26 +546,140 @@ export class OverworldScene extends Phaser.Scene {
     }
   }
 
-  // --- Event node (the thief, no battle, D30) -------------------------------
+  // --- Event nodes (the data-driven registry, M11, D4/D23) ------------------
 
+  /** Open the event screen for the current node, dispatched by its event kind. */
   private playEvent(): void {
-    const res = this.loop.eventNode();
-    this.refreshCampText();
-    this.showEventScreen(res);
+    const kind = this.loop.eventDef().kind;
+    switch (kind) {
+      case "shop": return this.showShopScreen();
+      case "recruiter": return this.showRecruiterScreen();
+      case "story": return this.showStoryScreen();
+      case "thief":
+      default: return this.playThiefEvent();
+    }
   }
 
-  private showEventScreen(res: EventResult): void {
+  /** Leave the event, record the node-step, and route to the map/terminal. */
+  private finishEvent(netGold: number): void {
+    this.loop.recordEventNight(netGold);
+    this.refreshCampText();
+    if (this.loop.isOver()) return this.runEnd();
+    if (this.loop.isComplete()) return this.runComplete();
+    this.drawMap();
+  }
+
+  // Thief — no choice; resolve the skim (auto path) and report it (D30).
+  private playThiefEvent(): void {
+    const res = this.loop.eventNode(); // auto-resolves the skim + records the night
+    this.refreshCampText();
+    const stolen = res.outcome.stolen ?? 0;
     const lines: string[] = [];
-    if (res.stolen > 0) {
-      lines.push(`A thief skimmed ${res.stolen}g off the purse on the road.`);
+    if (stolen > 0) {
+      lines.push(`A thief skimmed ${stolen}g off the purse on the road.`);
       const eco = this.run.overworld;
       if (eco.protection > 0) lines.push(`The Banker's protection blunted the loss (${Math.round(eco.protection * 100)}%).`);
       else lines.push("Buy the Banker's theft protection to blunt the next one.");
     } else {
       lines.push("The road was clear — the purse is intact.");
     }
-    lines.push(`Purse now ${res.purseAfter}g.`);
-    this.showOverlay("Thief on the Road", lines.join("\n"), res.stolen === 0, 520, 200, () => {
+    lines.push(`Purse now ${this.run.camp.gold}g.`);
+    this.showOverlay(res.def.name, lines.join("\n"), stolen === 0, 520, 200, () => {
+      if (this.loop.isOver()) return this.runEnd();
+      if (this.loop.isComplete()) return this.runComplete();
+      this.drawMap();
+    });
+  }
+
+  // Shop — buy supplies into storage from the purse (Merchant verb reused, D30/D34).
+  private spentAtShop = 0;
+  private showShopScreen(): void {
+    this.spentAtShop = 0;
+    this.renderEventChoicePanel("Roadside Market", "Spend purse gold on supplies into caravan storage — never the treasury.");
+  }
+
+  // Recruiter — hire a rolled body for the purse, joining the run party (D33).
+  private showRecruiterScreen(): void {
+    this.renderEventChoicePanel("Wandering Sellsword", "Hire a body for purse gold — it joins the caravan for the run.");
+  }
+
+  // Story — an authored choice; each option a deterministic outcome (D23).
+  private showStoryScreen(): void {
+    const node = this.campNode!;
+    const story = storyForNode(this.run.seed, node);
+    this.renderEventChoicePanel(this.loop.eventDef().name, story.prompt);
+  }
+
+  /**
+   * The shared event-choice panel (M11): the event's choices as buttons. Shop buys
+   * leave the panel open (buy several, then Leave); a recruiter/story pick is
+   * terminal (it resolves and continues). Re-rendered after each shop buy so the
+   * readouts (purse, availability) stay live.
+   */
+  private renderEventChoicePanel(title: string, body: string): void {
+    const def = this.loop.eventDef();
+    const choices = this.loop.eventChoices();
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2 - 20;
+    const w = 560;
+    const h = 130 + (choices.length + (def.kind === "shop" ? 1 : 0)) * 40;
+
+    for (const o of this.overlay) o.destroy();
+    this.overlay = [];
+    this.overlay.push(
+      this.add.rectangle(cx, cy, w, h, 0x11141b, 0.96).setStrokeStyle(2, 0x6f86c0).setDepth(20),
+      this.add.text(cx, cy - h / 2 + 24, title, { color: "#cdd7ee", fontSize: "22px" }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 58, `${body}\nPurse ${this.run.camp.gold}g`, { color: "#aab6d6", fontSize: "13px", align: "center", lineSpacing: 4, wordWrap: { width: w - 60 } }).setOrigin(0.5).setDepth(21),
+    );
+
+    let y = cy - h / 2 + 110;
+    for (const choice of choices) {
+      const enabled = choice.available;
+      const fill = enabled ? 0x2f4a6b : 0x232a3a;
+      const stroke = enabled ? 0x6f9bd0 : 0x3a4252;
+      const btn = this.makeTextButton(cx, y, 360, 30, choice.label, fill, stroke, () => {
+        if (!enabled) return;
+        this.onEventChoice(choice);
+      });
+      if (choice.detail) btn.bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => this.setHint(choice.detail!));
+      this.overlay.push(btn.bg, btn.label);
+      y += 40;
+    }
+
+    // A shop is a multi-buy surface — add an explicit Leave that records the step.
+    if (def.kind === "shop") {
+      const leave = this.makeTextButton(cx, y, 360, 30, "Leave the market", 0x2f6b46, 0x57b07a, () => {
+        for (const o of this.overlay) o.destroy();
+        this.overlay = [];
+        this.finishEvent(-this.spentAtShop);
+      });
+      this.overlay.push(leave.bg, leave.label);
+    }
+  }
+
+  /** Apply a chosen event option, then re-render (shop) or continue (terminal). */
+  private onEventChoice(choice: EventChoice): void {
+    const def = this.loop.eventDef();
+    const out: EventOutcome = this.loop.chooseEvent(choice.id);
+    this.refreshCampText();
+
+    if (def.kind === "shop" && choice.id.startsWith("buy:")) {
+      // Stay in the market: track spend, report, re-render for the next buy.
+      this.spentAtShop += -out.goldDelta;
+      this.setHint(out.summary);
+      this.renderEventChoicePanel("Roadside Market", "Spend purse gold on supplies into caravan storage — never the treasury.");
+      return;
+    }
+
+    // Recruiter / story: a terminal pick — record the step and report the outcome.
+    for (const o of this.overlay) o.destroy();
+    this.overlay = [];
+    const lines = [out.summary, "", `Purse now ${this.run.camp.gold}g.`];
+    if (out.recruited) lines.push(`${out.recruited.name} now rides with the caravan.`);
+    this.loop.recordEventNight(out.goldDelta);
+    this.refreshCampText();
+    const good = out.goldDelta >= 0 && out.moraleDelta >= 0;
+    this.showOverlay(def.name, lines.join("\n"), good, 520, 200, () => {
       if (this.loop.isOver()) return this.runEnd();
       if (this.loop.isComplete()) return this.runComplete();
       this.drawMap();

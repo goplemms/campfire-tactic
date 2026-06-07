@@ -11,6 +11,7 @@ import {
 } from "./theft";
 import { ENEMY_TEMPLATES } from "./generation";
 import { generateOverworld, getNode } from "./overworld";
+import { eventForNode } from "./node-events";
 
 let nextId = 0;
 function fighter(name: string): Unit {
@@ -121,14 +122,17 @@ describe("theft — the thief EVENT node skims on the overworld (D30)", () => {
     expect(thiefEventSkim(run2, node2).stolen).toBe(attempt.stolen);
   });
 
-  it("the map can generate thief event nodes; the runloop plays them as a purse skim", () => {
-    // Find a seed whose map contains an event node, then play it via the runloop.
+  it("the runloop plays a thief event node as a purse skim (M11 registry regression)", () => {
+    // Find a seed whose map has an event node that the M11 registry resolves to the
+    // **thief** event, then play it via the runloop and assert the skim.
     let seed = "";
     let eventId = "";
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       const s = `evt-${i}`;
       const map = generateOverworld(s);
-      const ev = map.order.map((id) => getNode(map, id)).find((n) => n.kind === "event");
+      const ev = map.order
+        .map((id) => getNode(map, id))
+        .find((n) => n.kind === "event" && eventForNode(s, n).kind === "thief");
       if (ev) {
         seed = s;
         eventId = ev.id;
@@ -139,7 +143,7 @@ describe("theft — the thief EVENT node skims on the overworld (D30)", () => {
 
     const run = createRun(seed, { party: [fighter("Rook")], difficultyId: "normal", gold: 100 });
     const loop = new RunLoop(run);
-    // Walk forward (pick-first) until positioned on the event node.
+    // Walk forward (pick-first) until positioned on the thief event node.
     let guard = 0;
     while (run.mapNodeId !== eventId && guard++ < 20) {
       const next = reachableNodes(run);
@@ -152,8 +156,9 @@ describe("theft — the thief EVENT node skims on the overworld (D30)", () => {
     if (run.mapNodeId === eventId) {
       const purseBefore = run.camp.gold;
       const res = loop.eventNode();
-      expect(res.stolen).toBeGreaterThanOrEqual(0);
-      expect(run.camp.gold).toBe(purseBefore - res.stolen);
+      expect(res.def.kind).toBe("thief");
+      expect(res.outcome.stolen).toBeGreaterThanOrEqual(0);
+      expect(run.camp.gold).toBe(purseBefore - (res.outcome.stolen ?? 0));
     }
   });
 });

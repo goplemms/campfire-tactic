@@ -17,11 +17,85 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | done (accepted as prototype 2026-06-06; numbers/behavior to tune later) |
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 | M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
+| M11 — The event-node batch (shops · recruiters · story events) | testable (code complete 2026-06-07; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** M11 — The event-node batch (shops · recruiters · story events): the
+  overworld's third node tier (`event`) goes from **one hard-coded thief** to a
+  **data-driven event registry** (D23's named "next batch"). **TESTABLE** — code complete
+  2026-06-07, awaiting the in-browser gate. `npm test` **269/269 green** (243 prior + 26
+  new), `npm run build` clean, `core/` free of Phaser/DOM **and** `Math.random` (the grep
+  test still enforces it). **Why:** M7 shipped the overworld frame with two node kinds
+  (combat | rest); M10 added a third, `event`, but with **exactly one** event behind it (the
+  thief, D30). M11 generalizes `event` into an **EventDef + one resolver** and ships four
+  events — the thief folded in, plus shop, recruiter, story/choice. **New events are new
+  records, not new branches** (D4); it **reuses M10's machinery** (shops call the Merchant
+  verb, recruiters call the recruitment rolls, the thief keeps `theft.ts`) — additive, no
+  new economy, no touch to the tactical core or the guild tier.
+  - **What landed (M11 core, all pure/headless):**
+    - `node-events.ts` — the **registry + one resolver** (D4). `EventKind`
+      (`thief | shop | recruiter | story`); an `EventDef` (`id`, `kind`, `name`, `teaser`,
+      `weight`, `autoResolve(run, node)`); an `EVENTS` registry + `getEvent`.
+      **`eventForNode(seed, node)`** = a deterministic **weighted pick** from
+      `streamFor(seed, "event:<nodeId>")` (stable per node for a seed, D22). One interpreter:
+      `resolveEvent` (headless auto path via `autoResolve`), `eventChoices`/`chooseEventOption`
+      (interactive), returning a structured `EventOutcome`
+      (goldDelta/morale/fatigue/materials/recruited/stolen/summary).
+      - **shop** — `shopStock` (seeded selection from `MATERIALS`, node-tier priced via
+        `merchantPrice`), `shopBuy` reusing `merchantBuy` (purse → storage under the cap D6,
+        never the treasury D34). Headless default: buy nothing.
+      - **recruiter** — `recruiterOffer` (a `rollMercenary` body **node-scoped** so ids never
+        collide) + `hireRecruit` (purse-debited; the body joins `run.party` immediately).
+        Honors the temp↔permanent flag (D33) — a rolled body is generic/temporary; an authored
+        one would join permanently (authored cast still deferred). Headless default: decline.
+      - **story** — `STORIES` (authored-as-data: a prompt + 2 options, each a deterministic
+        `StoryOutcomeSpec`), `storyForNode` (seeded pick), `applyStoryChoice` (mutates
+        purse/morale/fatigue + drops a material reward under the cap; a `goldRoll` rolls from
+        `streamFor`). Two sample beats (wounded traveler / abandoned shrine) prove the pattern.
+        Headless default: take a seed-picked option.
+      - **thief** — an `EventDef` whose `autoResolve` calls `theft.thiefEventSkim` (the M10
+        skim folded in, blunted by Banker protection D30).
+    - `runloop.ts` — `eventNode()` is now a **dispatcher** over `eventForNode` (auto-resolving
+      for the headless path; used by `playCurrentNode`/`autoTraverse`); added `eventDef()`,
+      `eventChoices()`, `chooseEvent()`, `recordEventNight()` for the interactive render. The
+      old thief-only `EventResult` became `EventResolution { def, outcome, over }`.
+    - `intel.ts` — `previewNode`'s event branch shows the **picked event's banded teaser**
+      (D24), stable for a seed. Exported via `core/index.ts`.
+  - **What landed (M11 render):** `OverworldScene` opens an **event screen dispatched by
+    kind** — shop (buy buttons spending the purse + a Leave that records the step), recruiter
+    (the offered body + Hire/Decline), story (the prompt + choice buttons → outcome), thief
+    (the existing skim/recover result). **Distinct glyphs/tints per event kind** on the map
+    ($ thief purple · ⚖ shop amber · ✚ recruiter teal · ? story violet) + the banded teaser on
+    the preview; reuses the existing `showOverlay`/camp-button helpers.
+  - **Tests (new, 26):** `node-events.test.ts` — the registry is data (≥4 events, all four
+    kinds, each with an autoResolve); event-pick determinism (`eventForNode` stable for a seed,
+    nodes/seeds diverge, every outcome roll reproduces); shop (node-tier price town<wild, buys
+    from the purse under the cap, refuses when full/poor, headless no-op); recruiter
+    (deterministic node-scoped roll, hire debits the purse + joins `run.party`, decline is a
+    clean no-op, temp↔permanent honored, headless decline); story (story+choices stable for a
+    seed, each option's deterministic outcome, a seeded gold roll reproduces, a pay can't go
+    negative); thief regression (skims via the registry, Banker protection blunts it);
+    interpreter dispatch + a full event-node map auto-traverses identically for a seed. Updated
+    `theft.test.ts`'s one runloop-playing case to find a **thief-kind** event node via the
+    registry (the pure `theft.ts` function tests are untouched).
+  - **Seams honored (thin, full behavior later):** **narrative** = mechanical choice-events
+    (data + seeded outcomes), **not** a quest-chain/dialogue engine (D23); **authored cast**
+    stays the `Unit.authored` flag only — recruiters offer rolled (generic) bodies, an authored
+    companion's fixed identity + recruit hooks stay deferred (D33); **shops** sell existing
+    materials, no sell-back / crafting / haggling / new currency (D34).
+  - **Out of scope (not built):** a dialogue/quest-chain engine; new currencies or economy
+    verbs (M10 covers those); the authored companion/lord cast + data shape (D33); the save
+    system + lord game-over (D27); shop sell-back / item crafting; any change to the tactical
+    battle or the guild dispatch/return tier.
+  - **Next:** confirm the in-browser gate (a seeded run's event nodes present a shop / recruiter
+    / story / thief; replay reproduces which event fires + every number), then PROGRESS M11 →
+    done + the M11 row in plan.md; commit/push.
+
+<details><summary>M10 — The gold economy & recruitment — TESTABLE (code complete 2026-06-07)</summary>
 
 - **Milestone:** M10 — The gold economy & recruitment (D28/D30/D33/D34): the two pools
   get **verbs** and the roster becomes a **loop**. **TESTABLE** — code complete
@@ -89,6 +163,8 @@ States: `todo` → `in-progress` → `testable` → `done`
     each class's one verb; a thief steals + kill-to-recover or flees, blunted by the
     Banker; the merc pool refreshes + bribe/rescue recruits; replay reproduces the
     numbers), then PROGRESS M10 → done + the M10 row in plan.md; commit/push.
+
+</details>
 
 <details><summary>M9 — The guild & caravan tier — TESTABLE (code complete 2026-06-06)</summary>
 
@@ -573,11 +649,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step:** confirm the **M10** in-browser gate (the gold economy verbs + theft +
-  recruitment), then mark M10 done; M9's hall-flow gate is still pending too (both are
-  code-complete/testable). With M10 the post-M7 batch (M8/M9/M10) is built — the next
-  build is open (per the run-frame's queued batch: terminal-ending design, shops/recruiter/
-  story event nodes, the save system + lords). (M8 accepted as the overworld-mechanics
+- **Next step:** confirm the **M11** in-browser gate (a seeded run's event nodes present a
+  shop / recruiter / story / thief, replay reproducing which event fires + every number),
+  then mark M11 done. The **M9/M10** hall-flow + economy gates are still pending too (all
+  three are code-complete/testable). With M11 the queued **event-node batch** (D23's "next
+  batch") is built — the remaining run-frame queue is open: the **terminal-ending design**
+  and the **save system + lord game-over** (D27). (M8 accepted as the overworld-mechanics
   prototype; its number/behavior tuning is a tracked non-blocking follow-up.)
 - **Blockers:** none.
 
