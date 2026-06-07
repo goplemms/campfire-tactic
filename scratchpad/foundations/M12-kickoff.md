@@ -147,17 +147,18 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
 
 ## Open discussion queue (one at a time)
 
-- **C — taunt extent.** *Largely resolved:* passive formation-protection comes from
-  **flanking**; the Knight's *active* aggro tool is the **"Hold the Line" channel**.
-  The only residue is **making the AI honor taunt**, which lives in **D**. Confirm
-  the exact taunt effect when we spec the Knight's kit.
-- **Class kits** *(in progress — one class at a time for identity; Knight first)*.
-  The concrete per-class skill list (Knight → Archer → Scout → Medic).
-- **Leveling payoff specifics (#2) + job-model parameters.** Stat-growth per class vs
-  skill-unlock breakpoints vs both; the growth curve; **plus** the deferred job-model
-  parameters (jobs-per-unit, non-primary XP rate, per-job vs per-unit levels, slots).
-- **D — AI scope.** How far the AI upgrade goes (range use, skill use, flank
-  exploit/avoid, fog use) for the first slice vs deferred.
+- ✅ **C — taunt extent.** *Resolved:* no hard taunt — flanking (passive formation
+  protection) + the Heavy Knight's **tarpit** (tempo denial) carry C. Taunt status
+  reserved. AI-honors-debuffs lives in D.
+- ✅ **Class kits.** Roster complete & locked (Heavy Knight · Hunter · Scout · Medic).
+- ✅ **Status set (gap F).** Locked — Slowed / Exposed / Immobilized / Hastened, with
+  the visual-tracker requirement + authoring pattern.
+- **Leveling payoff specifics (#2) + job-model parameters** *(NEXT)*. Stat-growth vs
+  skill-unlock breakpoints vs both; **ability scaling by level** (per the locked
+  principle); the growth curve; **plus** the deferred job-model parameters
+  (jobs-per-unit, non-primary XP rate, per-job vs per-unit levels, slots).
+- **D — AI scope.** How far the AI upgrade goes (range use, ability use, flank
+  exploit/avoid, honor-debuffs, fog use) for the first slice vs deferred.
 
 ## Class kits
 
@@ -254,6 +255,47 @@ offense; that waits for a future heavy/caster.
 > (playmaker) · Medic (sustain). Next: re-derive the **status set**, then **leveling
 > payoff + job-model parameters**, then **D (AI scope)**.
 
+### Status set (gap F) — LOCKED *(2026-06-07)*
+
+Derived from the kits; deliberately tight. A status has **teeth** only when a consuming
+system reads it (see the authoring pattern below). The existing `status.ts`
+(`StatusInstance` + apply/has/remove/tick) is the substrate; today only **Immobilized**
+has teeth — the rest is what M12 adds.
+
+| Status | Type | Teeth (the reader) | Applied by | Decay |
+|---|---|---|---|---|
+| **Slowed** | debuff | CT gain reduced — `clock` (`effectiveSpeed`); the tarpit is the extreme (speed → 1). Punished by Hunter **Deadeye**. | Heavy Knight tarpit | **aura-maintained** |
+| **Exposed** | debuff | takes **+damage** — `combat.computeDamage`. Punished by **Deadeye**. | Scout Expose | duration |
+| **Immobilized** | debuff | **can't move** — AI/turn (`isImmobilized`); also the flank body-count. Punished by **Deadeye**. | enemies/AI, snares (*exists*) | duration |
+| **Hastened** | buff | CT gain **boosted** ~1 turn — `clock`. | Medic stimulant rider | duration |
+
+- **Cleanse** (Medic antidote) removes any one **debuff**. **Deadeye** (Hunter) punishes
+  a target carrying any **debuff**. Both read the **`kind` classifier**, not an id list.
+- **Reserved (not built):** Taunt, Guarded. **Deferred (demo may add):** Poison/DoT.
+
+**Render requirement — visual trackers (locked):** every status needs an **at-a-glance
+indicator** on the unit token (a small **icon/badge + a tint**, with a tooltip on hover)
+so the player reads the board without clicking. Driven by a **status→visual registry**
+(data) in `BattleScene` — a new status gets a tracker by adding one registry entry, not
+bespoke draw code.
+
+**Authoring pattern** *(graduates to `docs/guides/adding-statuses.md` on M12 ship,
+mirroring `adding-abilities.md`).* A status with teeth = up to 4 small parts:
+
+1. **Data** — an id constant + builder in `status.ts` (cf. `IMMOBILIZED`/`immobilized()`),
+   a **`kind: "debuff" | "buff"`** classifier, optional `data` magnitude, and a
+   `hasStatus`-based read predicate (cf. `isImmobilized`).
+2. **Teeth** — exactly **one** consuming system reads it: CT → `clock.ts`
+   (`effectiveSpeed`); damage → `combat.ts` (`computeDamage`); targeting → `ai.ts`;
+   turn-start/DoT → `tickStatuses`. **Don't scatter reads.**
+3. **Cross-cutting hooks pick it up *by classifier***, not by id list — cleanse ("remove
+   a debuff"), Deadeye ("is debuffed"), and the tracker tint all read `kind`. So adding
+   **Poison** later = one record + a turn-start read-hook; cleanse/Deadeye/tracker need
+   **zero** edits. (This is the maintenance win the classifier buys.)
+4. **Aura vs duration** — duration statuses decay via `tickStatuses`; aura-maintained
+   ones (the tarpit) are re-applied/cleared each tick by the emitting system.
+5. **Test** — `status.test.ts`: apply → the reader changes a decision → cleanse removes.
+
 > **Status set — re-derive after the roster is complete.** Likely survivors:
 > **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
 > flanking + tarpit). **Guarded** lost its Heavy-Knight home — find one (Medic?) or drop.
@@ -318,3 +360,11 @@ offense; that waits for a future heavy/caster.
   **scale by level/resource not small-vs-big**, and the **combat↔logistics bridge**
   (abilities may consume consumables; first expression = Medic Heal; ship minimal).
   Cleanse folds into the antidote rider. Guarded status dropped/reserved (like Taunt).
+- **2026-06-07** — **Status set LOCKED** (gap F): tight set of **Slowed / Exposed /
+  Immobilized / Hastened** (3 debuffs + 1 buff), each with a single read-hook (clock /
+  computeDamage / AI). Cross-cutting consumers (cleanse, Deadeye, tracker tint) key off
+  a **`kind: debuff|buff` classifier**, not id lists — so adding e.g. Poison later is
+  one record + one read-hook. Added a **visual-tracker render requirement** (icon/badge
+  + tint + tooltip via a status→visual registry) and a **status authoring pattern**
+  (graduates to `docs/guides/adding-statuses.md` on ship). Taunt/Guarded reserved;
+  Poison/DoT deferred to the demo quest.
