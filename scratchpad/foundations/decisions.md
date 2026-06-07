@@ -737,7 +737,9 @@ trail of reasoning stays intact.
     using it" and "non-combat use-bonus" are one mechanism.)
 - **Spec:** [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
   (leveling), [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md).
-- **Superseded by:** —
+- **Superseded by:** **D38** (job model) + **D39** (hybrid leveling) — the deferred seam,
+  now decided (D38/D39 refine the slot model and replace "primary defines stats" with
+  permanent cumulative per-job stat gains).
 
 ## D33 — Recruitment: a three-tier roster (the BG3 split)
 
@@ -856,4 +858,141 @@ trail of reasoning stays intact.
 - **Spec:** [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md)
   (hook surface), [`docs/design/systems/stats.md`](../../docs/design/systems/stats.md)
   (Fatigue).
+- **Superseded by:** —
+
+## D36 — Positional damage: support/pincer flanking (gap B, first half)
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** `computeDamage` is flat `max(1, atk−def)` — an "isometric tactics" game
+  where position barely matters. We want positional payoff without a facing/direction
+  system (none exists, and adding one is heavy).
+- **Decision:** A **melee** attacker gets a flat **+attack bonus** (≈+4, tunable) vs a
+  target **T** when **≥2 of the attacker's side are adjacent to T AND no unit on T's side
+  is adjacent to T** — *gang an isolated target; stay in formation and you're safe.*
+  **Melee-only** (ranged already has a DPS/safety edge), **symmetric**, **binary**.
+  Immobilized units count as a body (pincer/shelter); captured/downed don't. **Height/
+  elevation deferred** (no tile elevation data yet). The AI must learn both halves
+  (exploit + avoid) — folded into D42.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Flanking.
+- **Superseded by:** —
+
+## D37 — Combat ability economy is *time* (extends D5)
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** Combat skills only cost the Act → best-button spam (infinite Medic heal,
+  a power strike always beating a basic). D5's charged abilities sit built-but-unused.
+- **Decision:** The combat economy is **time**, paid on the CT clock — **no MP / no
+  hoardable pools** (D35). Three layers: the **Act-vs-Move spend-down** (built), **charge-
+  time** the offensive spine (commit now → resolve N ticks later via the `ScheduledEffect`
+  gauge; arbitrary-N duration, displayed as "~turns"), and a **sparing cooldown** only on
+  instant utility. **Basic attack = the instant floor.** Abilities differ in **kind** and
+  scale by level/resource — never a "small vs big" duplicate. **Channels** = the dual of
+  charged, two flavors: **maintained-stance** (caster keeps acting — built: the Hunter's
+  Mark Prey) and **locked-emanation** (deferred to casters). **Fizzle** is a data-driven,
+  extensible condition set (ship caster-death-cancels first).
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Combat ability economy.
+- **Superseded by:** —
+
+## D38 — The job model: any job can be primary; multi-job; flexible loadout slots
+
+- **Status:** Decided (design pass, 2026-06-07). **Settles D32's job-model half.**
+- **Context:** D32 left a thin "FFT secondary-class" seam; the combat/non-combat split
+  (a `noncombat` flag gating the field) is too rigid.
+- **Decision:** The **split dissolves** — *any* job (Knight, Chef, …) can be a unit's
+  **primary**. "Primary" only sets the **XP-gain rate** and **class-gated content** (events/
+  recruits that check the party's classes). Units **hold multiple jobs** and draw skills
+  from all, bounded by **flexible loadout slots** (primary's full kit + `loadoutSlots`
+  secondary abilities; **default 1**, a general slot system whose cap is a tunable
+  character-boon). `isCombatant` stops reading `noncombat`.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Job model.
+- **Superseded by:** —
+
+## D39 — Hybrid leveling & growth (fixes #2; settles D32's leveling half)
+
+- **Status:** Decided (design pass, 2026-06-07, rev.). **Settles D32's leveling half.**
+- **Context:** `unit.level`/`xp` is read by nothing — leveling has no payoff (#2).
+- **Decision:** **Two axes.** **Character level** (the existing `level`/`xp`) = breadth/
+  meta: the XP backbone + universal HP + a **boon hook at thresholds** (loadout-slot
+  growth, future job evolutions/gating). **Job levels** (per job) = depth/specialty:
+  **ability scaling** (each ability scales with its own job's level), a **skill-unlock
+  breakpoint** (2nd active), and **permanent, cumulative stat gains** — **+1 to all main
+  stats (universal floor) + a job-weighted bonus** (a **growth table keyed by stat**, so a
+  future Seer/magic slots in). Primary sets the **baseline frame**; stats are kept
+  forever (no "weak body" on switching). Emergent **generalist↔specialist** build axis.
+  XP: character + primary full rate, secondaries trickle.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Leveling & growth.
+- **Superseded by:** —
+
+## D40 — The combat-depth class roster (4 classes; 2-active+1-passive; synergy-first)
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** Only one combat kit (Soldier) exists; the genre's fun is role interplay.
+- **Decision:** Four interlocking martial classes, each **2 active + 1 passive** (passive =
+  the identity anchor) + the universal basic attack & Defend: **Heavy Knight** (control —
+  Hold-the-Line tarpit passive · Shove (D19 forced move) · directional Cleave), **Hunter**
+  (ranged prey — Deadeye passive · Mark Prey channel · Reposition; ranged via an
+  `attackRange` stat), **Scout** (playmaker — Flanker passive · Dash · Expose), **Medic**
+  (sustain — Triage passive · herb-fuelled Heal · charged Mend). **Synergy-first** (combat
+  rewards composition → logistics matters); the **combat↔logistics bridge** (abilities may
+  consume provisioned consumables, e.g. the Medic's herbs — salve/stimulant/antidote).
+  Charged *offense* + AoE + magic deferred to future heavy/caster classes.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Class kits.
+- **Superseded by:** —
+
+## D41 — Statuses with teeth + the universal Defend action (gap F)
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** Only Immobilized is honored; Taunt/Slow/Expose/etc. are cosmetic.
+- **Decision:** A tight set — **Slowed, Exposed, Immobilized** (debuffs) + **Hastened,
+  Guarded** (buffs) — each with **exactly one read-hook** (clock / `computeDamage` / AI).
+  Cross-cutting consumers (the Medic's cleanse, the Hunter's Deadeye, the tracker tint)
+  key off a **`kind: "debuff" | "buff"` classifier**, not id lists — so a new status (e.g.
+  Poison) is one record + one hook. **Visual trackers required** (icon/badge + tint +
+  tooltip via a status→visual registry). A **universal Defend action** (instant Act →
+  self-Guarded until next turn) **re-homes Guarded** and gives the Chef a field verb;
+  **standing orders** (auto-Defend until manual control) designed, built later. Authoring
+  pattern graduates to `docs/guides/adding-statuses.md`.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Status set; Defend & standing orders.
+- **Superseded by:** —
+
+## D42 — The scoring combat AI + fog-respecting combat (gap D)
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** `ai.ts` is "A* to nearest, basic melee" — no range, no abilities, no
+  flanking, never consults `canSee`. The new kits break it.
+- **Decision:** Rewrite `planTurn` into a **light scoring AI** (enumerate reachable
+  `(destination, action)` plans, score, pick). Must-haves: **ranged attacks, flank
+  exploit+avoid, tarpit respect, target priority** (not nearest). In-scope optional:
+  **enemy ability use** (≥1 debuffer), **charge/channel-interrupt** awareness, and
+  **fog-respecting AI** (acts on `canSee` — elevating vision/**D18** from cosmetic to
+  load-bearing; needs an unseen-enemy fallback). Difficulty-scaled competence deferred.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Enemy AI.
+- **Superseded by:** —
+
+## D43 — Graded failure: objective failure ≠ party wipe
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** Combat resolution is binary win/lose and a lost battle ends the run — a
+  lost *objective* shouldn't equal a dead party.
+- **Decision:** Failure is **graded**. A **quest/objective failure** (a timer lost, a boss
+  escapes, an objective unmet) is **survivable**: it costs the **reward ± downed casualties
+  (resolved per D9, not auto-permadeath)** and the **party retreats alive**. Only losing
+  every combat-capable unit is a true **wipe**. Fits the **guild return-vs-wipe** model (a
+  failed quest → the caravan *returns* without the prize; a wipe → the caravan is *lost*).
+  General case = an `objective-failure` resolution distinct from win/wipe.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Encounter 3; graded-failure principle.
+- **Superseded by:** —
+
+## D44 — The demo quest ("The Hollow Mill") + the authored-content substrate
+
+- **Status:** Decided (design pass, 2026-06-07)
+- **Context:** All content is procedural (`generation.ts` off a seed) — no way to author a
+  tuned, hand-crafted slice (gap #4). The M12 decisions need a **proof harness**.
+- **Decision:** A **short authored quest** — *The Hollow Mill*, a 5-beat arc (Provision →
+  Skirmish → Rest/Level-up → Ambush at the chokepoint → Captain's Holdout) tuned so every
+  M12 decision has a visible moment (teach → combine → test). Played in a **standalone demo
+  mode** (bypasses the guild/overworld; reuses the combat pipeline). Requires an
+  **authoring substrate** (`AuthoredEncounter` / `AuthoredQuest` + a demo runner) — the
+  first hand-crafted-content shape (fills gap #4). It is the **proof before finalizing**.
+- **Spec:** [`M12-kickoff.md`](M12-kickoff.md) → Demo quest.
 - **Superseded by:** —

@@ -18,11 +18,26 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 | M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
 | M11 — The event-node batch (shops · recruiters · story events) | done (in-browser gate confirmed 2026-06-07; merged PR #12) |
+| M12 — Combat depth, the class slice & the demo-quest proof | design finalized 2026-06-07 (D36–D44); ready to build |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
+
+- **Milestone:** **M12 — Combat depth, the class slice & the demo-quest proof.**
+  **DESIGN FINALIZED 2026-06-07; ready to build (no code yet).** A long design session
+  turned the "evaluate for baseline fun" ask into a full, locked design: the four-class
+  combat slice (Heavy Knight · Hunter · Scout · Medic) + the combat depth it forces
+  (flanking, the time-based ability economy, statuses with teeth, hybrid leveling, a
+  scoring AI) + a hand-crafted **demo quest** ("The Hollow Mill") as the proof harness.
+  All of it is captured in [`M12-kickoff.md`](M12-kickoff.md), logged as decisions
+  **D36–D44** in [`decisions.md`](decisions.md), rowed in [`plan.md`](plan.md), and the
+  build is kicked off by [`M12-build-prompt.md`](M12-build-prompt.md). **Next: build it**
+  (start at Phase 1 in the build prompt — the combat-depth substrate). The whole design
+  lives on branch `claude/testability-gaps-eval-YO0Kv`.
+
+<details><summary>M11 — The event-node batch — DONE (merged PR #12, 2026-06-07)</summary>
 
 - **Milestone:** M11 — The event-node batch (shops · recruiters · story events): the
   overworld's third node tier (`event`) goes from **one hard-coded thief** to a
@@ -95,6 +110,8 @@ States: `todo` → `in-progress` → `testable` → `done`
     / story / thief, and replaying the seed reproduces which event fires + every number. Merged
     to main as PR #12. (Demo seed `demo-43` chains story→shop→recruiter on one path, with the
     thief on the alternate first branch — a clean replay-determinism showcase.)
+
+</details>
 
 <details><summary>M10 — The gold economy & recruitment — TESTABLE (code complete 2026-06-07)</summary>
 
