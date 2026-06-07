@@ -427,7 +427,10 @@ fog-respecting AI (scouting first pays off).
   a starting party + starting inventory.
 - a **demo runner/scene** + a demo entry point that walks the beats.
 
-**Arc skeleton — PROPOSED (confirm, then detail each beat one at a time):**
+**Arc skeleton — CONFIRMED *(2026-06-07)*. Theme: "The Hollow Mill"** — a derelict
+watermill bandits have holed up in (chokepoints + sluice gates + a bandit captain
+mini-boss; legible enemy set: thugs · an archer · a snare-trapper debuffer · the
+captain). Detail each beat one at a time.
 1. **Provision (camp)** — load the Medic's herbs (salve/stimulant/antidote) under the
    storage cap; a brief intel preview. *Proves: logistics-bridge setup, intel.*
 2. **Encounter 1 — "Skirmish" (teach)** — ~4 loose enemies incl. 1 archer, open map.
