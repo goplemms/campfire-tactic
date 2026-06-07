@@ -161,6 +161,8 @@ export interface Unit extends UnitStats {
   thief: boolean;
   /** Reserved standing order (D41), e.g. `"defend"`; undefined = manual control. */
   standingOrder?: string;
+  /** Authored ambush body hidden until scouted (D44); a render/fog flag. */
+  hidden?: boolean;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -210,6 +212,7 @@ export function createUnit(spec: UnitSpec): Unit {
     authored: spec.authored ?? false,
     thief: spec.thief ?? false,
     standingOrder: spec.standingOrder,
+    hidden: false,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,
