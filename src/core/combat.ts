@@ -16,8 +16,14 @@ import {
   statusAmount,
   markOf,
   markBonus,
+  applyStatus,
+  removeStatus,
+  slowed,
   EXPOSED,
   GUARDED,
+  SLOWED,
+  SWIFT,
+  STATUS_TUNING,
 } from "./status";
 
 /** Manhattan distance — matches the grid's 4-connected movement. */
@@ -51,7 +57,38 @@ export const PASSIVE = {
   deadeye: "deadeye",
   /** Medic Triage: missing-HP heal-scaling factor (read by the heal resolver). */
   triage: "triage",
+  /** Heavy Knight Hold-the-Line: emits the speed-1 tarpit to adjacent foes. */
+  tarpit: "tarpit",
 } as const;
+
+/** A unit's **effective** move this turn: base move + the Swift buff (Dash). */
+export function effectiveMove(unit: Unit): number {
+  return unit.moveRange + statusAmount(unit, SWIFT);
+}
+
+/**
+ * Recompute the Heavy Knight's **Hold the Line** tarpit aura (D40), an
+ * aura-maintained status (D41): every foe orthogonally adjacent to a tarpit unit
+ * is Slowed to speed 1 while in the ring, cleared on leaving. Re-run whenever
+ * positions change (after a move) so the clock reads the right speed. Only the
+ * aura's own Slowed is added/removed — a skill-applied Slow is left alone.
+ */
+export function refreshAuras(units: readonly Unit[]): void {
+  const rings = units.filter((u) => u.alive && !u.captured && u.passives[PASSIVE.tarpit]);
+  for (const u of units) {
+    if (!u.alive || u.captured) continue;
+    const inRing = rings.some((k) => k.side !== u.side && isAdjacent(k.pos, u.pos));
+    const cur = u.statuses.find((s) => s.id === SLOWED && s.data?.aura === "tarpit");
+    if (inRing && !cur) {
+      applyStatus(u, {
+        ...slowed(Infinity, STATUS_TUNING.tarpitSpeed),
+        data: { amount: STATUS_TUNING.tarpitSpeed, aura: "tarpit" },
+      });
+    } else if (!inRing && cur) {
+      removeStatus(u, SLOWED);
+    }
+  }
+}
 
 /**
  * Count living, non-captured units on `side` orthogonally adjacent to `target`

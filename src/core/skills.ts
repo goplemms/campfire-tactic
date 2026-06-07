@@ -14,7 +14,8 @@ import type { Unit } from "./units";
 import type { EventBus } from "./events";
 import type { StatusInstance } from "./status";
 import { resolveAttack, manhattan, PASSIVE } from "./combat";
-import { applyStatus, markPrey, cleanseOne } from "./status";
+import { applyStatus, markPrey, cleanseOne, hastened } from "./status";
+import { countOf, removeItem, type Inventory } from "./inventory";
 
 /** The ordered phases of the game pipeline (D3). */
 export type Phase = "meta" | "deployment" | "battle" | "resolution";
@@ -26,10 +27,45 @@ export type Phase = "meta" | "deployment" | "battle" | "resolution";
  */
 export type SkillTarget = "self" | "enemy" | "ally" | "camp" | "party";
 
-/** A heavier strike: deal damage as if the caster's attack were `+bonusAttack`. */
+/**
+ * A heavier strike: deal damage as if the caster's attack were `+bonusAttack`,
+ * optionally applying `onHit` to the target afterwards (the Scout's Expose =
+ * damage **and** Exposed). The strike still earns flanking when melee.
+ */
 export interface DamageEffect {
   kind: "damage";
   bonusAttack: number;
+  /** A status applied to the target on a hit (Expose → Exposed). */
+  onHit?: Omit<StatusInstance, "data"> & { data?: Record<string, unknown> };
+}
+/**
+ * Forced movement (D19): push the target away from the caster `tiles` tiles,
+ * stopping at blockers; a forced entry onto an entity tile fires it. Resolved by
+ * the {@link "./turn".Battle} (it needs the grid + roster).
+ */
+export interface ForcedMoveEffect {
+  kind: "forced-move";
+  tiles: number;
+  /** Bonus damage dealt with the shove (0 = pure displacement). */
+  bonusAttack?: number;
+}
+/**
+ * Directional melee AoE (D40): hit every foe in the up-to-`reach` tiles of a
+ * chosen-at-cast 90° arc. Resolved by {@link "./turn".Battle.cleave}.
+ */
+export interface CleaveEffect {
+  kind: "cleave";
+  bonusAttack: number;
+  /** Tiles deep the arc reaches in the chosen direction. */
+  reach: number;
+}
+/**
+ * The Medic's herb-fuelled Heal marker (D40). The actual resolution consumes a
+ * chosen herb from the stash via {@link resolveMedHeal} ({@link "./turn".Battle
+ * .useHeal}); this record just surfaces the button.
+ */
+export interface MedHealEffect {
+  kind: "med-heal";
 }
 /** Restore HP to the target (capped at maxHp). */
 export interface HealEffect {
@@ -90,6 +126,9 @@ export type SkillEffect =
   | ChannelEffect
   | TriageHealEffect
   | CleanseEffect
+  | ForcedMoveEffect
+  | CleaveEffect
+  | MedHealEffect
   | EconomyEffect
   | MoraleEffect
   | PlaceTrapEffect;
@@ -134,6 +173,12 @@ export interface SkillDef {
   spend: "act" | "move";
   /** Optional charge/cooldown cost beyond the Act (D37). */
   cost?: SkillCost;
+  /**
+   * Job level at which this skill unlocks (D39). Defaults to 1 (available from
+   * the start). The four kits start with their passive + one active and earn the
+   * **2nd active at level 2** ({@link "./leveling".unlockedSkills}).
+   */
+  unlockLevel?: number;
   effect: SkillEffect;
 }
 
@@ -146,6 +191,48 @@ export interface SkillOutcome {
   cleansed?: string;
   /** True if the skill was committed as a charge and will resolve later (D37). */
   charging?: boolean;
+}
+
+/** The Medic's Heal tuning (D40) — magnitudes for the bridge, a numbers pass later. */
+export const MED_HEAL = {
+  /** Base HP a Heal restores before Triage scaling. */
+  base: 8,
+  /** Salve rider: extra HP healed. */
+  salveBonus: 8,
+  /** Stimulant rider: Hastened duration applied to the target. */
+  stimulantDuration: 1,
+} as const;
+
+/**
+ * The Medic's **Heal** (D40 combat↔logistics bridge): consume one medical herb
+ * from the shared stash and heal `target`, with a **rider keyed by the herb**:
+ * salve → bigger heal; stimulant → Hastened; antidote → cleanse a debuff. Base
+ * heal scales with the Medic's Triage passive (more wounded → more healing).
+ * Returns an empty outcome (no heal) if the herb isn't carried.
+ */
+export function resolveMedHeal(
+  medic: Unit,
+  target: Unit,
+  herbId: string,
+  inv: Inventory,
+  bus?: EventBus,
+): SkillOutcome {
+  if (countOf(inv, herbId) < 1) return {};
+  removeItem(inv, herbId, 1);
+
+  const triage = medic.passives[PASSIVE.triage] ?? 0;
+  const missing = target.maxHp - target.hp;
+  let amount = MED_HEAL.base + Math.floor(triage * missing);
+  if (herbId === "salve") amount += MED_HEAL.salveBonus;
+
+  const out: SkillOutcome = applyHeal(medic, target, amount, bus);
+  if (herbId === "stimulant") {
+    applyStatus(target, hastened(MED_HEAL.stimulantDuration));
+    out.status = "hastened";
+  } else if (herbId === "antidote") {
+    out.cleansed = cleanseOne(target)?.id;
+  }
+  return out;
 }
 
 /** Restore HP to a target (capped at maxHp), firing `unitHealed`. */
@@ -209,7 +296,12 @@ export function resolveSkill(
         caster.attack + effect.bonusAttack,
         units,
       );
-      return { damage };
+      const out: SkillOutcome = { damage };
+      if (effect.onHit && target.alive) {
+        applyStatus(target, { ...effect.onHit });
+        out.status = effect.onHit.id;
+      }
+      return out;
     }
     case "heal": {
       return applyHeal(caster, target, effect.amount, bus);

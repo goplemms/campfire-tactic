@@ -26,6 +26,13 @@ export interface MaterialDef {
   recoverable: boolean;
   /** For buildable entities (a trap): damage it deals. Optional. */
   damage?: number;
+  /**
+   * Medical consumable (D40 combat↔logistics bridge): the Medic's Heal consumes
+   * one of these and applies a **rider keyed by this id** (salve → +healing;
+   * stimulant → Hastened; antidote → cleanse a debuff). Provisioning thus has a
+   * combat voice — the antidote answer to a snare must be *bought*, not free.
+   */
+  medical?: boolean;
 }
 
 /** The carried stash: a storage cap (in slots) and per-material counts. */
@@ -51,6 +58,11 @@ export const MATERIALS: Record<string, MaterialDef> = {
     slotCost: 1,
     recoverable: false, // consumed on use (rune dust)
   },
+  // The three medical herbs (D40) — the Medic's Heal fuel. Each rider is keyed
+  // by id in resolveMedHeal; they stack so a slot carries several.
+  salve: { id: "salve", name: "Salve", stackSize: 4, slotCost: 1, recoverable: false, medical: true },
+  stimulant: { id: "stimulant", name: "Stimulant", stackSize: 4, slotCost: 1, recoverable: false, medical: true },
+  antidote: { id: "antidote", name: "Antidote", stackSize: 4, slotCost: 1, recoverable: false, medical: true },
 };
 
 /** Look up a material definition by id. */

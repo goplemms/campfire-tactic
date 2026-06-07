@@ -84,6 +84,12 @@ export interface UnitSpec extends UnitStats {
    * before it escapes drops the loot, escaped keeps it ({@link "./theft"}).
    */
   thief?: boolean;
+  /**
+   * **Standing order** (D41) — a reserved auto-action (e.g. `"defend"`) a unit
+   * carries until the player takes manual control. The first slice ships the
+   * field + the Defend action; the auto-execution turn-loop is a later pass.
+   */
+  standingOrder?: string;
 }
 
 /**
@@ -124,6 +130,8 @@ export interface Unit extends UnitStats {
   authored: boolean;
   /** Thief archetype (D30): skims the purse mid-battle ({@link "./theft"}). */
   thief: boolean;
+  /** Reserved standing order (D41), e.g. `"defend"`; undefined = manual control. */
+  standingOrder?: string;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -168,6 +176,7 @@ export function createUnit(spec: UnitSpec): Unit {
     isLord: spec.isLord ?? false,
     authored: spec.authored ?? false,
     thief: spec.thief ?? false,
+    standingOrder: spec.standingOrder,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,

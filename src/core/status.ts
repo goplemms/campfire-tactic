@@ -112,6 +112,8 @@ export const EXPOSED = "exposed";
 export const HASTENED = "hastened";
 /** Guarded: reduced incoming damage until the unit's next turn (Defend). */
 export const GUARDED = "guarded";
+/** Swift: a transient extra-move buff for one turn (Scout Dash / Hunter Reposition). */
+export const SWIFT = "swift";
 
 /**
  * Slowed — a CT-gain debuff read by {@link "./clock".effectiveSpeed}. `speed`
@@ -147,6 +149,11 @@ export function guarded(
   amount: number = STATUS_TUNING.guardedReduction,
 ): StatusInstance {
   return { id: GUARDED, name: "Guarded", duration, kind: "buff", data: { amount } };
+}
+
+/** Swift — a transient +move buff read by {@link "./combat".effectiveMove}. */
+export function swift(duration = 1, amount = 2): StatusInstance {
+  return { id: SWIFT, name: "Swift", duration, kind: "buff", data: { amount } };
 }
 
 /** Read a status's numeric `data.amount` (0 if absent) — the teeth's magnitude. */
