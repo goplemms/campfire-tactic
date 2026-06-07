@@ -17,7 +17,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M8 — The overworld action economy (camp at every node + cooldown spine + loose fatigue) | done (accepted as prototype 2026-06-06; numbers/behavior to tune later) |
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 | M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
-| M11 — The event-node batch (shops · recruiters · story events) | testable (code complete 2026-06-07; awaiting in-browser gate) |
+| M11 — The event-node batch (shops · recruiters · story events) | done (in-browser gate confirmed 2026-06-07; merged PR #12) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
@@ -26,8 +26,8 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 - **Milestone:** M11 — The event-node batch (shops · recruiters · story events): the
   overworld's third node tier (`event`) goes from **one hard-coded thief** to a
-  **data-driven event registry** (D23's named "next batch"). **TESTABLE** — code complete
-  2026-06-07, awaiting the in-browser gate. `npm test` **269/269 green** (243 prior + 26
+  **data-driven event registry** (D23's named "next batch"). **DONE** — in-browser gate
+  confirmed 2026-06-07, merged to main (PR #12). `npm test` **269/269 green** (243 prior + 26
   new), `npm run build` clean, `core/` free of Phaser/DOM **and** `Math.random` (the grep
   test still enforces it). **Why:** M7 shipped the overworld frame with two node kinds
   (combat | rest); M10 added a third, `event`, but with **exactly one** event behind it (the
@@ -91,9 +91,10 @@ States: `todo` → `in-progress` → `testable` → `done`
     verbs (M10 covers those); the authored companion/lord cast + data shape (D33); the save
     system + lord game-over (D27); shop sell-back / item crafting; any change to the tactical
     battle or the guild dispatch/return tier.
-  - **Next:** confirm the in-browser gate (a seeded run's event nodes present a shop / recruiter
-    / story / thief; replay reproduces which event fires + every number), then PROGRESS M11 →
-    done + the M11 row in plan.md; commit/push.
+  - **Done (gate confirmed 2026-06-07):** a seeded run's event nodes present a shop / recruiter
+    / story / thief, and replaying the seed reproduces which event fires + every number. Merged
+    to main as PR #12. (Demo seed `demo-43` chains story→shop→recruiter on one path, with the
+    thief on the alternate first branch — a clean replay-determinism showcase.)
 
 <details><summary>M10 — The gold economy & recruitment — TESTABLE (code complete 2026-06-07)</summary>
 
@@ -649,13 +650,12 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step:** confirm the **M11** in-browser gate (a seeded run's event nodes present a
-  shop / recruiter / story / thief, replay reproducing which event fires + every number),
-  then mark M11 done. The **M9/M10** hall-flow + economy gates are still pending too (all
-  three are code-complete/testable). With M11 the queued **event-node batch** (D23's "next
-  batch") is built — the remaining run-frame queue is open: the **terminal-ending design**
-  and the **save system + lord game-over** (D27). (M8 accepted as the overworld-mechanics
-  prototype; its number/behavior tuning is a tracked non-blocking follow-up.)
+- **Next step:** **M11 is done** (in-browser gate confirmed; merged PR #12) — the queued
+  **event-node batch** (D23's "next batch") is built. The **M9/M10** hall-flow + economy
+  gates remain pending in-browser confirmation (both code-complete/testable). The remaining
+  run-frame queue is open: the **terminal-ending design** and the **save system + lord
+  game-over** (D27). (M8 accepted as the overworld-mechanics prototype; its number/behavior
+  tuning is a tracked non-blocking follow-up.)
 - **Blockers:** none.
 
 <details><summary>Stale footer (M2-era notes, kept for history)</summary>
