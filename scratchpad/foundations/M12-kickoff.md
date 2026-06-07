@@ -145,6 +145,43 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   list; `isCombatant` stops gating on a `noncombat` flag) is what changes. The
   Survivalist/Chef/Merchant stay first-class jobs (not absorbed into a combat class).
 
+### Leveling & growth (gap #2 + the deferred job-model parameters) — *2026-06-07*
+
+> **Hybrid two-axis growth.** A per-unit **character level** (universal) + per-job
+> **job levels** (specialization). The rule: ***body of your primary (stats), skills of
+> all your jobs (abilities).*** Fixes gap #2 (today `level` is read by nothing).
+
+- **Character level** — the existing `unit.level`/`xp`, **reframed as the character
+  axis**: universal toughness, mainly **HP** (+ a small base creep). Grows from all
+  combat/deployment.
+- **Job levels** — per job, per unit (`jobLevels[jobId] = {level, xp}`). A job level
+  grants: **(a) ability scaling** (each ability scales with *its own* job's level — the
+  locked scale-by-level principle); **(b) a skill-unlock breakpoint** (start job-L1 with
+  **passive + 1 active**, earn the **2nd active at ~L3**); **(c) a stat-flavor** applied
+  while that job is the unit's **primary** (Knight +def/HP · Scout +speed/move · Hunter
+  +atk · Medic +heal power).
+- **Switching primary to an *unleveled* job ⇒ a weak body** — committing to a class is a
+  real investment (FFT-authentic), not a free respec.
+- **XP routing:** combat/deploy XP feeds the **character level + the primary job at full
+  rate**; **secondary jobs trickle slower** ("primary = XP rate", now concrete).
+  `grantAbilityUseXp` still bumps a job when its ability is used.
+- **Loadout slots (flexible):** a unit wields its **primary's full kit** (passive + 2
+  actives) **+ `loadoutSlots` secondary abilities** drawn from other held jobs.
+  **Defaults to 1** ("main kit + one side-job skill") but is a **tunable knob** — built
+  as a **general slot system** so the cap settles as class design matures (could grow
+  with character level / vary by unit). Keeps button-count legible (honors 2+1).
+- **First-slice scope — built vs shaped.** One job per unit, so the slice **BUILDS**:
+  both axes ticking, **stat growth** (the visible gap-#2 fix), **ability scaling by job
+  level**, the **2nd-active unlock**. It **DATA-SHAPES** (structures exist, unexercised
+  in play): the multi-job `jobLevels` map, `primaryJob` + held-jobs list, and the
+  secondary **loadout slots** (default 1, unused at one-job-each). Multi-job slotting UI
+  lands when multi-job units exist.
+- **Code seams:** `leveling.ts` (`level/xp` → character axis; add `jobLevels` + routing
+  + stat-growth application), `units.ts` (`primaryJob`, held-jobs, `loadoutSlots`,
+  derived-stat computation), `jobs.ts` (per-job growth table + per-ability unlock level),
+  `skills.ts`/`resolveSkill` (read job level for ability magnitude), `isCombatant` stops
+  reading a `noncombat` flag.
+
 ## Open discussion queue (one at a time)
 
 - ✅ **C — taunt extent.** *Resolved:* no hard taunt — flanking (passive formation
@@ -153,12 +190,12 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
 - ✅ **Class kits.** Roster complete & locked (Heavy Knight · Hunter · Scout · Medic).
 - ✅ **Status set (gap F).** Locked — Slowed / Exposed / Immobilized / Hastened, with
   the visual-tracker requirement + authoring pattern.
-- **Leveling payoff specifics (#2) + job-model parameters** *(NEXT)*. Stat-growth vs
-  skill-unlock breakpoints vs both; **ability scaling by level** (per the locked
-  principle); the growth curve; **plus** the deferred job-model parameters
-  (jobs-per-unit, non-primary XP rate, per-job vs per-unit levels, slots).
-- **D — AI scope.** How far the AI upgrade goes (range use, ability use, flank
-  exploit/avoid, honor-debuffs, fog use) for the first slice vs deferred.
+- ✅ **Leveling payoff (#2) + job-model parameters.** Locked — hybrid character+job
+  axes, ability scaling by job level, 2nd-active unlock, flexible loadout slots
+  (default 1). See *Leveling & growth* above.
+- **D — AI scope** *(NEXT — the last item)*. How far the AI upgrade goes (range use,
+  ability use, flank exploit/avoid, honor-debuffs, fog use) for the first slice vs
+  deferred. **Required** so the Hunter + flanking don't feel broken.
 
 ## Class kits
 
@@ -368,3 +405,11 @@ mirroring `adding-abilities.md`).* A status with teeth = up to 4 small parts:
   + tint + tooltip via a status→visual registry) and a **status authoring pattern**
   (graduates to `docs/guides/adding-statuses.md` on ship). Taunt/Guarded reserved;
   Poison/DoT deferred to the demo quest.
+- **2026-06-07** — **Leveling & growth LOCKED** (gap #2 + deferred job-model params):
+  **hybrid** — character level (universal, mainly HP) + per-job levels (ability scaling
+  + 2nd-active unlock at ~L3 + a primary-only stat-flavor). Rule: *body of primary,
+  skills of all jobs*; switching to an unleveled primary = weak body. XP routes to
+  character + primary at full rate, secondaries trickle. **Flexible loadout slots**
+  (default 1 secondary, built as a general slot system, cap tuned later). Slice builds
+  both axes + stat growth + scaling + unlock for one-job-per-unit; data-shapes the
+  multi-job map/slots. **Queue: only D (AI scope) remains.**
