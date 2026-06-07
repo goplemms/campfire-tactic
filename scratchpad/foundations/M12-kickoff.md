@@ -111,10 +111,13 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   a channel is a *sustained effect that ticks each clock-tick over a duration while the
   caster is **locked/committed*** (regen aura, sustained beam, a held control field),
   ended early by the **same disruption conditions**. Both are "committed-on-the-timeline,
-  interruptible" forms; modeled together. **First slice builds ONE martial channel
-  as the proof: the Knight's "Hold the Line"** — a sustained taunt + guard aura
-  while the Knight is locked in place, broken by the shared fizzle conditions. (This
-  doubles as gap C's *active* tank tool — see below.)
+  interruptible" forms; modeled together. **Channel BUILD deferred** (revised
+  2026-06-07): locking-yourself-in-place is not a natural *martial* verb — it fits
+  **magic / support casters** better (e.g. a bard channeling a tune that buffs morale
+  for adjacent units). **Keep the charged+channeled data shape now** so nothing's
+  blocked; build the first channel when casters land. (Charged stays well-represented
+  in the slice by the Archer's Aimed Shot.) The Heavy Knight's hold-fantasy became a
+  **passive tarpit** instead — see its kit.
 - **Cooldown details (default, tunable):** cooldowns appear only on the **2–3
   instant-utility skills** (Heal / Cleanse / Guard-type), ~**150–250 CT** each — not
   on offense, which is paced by charge-time + the Act tax.
@@ -156,14 +159,40 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
 - **D — AI scope.** How far the AI upgrade goes (range use, skill use, flank
   exploit/avoid, fog use) for the first slice vs deferred.
 
-## Draft class roster (NOT locked — refine in "Class kits")
+## Class kits
 
-| Class | Draft kit (single-target) | Exercises |
+**Ability-slot standard (locked 2026-06-07):** every class has **2 active abilities +
+1 passive** (plus the universal instant **basic attack**). The **passive is the
+identity anchor**; actives are the verbs. Caps button-bloat; keeps each class legible.
+
+**Directional AoE (locked 2026-06-07):** multi-target patterns (e.g. Cleave) take a
+**direction chosen at cast time** — no persistent unit facing is tracked. This is the
+*only* re-opening of gap G: a fixed cleave pattern, not full AoE templating.
+
+### Heavy Knight — LOCKED *(2026-06-07)*
+
+Space-control bruiser / anchor. `sp12 hp34 atk11 def4 mv4`. Renamed from "Knight" to
+signal the heavy/control subtype. *Texture: warp the geometry, tax proximity.*
+
+| Slot | Skill | Effect |
 |---|---|---|
-| **Knight** | Guard (def + taunt?, cd) · Power Strike (cd) · Shield Bash (dmg + Immobilize, cd) | C, E |
-| **Archer** | Aimed Shot (ranged, charged) · Quick Shot (ranged, cd) · Pin (ranged, Slow) | D, E, F |
-| **Scout** | Backstab (melee, leans on flanking) · Dash (reposition) · Expose (status) | B, F |
-| **Medic** | Heal (cd) · Cleanse (strip status) · Stim (buff) | E, F |
+| **Passive** | **Hold the Line** | Enemies within **range 1** of the Heavy Knight are set to **speed 1** (a tarpit — applied as a Slowed status while inside the ring, cleared on leaving). Even *avoiding* the ring costs the enemy significant movement. **Numbers (speed floor, radius) tunable** — speed 1 / range 1 for now. Delivers C via tempo-denial; no hard taunt. |
+| **Active** | **Shove** | Quick forced-movement utility (**D19**): push an adjacent enemy 1 tile (stop at blockers; forced entry onto an entity tile fires it). Low/no cooldown. Manufactures isolation, peels off the backline, shoves into traps. |
+| **Active** | **Cleave** | Melee AoE: hit enemies in a **chosen-at-cast direction** (the up-to-3 tiles in that 90° arc). Punishes clumping. |
+
+*(+ basic attack.)* No charged/channeled ability; C delivered without taunt.
+
+### Remaining kits — DRAFT (re-derive under 2 active + 1 passive; each gets a passive)
+
+| Class | Draft (to revise next, one at a time) | Exercises |
+|---|---|---|
+| **Archer** | passive: ? · Aimed Shot (ranged, **charged**) · Pin (ranged, Slow, cd) | D, E, F |
+| **Scout** | passive: bigger-flank trait? · Backstab (flank payoff) · Dash (reposition) | B, F |
+| **Medic** | passive: ? · Heal (cd) · Mend (**charged** heal) / Cleanse | E, F |
+
+> **Status set — re-derive after the roster is complete.** Likely survivors:
+> **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
+> flanking + tarpit). **Guarded** lost its Heavy-Knight home — find one (Medic?) or drop.
 
 ## Architectural rules (non-negotiable, unchanged)
 
@@ -196,3 +225,10 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   multiple jobs & draw skills from all (settles D32). Parameters → leveling discussion.
   First slice = container change only (one job per unit; kits unchanged). Began the
   kit-by-kit identity pass (Knight first).
+- **2026-06-07** — Ability-slot standard: **2 active + 1 passive** per class (passive =
+  identity anchor) — re-derives all kits. Directional AoE chosen at cast time (no
+  facing tracked) = the only G re-opening (fixed cleave pattern). **Channel build
+  deferred** to magic/support casters (shape kept). **Heavy Knight LOCKED**: passive
+  Hold the Line (adjacent enemies → speed 1 tarpit, range 1, tunable; C via tempo-denial,
+  no hard taunt) + Shove (D19 forced movement) + Cleave (directional AoE). Taunt status
+  drops; Guarded needs a new home; status set re-derived after the roster.
