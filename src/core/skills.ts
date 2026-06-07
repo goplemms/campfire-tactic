@@ -16,6 +16,7 @@ import type { StatusInstance } from "./status";
 import { resolveAttack, manhattan, PASSIVE } from "./combat";
 import { applyStatus, markPrey, cleanseOne, hastened } from "./status";
 import { countOf, removeItem, type Inventory } from "./inventory";
+import { abilityScaleBonus } from "./leveling";
 
 /** The ordered phases of the game pipeline (D3). */
 export type Phase = "meta" | "deployment" | "battle" | "resolution";
@@ -222,7 +223,7 @@ export function resolveMedHeal(
 
   const triage = medic.passives[PASSIVE.triage] ?? 0;
   const missing = target.maxHp - target.hp;
-  let amount = MED_HEAL.base + Math.floor(triage * missing);
+  let amount = MED_HEAL.base + abilityScaleBonus(medic) + Math.floor(triage * missing);
   if (herbId === "salve") amount += MED_HEAL.salveBonus;
 
   const out: SkillOutcome = applyHeal(medic, target, amount, bus);
@@ -293,7 +294,7 @@ export function resolveSkill(
         caster,
         target,
         bus,
-        caster.attack + effect.bonusAttack,
+        caster.attack + effect.bonusAttack + abilityScaleBonus(caster),
         units,
       );
       const out: SkillOutcome = { damage };
@@ -304,14 +305,14 @@ export function resolveSkill(
       return out;
     }
     case "heal": {
-      return applyHeal(caster, target, effect.amount, bus);
+      return applyHeal(caster, target, effect.amount + abilityScaleBonus(caster), bus);
     }
     case "triage-heal": {
       // Triage (D40): heal more the more wounded the target is. Without the
-      // passive it's a plain heal of `amount`.
+      // passive it's a plain heal of `amount`. Scales with job level (D39).
       const triage = caster.passives[PASSIVE.triage] ?? 0;
       const missing = target.maxHp - target.hp;
-      const amount = effect.amount + Math.floor(triage * missing);
+      const amount = effect.amount + abilityScaleBonus(caster) + Math.floor(triage * missing);
       return applyHeal(caster, target, amount, bus);
     }
     case "status": {

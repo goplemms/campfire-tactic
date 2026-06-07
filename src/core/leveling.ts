@@ -15,17 +15,83 @@
  * Pure logic: no Phaser, no DOM, no `Math.random` (leveling is deterministic).
  */
 
-import type { Unit } from "./units";
+import type { Unit, UnitStats } from "./units";
+import { getJob, unitSkills } from "./jobs";
+import type { SkillDef, Phase } from "./skills";
 
-/** Leveling tuning — all data, a numbers pass later (D32). */
+/** Leveling tuning — all data, a numbers pass later (D32/D39). */
 export const LEVELING = {
-  /** XP needed to advance one level (flat for the M9 seam; a curve comes later). */
+  /** XP needed to advance one **character** level (flat; a curve comes later). */
   xpPerLevel: 100,
+  /** XP needed to advance one **job** level (D39). */
+  xpPerJobLevel: 100,
   /** Passive XP a **deployed** character trickles per node-step on the road. */
   deployedTrickle: 5,
   /** Bonus XP for a successful non-combat ability use (the use-leveling hook). */
   abilityUseBonus: 10,
+  /** Secondary held jobs earn XP at this fraction of the primary's rate (D39). */
+  secondaryRate: 0.25,
+  /** Additive ability magnitude per primary-job level above 1 (D39 scaling). */
+  abilityScalePerLevel: 2,
+  /** Character levels that each grant +1 loadout slot (the boon hook, D38/D39). */
+  loadoutBoonLevels: [5, 10] as readonly number[],
 } as const;
+
+/**
+ * The "main stats" the **+1-all universal floor** hits on a job level-up (D39).
+ * Stats reached only via job weights (awareness/intelligence/future magic) are
+ * not in this set — the growth table adds those.
+ */
+export const MAIN_STATS: readonly (keyof UnitStats)[] = [
+  "maxHp",
+  "attack",
+  "defense",
+  "speed",
+  "moveRange",
+];
+
+/** The level a unit holds in `jobId` (1 if never trained). */
+export function jobLevelOf(unit: Unit, jobId: string | undefined): number {
+  return jobId ? unit.jobLevels[jobId]?.level ?? 1 : 1;
+}
+
+/**
+ * Apply one job level-up's **permanent, cumulative stat gains** (D39): +1 to
+ * every main stat (the universal floor) plus the job's growth-table weights.
+ * Current HP rises with maxHp (a level-up heals by the gain). Kept forever,
+ * regardless of current primary.
+ */
+export function applyJobLevelGains(unit: Unit, jobId: string): void {
+  const growth = getJob(jobId)?.growth ?? {};
+  for (const stat of MAIN_STATS) {
+    (unit as unknown as Record<string, number>)[stat] += 1 + (growth[stat] ?? 0);
+  }
+  // Growth weights on non-main stats (e.g. a future magic stat) slot in too.
+  for (const [stat, w] of Object.entries(growth)) {
+    if (!MAIN_STATS.includes(stat as keyof UnitStats)) {
+      (unit as unknown as Record<string, number>)[stat] += w ?? 0;
+    }
+  }
+  unit.hp += 1 + (growth.maxHp ?? 0);
+}
+
+/**
+ * Grant XP toward a **job** level (D39), applying cumulative stat gains for each
+ * level crossed. Lazily creates the job's progression. Returns levels gained.
+ */
+export function grantJobXp(unit: Unit, jobId: string, amount: number): number {
+  if (amount <= 0) return 0;
+  const jl = (unit.jobLevels[jobId] ??= { level: 1, xp: 0 });
+  jl.xp += amount;
+  let gained = 0;
+  while (jl.xp >= LEVELING.xpPerJobLevel) {
+    jl.xp -= LEVELING.xpPerJobLevel;
+    jl.level += 1;
+    applyJobLevelGains(unit, jobId);
+    gained += 1;
+  }
+  return gained;
+}
 
 /**
  * Grant XP and apply any level-ups, capping carry-over so a big award can raise
@@ -40,6 +106,7 @@ export function grantXp(unit: Unit, amount: number): number {
     unit.level += 1;
     gained += 1;
   }
+  if (gained > 0) applyCharacterBoons(unit);
   return gained;
 }
 
@@ -70,4 +137,53 @@ export function accrueDeployedXp(
 /** A successful non-combat ability use bumps the user (the use-leveling hook, D32). */
 export function grantAbilityUseXp(unit: Unit): number {
   return grantXp(unit, LEVELING.abilityUseBonus);
+}
+
+/**
+ * Apply character-level **boons** (D38/D39): a +1 loadout slot at each threshold
+ * in {@link LEVELING.loadoutBoonLevels} the unit has reached. The character axis
+ * is breadth — future job evolutions / advanced-job gating hang here too.
+ */
+export function applyCharacterBoons(unit: Unit): void {
+  const earned = LEVELING.loadoutBoonLevels.filter((lv) => unit.level >= lv).length;
+  unit.loadoutSlots = Math.max(unit.loadoutSlots, 1 + earned);
+}
+
+/**
+ * Additive ability magnitude from the caster's **primary** job level (D39): each
+ * level above 1 adds {@link LEVELING.abilityScalePerLevel}. So Mend heals more,
+ * and a class's strikes hit harder, as its job levels — the visible payoff.
+ */
+export function abilityScaleBonus(unit: Unit): number {
+  return (jobLevelOf(unit, unit.primaryJob) - 1) * LEVELING.abilityScalePerLevel;
+}
+
+/**
+ * The skills a unit can actually use right now (D39): its job skills filtered to
+ * those whose `unlockLevel` its primary job level has reached. The 2nd active
+ * gates here — locked at job-L1, unlocked at L2 (the rest-beat payoff).
+ */
+export function unlockedSkills(unit: Unit, phase?: Phase): SkillDef[] {
+  const lvl = jobLevelOf(unit, unit.primaryJob ?? unit.jobId);
+  return unitSkills(unit, phase).filter((s) => (s.unlockLevel ?? 1) <= lvl);
+}
+
+/**
+ * Route combat XP (D39): the **character** level and the **primary** job earn at
+ * full rate; **secondary** held jobs trickle at {@link LEVELING.secondaryRate}.
+ * Returns levels gained on each axis. This is the routing the demo/run uses;
+ * {@link grantCombatXp} stays the character-only path for back-compat.
+ */
+export function routeCombatXp(
+  unit: Unit,
+  amount: number,
+): { charLevels: number; jobLevels: number } {
+  const charLevels = grantXp(unit, amount);
+  let jobLevels = 0;
+  const primary = unit.primaryJob ?? unit.jobId;
+  if (primary) jobLevels += grantJobXp(unit, primary, amount);
+  for (const j of unit.heldJobs) {
+    if (j !== primary) grantJobXp(unit, j, Math.floor(amount * LEVELING.secondaryRate));
+  }
+  return { charLevels, jobLevels };
 }

@@ -13,6 +13,12 @@ import type { StatusInstance } from "./status";
 /** Which side a unit fights for. */
 export type Side = "player" | "enemy";
 
+/** Per-job progression (D39): a job level + XP toward the next, per unit. */
+export interface JobLevel {
+  level: number;
+  xp: number;
+}
+
 /** The minimal combat stat block (M3). All numbers are tuning values. */
 export interface UnitStats {
   /** CT gauge fill per clock tick — governs turn frequency (D5). */
@@ -45,6 +51,21 @@ export interface UnitSpec extends UnitStats {
   hp?: number;
   /** Optional job id (see {@link "./jobs"}); grants the unit its skills. */
   jobId?: string;
+  /**
+   * The **primary** job designation (D38); defaults to `jobId`. Sets the baseline
+   * frame, XP rate, loadout, and class-gated content. Any job can be primary —
+   * the combat/non-combat split is dissolved.
+   */
+  primaryJob?: string;
+  /** Jobs this unit **holds** (D38), drawing skills from all; defaults to `[jobId]`. */
+  heldJobs?: string[];
+  /** Per-job levels (D39); defaults to empty (created on first XP grant). */
+  jobLevels?: Record<string, JobLevel>;
+  /**
+   * Secondary loadout slots (D38): the primary's full kit **plus** this many
+   * borrowed actives from other held jobs. Defaults to 1 (a tunable boon).
+   */
+  loadoutSlots?: number;
   /** Deployment safety stat (D7/D11); defaults to 0. Higher = preps deeper safely. */
   awareness?: number;
   /**
@@ -105,6 +126,14 @@ export interface Unit extends UnitStats {
   attackRange: number;
   /** The unit's job, if any — the data that grants its skills. */
   readonly jobId?: string;
+  /** Primary-job designation (D38); defaults to `jobId`. */
+  primaryJob?: string;
+  /** Jobs this unit holds (D38) — skills are drawn from all of them. */
+  heldJobs: string[];
+  /** Per-job levels (D39); grows via job XP, banking permanent stat gains. */
+  jobLevels: Record<string, JobLevel>;
+  /** Secondary loadout slots (D38): borrowed actives beyond the primary's kit. */
+  loadoutSlots: number;
   /** Current tile. Replaced wholesale on a move (never mutated in place). */
   pos: GridCoord;
   hp: number;
@@ -163,6 +192,10 @@ export function createUnit(spec: UnitSpec): Unit {
     side: spec.side,
     name: spec.name ?? spec.id,
     jobId: spec.jobId,
+    primaryJob: spec.primaryJob ?? spec.jobId,
+    heldJobs: spec.heldJobs ?? (spec.jobId ? [spec.jobId] : []),
+    jobLevels: spec.jobLevels ?? {},
+    loadoutSlots: spec.loadoutSlots ?? 1,
     pos: { col: spec.pos.col, row: spec.pos.row },
     hp: spec.hp ?? spec.maxHp,
     maxHp: spec.maxHp,

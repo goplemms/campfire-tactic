@@ -376,9 +376,14 @@ export function getJob(id: string | undefined): JobDef | undefined {
   return id === undefined ? undefined : JOBS[id];
 }
 
-/** True if a unit can take the field (jobless or a combat job, not camp-only). */
-export function isCombatant(unit: Unit): boolean {
-  return !getJob(unit.jobId)?.noncombat;
+/**
+ * True if a unit can take the field. The combat/non-combat split is **dissolved**
+ * (D38): *any* job can field (the Chef Defends as a body; the Merchant can swing).
+ * Retained as a predicate (always true for a live roster member) so callers read
+ * intent; the old `noncombat` flag now only informs camp/Upkeep/RP, not fielding.
+ */
+export function isCombatant(_unit: Unit): boolean {
+  return true;
 }
 
 /**
