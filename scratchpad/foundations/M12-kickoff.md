@@ -169,6 +169,13 @@ identity anchor**; actives are the verbs. Caps button-bloat; keeps each class le
 **direction chosen at cast time** — no persistent unit facing is tracked. This is the
 *only* re-opening of gap G: a fixed cleave pattern, not full AoE templating.
 
+**Design principle — synergy-first (locked 2026-06-07):** the four classes are
+designed to **interlock**, so combat *rewards a well-composed team* rather than four
+self-sufficient soloists. This is deliberate: it makes the **provisioning / logistics**
+layer matter to combat (you assemble a *combo*, not just a roster) — the game's
+identity. Emergent chains already fall out of the locked kits: Heavy Knight tarpit
+(Slowed) → Scout isolates + Exposes → Hunter's Deadeye punishes the afflicted prey.
+
 ### Heavy Knight — LOCKED *(2026-06-07)*
 
 Space-control bruiser / anchor. `sp12 hp34 atk11 def4 mv4`. Renamed from "Knight" to
@@ -198,16 +205,31 @@ Its **trap-layer half is NOT in the kit** — it comes from a **secondary class*
 *(+ ranged basic attack.)* **`attackRange` becomes a unit stat** (default 1; Hunter 3)
 — infra also needed for D (enemy archers can finally shoot).
 
+### Scout — LOCKED *(2026-06-07)*
+
+Playmaker / flank engine. `sp14 hp24 atk9 def2 mv5` (fastest, most mobile). *Texture:
+manufacture isolation, mark the kill, let the team eat.* Chosen **playmaker** over
+solo-assassin to set the team-play baseline.
+
+| Slot | Skill | Effect |
+|---|---|---|
+| **Passive** | **Flanker** | The Scout **flanks an isolated (unsupported) target *solo*** (it doesn't need a second blade) **and** gets a **larger** flank bonus than the baseline. The team's flank specialist; punishes stragglers even alone. Counterplay = stay in formation. |
+| **Active** | **Dash** | Mobility: reposition / engage to manufacture isolation, reach a flank tile, or dive a line. |
+| **Active** | **Expose** | A melee **strike that marks**: deals damage **and** applies **Exposed** (target takes +damage). One action = payoff + team-setup; feeds the Hunter's Deadeye and amplifies the party's focus. Amplified by Flanker when flanking. |
+
+*(+ melee basic attack.)* Damage = basics + Flanker bonus + its own Exposed mark — no
+separate burst button needed. **Exposed status finds its home here.**
+
 ### Remaining kits — DRAFT (re-derive under 2 active + 1 passive; each gets a passive)
 
 | Class | Draft (to revise next, one at a time) | Exercises |
 |---|---|---|
-| **Scout** | passive: bigger-flank trait? · Backstab (flank payoff) · Dash (reposition) | B, F |
 | **Medic** | passive: ? · Heal (cd) · Mend (**charged** heal) / Cleanse | E, F |
 
-> **Open lever seeking a home (identity-first):** **charged *offense*** (commit-now,
-> resolve-later) isn't on any locked class yet — let it land where it fits naturally
-> (Scout/Medic), or wait for casters. Not forced.
+> **Charged *offense* — deferred to a future class (resolved 2026-06-07):** none of the
+> four (control / ranged-kite / playmaker / support) wants a telegraphed wind-up nuke;
+> charged offense fits a future **heavy-hitter or caster**. Not shoehorned. (Charged is
+> still *demonstrated* in the slice — likely via the Medic's charged **Mend** heal.)
 
 > **Status set — re-derive after the roster is complete.** Likely survivors:
 > **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
@@ -259,3 +281,10 @@ Its **trap-layer half is NOT in the kit** — it comes from a **secondary class*
   first payoff of the multi-job model. Channel build **back in** via the maintained-stance
   flavor (Mark Prey); locked-emanation (bard) still deferred. Charged *offense* now an
   **open lever** (identity-first; no forced home).
+- **2026-06-07** — **Scout LOCKED** as the **playmaker** (over solo-assassin, to set a
+  team-play baseline that makes logistics matter to combat): passive **Flanker**
+  (solo-flanks isolated targets + bigger flank bonus) + **Dash** (mobility to
+  manufacture isolation) + **Expose** (a strike that marks → Exposed status, feeding the
+  Hunter's Deadeye). Recorded the **synergy-first** design principle. **Exposed** status
+  home = Scout. **Charged offense deferred to a future heavy/caster** (no forced home);
+  charged still demonstrated via the Medic's Mend.
