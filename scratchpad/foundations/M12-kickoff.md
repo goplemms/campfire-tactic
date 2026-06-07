@@ -327,10 +327,24 @@ has teeth — the rest is what M12 adds.
 | **Exposed** | debuff | takes **+damage** — `combat.computeDamage`. Punished by **Deadeye**. | Scout Expose | duration |
 | **Immobilized** | debuff | **can't move** — AI/turn (`isImmobilized`); also the flank body-count. Punished by **Deadeye**. | enemies/AI, snares (*exists*) | duration |
 | **Hastened** | buff | CT gain **boosted** ~1 turn — `clock`. | Medic stimulant rider | duration |
+| **Guarded** | buff | **reduced incoming damage** until next turn — `combat.computeDamage`. | the universal **Defend** action (see below) | duration (to next turn) |
 
 - **Cleanse** (Medic antidote) removes any one **debuff**. **Deadeye** (Hunter) punishes
   a target carrying any **debuff**. Both read the **`kind` classifier**, not an id list.
-- **Reserved (not built):** Taunt, Guarded. **Deferred (demo may add):** Poison/DoT.
+- **Reserved (not built):** Taunt. **Deferred (demo may add):** Poison/DoT.
+
+### Defend & standing orders — *2026-06-07*
+
+- **Defend** — a **universal** instant combat action (every unit, like the basic attack;
+  costs the Act, no cooldown): **brace → apply Guarded to self** (reduced incoming damage)
+  until next turn. **Re-homes the Guarded status** (earned by an action, not granted).
+  Also the **Chef's** main field verb (its value is camp Cook Stew; on the field it mostly
+  Defends as a 5th body — the first payoff of the dissolved combat/non-combat split).
+- **Standing orders (auto-action) — designed now, BUILT LATER.** A unit may carry a
+  `standingOrder` (e.g. `"defend"`) that **auto-executes on its turn until the player takes
+  manual control**. The first slice ships the **Defend action only**; the auto-execution
+  is a follow-up. Reserve the `standingOrder` field + the turn-loop check now. (The Chef is
+  the poster child: set-and-forget auto-Defend, zero micro.)
 
 **Render requirement — visual trackers (locked):** every status needs an **at-a-glance
 indicator** on the unit token (a small **icon/badge + a tint**, with a tooltip on hover)
@@ -447,6 +461,39 @@ captain). Detail each beat one at a time.
    flank-aware AI punishing bad formation. Win = quest complete + capstone reward.
    *Proves: ability economy under pressure, full synergy, smart AI.*
 
+### Party + Beat 1 + Encounter 1 — LOCKED *(2026-06-07)*
+
+**Demo party (5) — reslots the existing cast onto the new classes:**
+- **Edrin** → Heavy Knight (lord/anchor) · **Rook** → Hunter (ranged) · **Vale** → Scout
+  (her trap-laying becomes a **Survivalist secondary** later — first multi-job showcase) ·
+  **Sela** → Medic (new face) · **Pip** → **Chef** — Cooks in camp (morale + a banked
+  party-heal at battle start), **Defends** in the field as a 5th body (dissolved-split
+  payoff).
+
+**Beat 1 — Provision (the logistics on-ramp).** Lean; teaches *provisioning feeds combat*:
+- Storage cap ~8 + a little gold. Load the three **herbs** — salve (+heal) / stimulant
+  (+speed) / antidote (cleanse); can't fully stock all → a real choice.
+- **Intel preview** of E1 (banded: "~4 bandits, blades + a bow"). Signals **antidotes are
+  low-value here** (no debuffer) → favors salve/stimulant. Sets up E2's reversal.
+- **Chef Cook Stew** here → morale + a banked party-heal landing at E1's start (showcases
+  the camp-buff layer).
+
+**Encounter 1 — "Skirmish" (the gentle teacher).** Open mill yard (8×6, light cover +
+a few blocked tiles, **no hard chokepoint**). Enemies (4, loose, low threat): 2× **Bandit
+Thug** (weak melee), 1× **Bandit Bowman** (ranged/kites), 1× **Bandit Cutthroat** placed
+*apart* (the designed isolation moment). Teaching beats, one mechanic at a time:
+1. Straggler apart → Vale Dashes + **solo-flanks** it (Flanker). *Flanking + Scout.*
+2. Bowman **kites** → Rook out-ranges / dives it. *Ranged AI + Hunter.*
+3. Thug pair → Edrin tarpits/Cleaves; learn not to let your own get isolated. *Knight +
+   formation.*
+4. Someone eats an arrow → Sela **Heals** (consumes a salve, on cooldown). *Medic + the
+   logistics bridge in motion.*
+
+**Statuses here = player-applied only** (tarpit Slowed, Scout Exposed) so the **visual
+trackers debut** safely; **enemy debuffs (snare→Immobilize) held for E2**. Low stakes
+(recoverable — it's a teacher). **Reward:** gold + a herb refill + XP toward the rest-beat
+level-up.
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -546,3 +593,11 @@ captain). Detail each beat one at a time.
   (AuthoredEncounter/AuthoredQuest + a demo runner) — fills gap #4. Coverage checklist =
   the success criteria. Proposed a 5-beat arc skeleton (provision → teach → rest/level →
   synergy+fog → mini-boss climax); detailing each beat next.
+- **2026-06-07** — **Chef joins combat + universal Defend.** Added the **Defend** action
+  (universal, instant Act → self-**Guarded** until next turn) — **re-homes the Guarded
+  status** (now earned by an action) and gives the Chef a field verb. **Standing orders**
+  (auto-Defend until manual control) designed now, **built later** (reserve the
+  `standingOrder` field + turn-loop check). Demo party → **5** (adds Pip the Chef: Cook in
+  camp, Defend in field — dissolved-split payoff). **Locked Party + Beat 1 (Provision) +
+  Encounter 1 (Skirmish)** detail. *(Open: Defend universal vs Chef-only — locked
+  universal pending confirm.)*
