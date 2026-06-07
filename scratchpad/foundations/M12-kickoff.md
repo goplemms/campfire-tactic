@@ -193,9 +193,14 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
 - ✅ **Leveling payoff (#2) + job-model parameters.** Locked — hybrid character+job
   axes, ability scaling by job level, 2nd-active unlock, flexible loadout slots
   (default 1). See *Leveling & growth* above.
-- **D — AI scope** *(NEXT — the last item)*. How far the AI upgrade goes (range use,
-  ability use, flank exploit/avoid, honor-debuffs, fog use) for the first slice vs
-  deferred. **Required** so the Hunter + flanking don't feel broken.
+- ✅ **D — AI scope.** Locked — scoring `planTurn` rewrite; must-haves (ranged / flank
+  exploit+avoid / tarpit respect / target priority) + IN: enemy ability use,
+  charge-interrupt, **fog-respecting**; difficulty-scaling deferred. See *Enemy AI* above.
+
+> **QUEUE EMPTY — design phase complete.** All of C, kits, statuses, leveling, and D are
+> locked. Next: **graduate** this working draft into a final M12 kickoff brief + a
+> `plan.md` M12 row + `decisions.md` entries (the new calls: flanking, ability economy,
+> job model + hybrid leveling, status pattern, scoring AI), then **build** in phases.
 
 ## Class kits
 
@@ -337,6 +342,46 @@ mirroring `adding-abilities.md`).* A status with teeth = up to 4 small parts:
 > **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
 > flanking + tarpit). **Guarded** lost its Heavy-Knight home — find one (Medic?) or drop.
 
+### Enemy AI (gap D) — LOCKED *(2026-06-07)*
+
+> Rewrite `ai.ts` `planTurn` from "A\* to nearest, basic-melee" into a **light scoring
+> AI**: enumerate reachable `(destination, action)` plans, score each by a heuristic,
+> pick the best. Every behavior below falls out of the **weights**. Stays
+> pure/headless/testable — the real engineering core of D.
+
+**Must-haves (the locked kits break the AI without them):**
+1. **Ranged attacks** — attack from `attackRange` without closing (enemy archers
+   kite/hold range); otherwise the Hunter is the only ranged actor.
+2. **Flank awareness** — *exploit* (gang an isolated player unit for the +4) **and**
+   *avoid* (don't get isolated; keep formation). Makes flanking symmetric, not a toy.
+3. **Tarpit respect** — pathing treats the Heavy Knight's speed-1 ring as **high-cost**
+   (route around, or enter knowingly) — the Knight's design.
+4. **Target priority** — prefer reachable **squishy / low-HP / Exposed** targets over
+   literally-nearest → focus-fire exists, and protecting the Medic becomes a real act.
+
+**Optional layers — IN (selected 2026-06-07):**
+- **Enemy ability use** — ≥1 enemy archetype that **applies a debuff**
+  (snare→Immobilize, slime→Slow). Reuses jobs/skills/status; gives the **Medic's
+  antidote-cleanse + the Hunter's Deadeye** something to act on in-slice.
+- **Charge/channel-interrupt awareness** — a scoring bonus to hit player units
+  **mid-charge/channel** (punish a committed Hunter; ties to the caster-death fizzle).
+  Cheap to add to the heuristic.
+- **Fog-respecting AI** — the AI acts only on **`canSee`** (true *symmetric* fog play).
+  **Scope flag (bigger than it looks):** needs a **no-visible-enemy behavior** (advance
+  toward last-known / search), plus balance tuning. The payoff: it **elevates the vision
+  system (D18) from cosmetic to load-bearing in combat** — scouting/Awareness/intel now
+  *matter in battle*, reinforcing the game's information identity. The player already
+  plays under symmetric fog, so this cuts both ways fairly.
+
+**Deferred:** difficulty-scaled AI competence (ship one competent AI; tune via the D9
+tiers later).
+
+**Code seams:** `ai.ts` (the scoring `planTurn` rewrite — the core), `combat.ts` (ranged
+resolution honoring `attackRange`), `vision.ts`/`turn.ts` (AI reads the visible set +
+the unseen-enemy fallback), `generation.ts` (a debuff-applying archetype + a ranged
+archer archetype), `clock.ts` (expose "is unit charging?" for the interrupt bonus +
+the caster-death cancel).
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -413,3 +458,11 @@ mirroring `adding-abilities.md`).* A status with teeth = up to 4 small parts:
   (default 1 secondary, built as a general slot system, cap tuned later). Slice builds
   both axes + stat growth + scaling + unlock for one-job-per-unit; data-shapes the
   multi-job map/slots. **Queue: only D (AI scope) remains.**
+- **2026-06-07** — **Enemy AI (D) LOCKED → QUEUE EMPTY.** Rewrite `ai.ts` into a light
+  **scoring `planTurn`** (enumerate reachable plans, score, pick). Must-haves: ranged
+  attacks, flank exploit+avoid, tarpit respect, target priority. Optional IN: enemy
+  ability use (≥1 debuff archetype), charge/channel-interrupt, **fog-respecting AI**
+  (acts on `canSee` — elevates vision/D18 to load-bearing; needs an unseen-enemy
+  fallback + tuning). Deferred: difficulty-scaled competence. **Design phase complete —
+  ready to graduate the draft into a final kickoff + plan.md row + decisions.md entries,
+  then build in phases.**
