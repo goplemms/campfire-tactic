@@ -22,6 +22,8 @@ import {
   caravanCapacity,
   createUnit,
   RunLoop,
+  mercPool,
+  hireFromPool,
   type Guild,
   type Caravan,
   type Unit,
@@ -128,7 +130,10 @@ export class GuildScene extends Phaser.Scene {
     this.ui = [];
 
     const W = this.scale.width;
-    this.text(W / 2, 14, `Guild Hall — Treasury ${this.guild.treasury}g  ·  Roster ${this.guild.roster.length}  ·  Armory ${availableGear(this.guild).length} free`, "#e8eefc", 17, 0.5);
+    // The two pools + Influence (D34): the persistent TREASURY (vault), the
+    // walled-off INFLUENCE currency, the roster, and the free armory. The run
+    // PURSE lives on each caravan (shown in Assembly / surfaced on a return).
+    this.text(W / 2, 14, `Guild Hall — Treasury ${this.guild.treasury}g  ·  Influence ${this.guild.influence}  ·  Roster ${this.guild.roster.length}  ·  Armory ${availableGear(this.guild).length} free`, "#e8eefc", 17, 0.5);
 
     this.drawBoard(20, 44);
     this.drawAssembly(280, 44);
@@ -258,9 +263,38 @@ export class GuildScene extends Phaser.Scene {
       yy += 26;
     }
 
-    yy += 14;
+    // Treasury-funded armory buy (D34): the vault funds the armory.
+    yy += 8;
+    const blade = `blade-${this.guild.armory.length}`;
+    const ARMORY_COST = 60;
+    const canBuyGear = this.guild.treasury >= ARMORY_COST;
+    this.wideButton(x, yy, 220, canBuyGear ? `Buy Gear (${ARMORY_COST}g → armory)` : `Buy Gear (need ${ARMORY_COST}g)`, canBuyGear, () => {
+      this.guild.treasury -= ARMORY_COST;
+      this.guild.armory.push(blade);
+      this.setHint(`Bought ${blade} into the armory (treasury −${ARMORY_COST}g).`);
+      this.render();
+    });
+
+    // The refreshing mercenary pool (D33): several rolled recruits, gold-hired.
+    yy += 40;
+    this.text(x, yy, "Recruits (refreshing pool)", "#d6c98a", 14, 0);
+    yy += 24;
+    const poolMercs = mercPool(this.guild);
+    const canAffordMerc = this.guild.treasury >= GUILD.mercCost;
+    for (const m of poolMercs) {
+      this.listButton(x, yy, 220, `${m.name} (${m.jobId}) — ${GUILD.mercCost}g`, false, () => {
+        if (!canAffordMerc) return this.setHint("Treasury can't afford a hire.");
+        const hired = hireFromPool(this.guild, m.id);
+        this.setHint(hired ? `Hired ${hired.name} (${hired.jobId}) from the pool.` : "Couldn't hire.");
+        this.render();
+      });
+      yy += 26;
+    }
+
+    // The single rebuild valve (D27) — always available even with the pool empty.
+    yy += 8;
     const canHire = this.guild.treasury >= GUILD.mercCost;
-    this.wideButton(x, yy, 220, canHire ? `Hire Mercenary (${GUILD.mercCost}g)` : `Hire Mercenary (need ${GUILD.mercCost}g)`, canHire, () => {
+    this.wideButton(x, yy, 220, canHire ? `Quick Hire (valve, ${GUILD.mercCost}g)` : `Quick Hire (need ${GUILD.mercCost}g)`, canHire, () => {
       const merc = hireMercenary(this.guild);
       this.setHint(merc ? `Hired ${merc.name} (${merc.jobId}).` : "Treasury can't afford a hire.");
       this.render();
@@ -308,6 +342,7 @@ export class GuildScene extends Phaser.Scene {
       if (r.lost.length) lines.push(`Fell on the road: ${r.lost.join(", ")}.`);
       if (r.gearReturned.length) lines.push(`Gear returned: ${r.gearReturned.join(", ")}.`);
       lines.push(`Purse returned to treasury: ${r.purseReturned}g.`);
+      if (r.payout) lines.push(`Quest payout banked to treasury: +${r.payout}g.`);
     }
     const w = 560;
     const h = 40 + lines.length * 20;

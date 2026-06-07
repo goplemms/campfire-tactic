@@ -43,6 +43,7 @@ import {
   createOverworldEconomy,
   cloneOverworldEconomy,
   tickCooldowns,
+  accruePurseInterest,
   type OverworldEconomy,
 } from "./overworld-actions";
 
@@ -251,6 +252,9 @@ export function recordNight(run: RunState, record: Omit<EncounterRecord, "night"
   run.history.push({ ...record, night: run.night });
   run.night += 1;
   tickCooldowns(run.overworld);
+  // The Banker's purse interest is a per-node-step faucet (M10, D30/D34) — purse
+  // only, never the treasury.
+  accruePurseInterest(run.overworld, run.camp);
   run.over = run.over || isRunOver(run);
   if (!run.over && record.winner !== "enemy" && isFinalRunNode(run)) {
     run.complete = true;

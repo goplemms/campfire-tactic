@@ -43,6 +43,8 @@ import { intelFloor, readEncounter, type IntelReport, type IntelTier } from "./i
 import { planEnemyTurn } from "./ai";
 import { restoreFatigue } from "./fatigue";
 import { takeOverworldAction, type ActionOpts, type ActionResult } from "./overworld-actions";
+import { gainRunGold } from "./economy";
+import { thiefEventSkim } from "./theft";
 
 /** What a resolved encounter produced (for the render/run-end screen). */
 export interface ResolveResult {
@@ -73,6 +75,15 @@ export interface RestResult {
   /** Units whose overworld fatigue was restored to Rested (D35 — rest's second job). */
   fatigueRestored: string[];
   dyingLost: string[];
+  over: boolean;
+}
+
+/** What a thief **event** node produced (no battle, D30). */
+export interface EventResult {
+  /** Purse gold skimmed by the thief (blunted by Banker protection, D30). */
+  stolen: number;
+  /** The purse balance after the skim. */
+  purseAfter: number;
   over: boolean;
 }
 
@@ -196,6 +207,27 @@ export class RunLoop {
     return { upkeep, rpAdded, healed, moraleGained: REST.moraleGain, fatigueRestored, dyingLost: lost.map((u) => u.id), over };
   }
 
+  // --- Event node (the thief, no battle, D30) -------------------------------
+
+  /**
+   * Play a thief **event** node (M10, D30): a no-battle overworld hazard that
+   * **skims the run purse** ({@link "./theft".thiefEventSkim}), blunted by any
+   * Banker theft protection. Ticks the night/cooldowns like any node-step and
+   * records the loss. Returns the skim summary for the render's event screen.
+   */
+  eventNode(): EventResult {
+    const node = currentNode(this.run);
+    const theft = thiefEventSkim(this.run, node);
+    const over = recordNight(this.run, {
+      nodeId: node.id,
+      layer: node.layer,
+      kind: node.kind,
+      goldEarned: -theft.stolen,
+      fallen: [],
+    });
+    return { stolen: theft.stolen, purseAfter: theft.purseAfter, over };
+  }
+
   // --- Camp (between battles, D9/D15) ---------------------------------------
 
   /**
@@ -312,7 +344,8 @@ export class RunLoop {
     if (won) {
       const mods = moraleModifiers(moraleTier(this.run.camp.morale));
       goldEarned = Math.round(def.reward.gold * (1 + mods.goldFindBonus));
-      this.run.camp.gold += goldEarned;
+      // Loot routes to the PURSE (D34), auto-repaying any Banker debt first (D30).
+      gainRunGold(this.run, goldEarned);
       for (const drop of def.reward.materials) {
         // Add drops up to the storage cap; overflow is simply lost (D6).
         for (let i = 0; i < drop.count; i++) addItem(this.run.inventory, drop.id);
@@ -403,6 +436,10 @@ export class RunLoop {
     const node = currentNode(this.run);
     if (node.kind === "rest") {
       this.restNode();
+      return node;
+    }
+    if (node.kind === "event") {
+      this.eventNode();
       return node;
     }
     this.camp();

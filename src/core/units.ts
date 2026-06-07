@@ -64,6 +64,20 @@ export interface UnitSpec extends UnitStats {
    * game-over/reload path itself is a later pass (not built in M9).
    */
   isLord?: boolean;
+  /**
+   * **Authored-cast** flag (D33 recruitment seam); defaults to false. The whole
+   * new recruitment rule is temp↔permanent: a bribed/rescued **authored** unit
+   * (this flag) joins the roster *permanently*, while a bribed **generic**
+   * (rolled mercenary / plain enemy) only fights for the rest of the battle. The
+   * authored-cast *data shape* (fixed identity + recruit hooks) is deferred (D33).
+   */
+  authored?: boolean;
+  /**
+   * **Thief archetype** flag (D30 theft vector); defaults to false. A thief enemy
+   * skims the run **purse** mid-battle and tries to flee off-map with it — killed
+   * before it escapes drops the loot, escaped keeps it ({@link "./theft"}).
+   */
+  thief?: boolean;
 }
 
 /**
@@ -98,6 +112,10 @@ export interface Unit extends UnitStats {
   xp: number;
   /** Named campaign lord (D27 stakes seam); a wipe carrying one flags `lordLost`. */
   isLord: boolean;
+  /** Authored-cast member (D33): a bribed/rescued one joins the roster permanently. */
+  authored: boolean;
+  /** Thief archetype (D30): skims the purse mid-battle ({@link "./theft"}). */
+  thief: boolean;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -127,6 +145,8 @@ export function createUnit(spec: UnitSpec): Unit {
     level: spec.level ?? 1,
     xp: spec.xp ?? 0,
     isLord: spec.isLord ?? false,
+    authored: spec.authored ?? false,
+    thief: spec.thief ?? false,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,
