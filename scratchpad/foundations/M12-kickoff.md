@@ -176,6 +176,19 @@ layer matter to combat (you assemble a *combo*, not just a roster) — the game'
 identity. Emergent chains already fall out of the locked kits: Heavy Knight tarpit
 (Slowed) → Scout isolates + Exposes → Hunter's Deadeye punishes the afflicted prey.
 
+**Design principle — scale by level/resource, not small-vs-big (locked 2026-06-07):**
+a class's two actives must differ in **kind**, never be a "small version / big version"
+of the same effect. Abilities grow via **character level and/or resource commitment**.
+(Direct input to the leveling discussion: leveling makes abilities *grow*, not only
+stats.)
+
+**Design principle — combat↔logistics bridge (locked 2026-06-07):** combat abilities
+may **consume logistical resources** (consumables), with **modular riders chosen by
+resource type** — so provisioning has a combat voice (the game's identity). Extends the
+consumables family (D17/D20: ammo/scrolls/reagents). **First expression: the Medic's
+Heal.** Scope: additive, reuses `inventory.ts`/`MATERIALS`; ship a **minimal** version
+first (one consumable per use, ~2–3 herb types), deepen the resource-scaling axis later.
+
 ### Heavy Knight — LOCKED *(2026-06-07)*
 
 Space-control bruiser / anchor. `sp12 hp34 atk11 def4 mv4`. Renamed from "Knight" to
@@ -220,16 +233,26 @@ solo-assassin to set the team-play baseline.
 *(+ melee basic attack.)* Damage = basics + Flanker bonus + its own Exposed mark — no
 separate burst button needed. **Exposed status finds its home here.**
 
-### Remaining kits — DRAFT (re-derive under 2 active + 1 passive; each gets a passive)
+### Medic — LOCKED *(2026-06-07)*
 
-| Class | Draft (to revise next, one at a time) | Exercises |
+Sustain backbone & clock-manager. `sp9 hp20 atk4 def2 mv3` — slow, fragile, near-zero
+offense; its game is **timing**. Slowness is intentional: it must **anticipate**, not
+just react (which is why a *charged* heal fits). The two actives differ in **kind**
+(modular item-heal vs. charged level-heal), per the scale-by-level/resource principle.
+
+| Slot | Skill | Effect |
 |---|---|---|
-| **Medic** | passive: ? · Heal (cd) · Mend (**charged** heal) / Cleanse | E, F |
+| **Passive** | **Triage** | Healing is **stronger the more wounded** the target is (scales with missing HP); can **stabilize a downed unit** (D9 tie-in). Rewards brinkmanship — exactly what an aggressive synergy comp creates. |
+| **Active** | **Heal** *(instant, consumes a resource)* | Consumes a **medical consumable**; heals + a **rider by resource type**: salve → +healing; stimulant → +speed a turn; **antidote → cleanse a debuff** (counterplay = *provisioned*, not free). Scales with resource commitment. |
+| **Active** | **Mend** *(charged)* | Committed timing-heal, **scales with level**. The big save + the slice's **charge demonstration**. |
 
-> **Charged *offense* — deferred to a future class (resolved 2026-06-07):** none of the
-> four (control / ranged-kite / playmaker / support) wants a telegraphed wind-up nuke;
-> charged offense fits a future **heavy-hitter or caster**. Not shoehorned. (Charged is
-> still *demonstrated* in the slice — likely via the Medic's charged **Mend** heal.)
+*(+ weak melee basic.)* **Cleanse folds into the antidote rider** (logistics = the
+debuff answer). **Charge is demonstrated here** (Mend) — so no shoehorned charged
+offense; that waits for a future heavy/caster.
+
+> **ROSTER COMPLETE** — Heavy Knight (control) · Hunter (ranged prey) · Scout
+> (playmaker) · Medic (sustain). Next: re-derive the **status set**, then **leveling
+> payoff + job-model parameters**, then **D (AI scope)**.
 
 > **Status set — re-derive after the roster is complete.** Likely survivors:
 > **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
@@ -288,3 +311,10 @@ separate burst button needed. **Exposed status finds its home here.**
   Hunter's Deadeye). Recorded the **synergy-first** design principle. **Exposed** status
   home = Scout. **Charged offense deferred to a future heavy/caster** (no forced home);
   charged still demonstrated via the Medic's Mend.
+- **2026-06-07** — **Medic LOCKED** → **ROSTER COMPLETE**. Triage passive (heals scale
+  with missing HP, stabilize the dying) + Heal (instant, **consumes a medical
+  consumable**, rider by resource: salve/+heal · stimulant/+speed · antidote/cleanse) +
+  Mend (charged, level-scaling — the charge demo). Recorded two roster-wide principles:
+  **scale by level/resource not small-vs-big**, and the **combat↔logistics bridge**
+  (abilities may consume consumables; first expression = Medic Heal; ship minimal).
+  Cleanse folds into the antidote rider. Guarded status dropped/reserved (like Taunt).
