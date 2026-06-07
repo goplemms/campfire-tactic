@@ -78,14 +78,59 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   delivering C through positioning. The AI must learn both halves
   (split-and-gang / keep-formation); **flank-aware AI is folded into D.**
 
+### Combat ability economy (gap E) — *2026-06-07*
+
+> **The combat economy is *time*.** No MP, no hoardable pools (D35: cooldowns over
+> hoardable pools). Decisions are paid on the CT clock. **Two-lever model**, with
+> **charge-time the star** (D5) and a **sparing cooldown** only as a spam-limiter on
+> instant utility.
+
+- **Three time-layers, two already built:**
+  - **Act-vs-Move spend-down** — any ability use costs the Act (100 CT); a move-only
+    turn costs 50. The universal tempo tax. *(built)*
+  - **Charge-time (the spine, D5)** — commit on your turn, the effect **resolves N
+    ticks later** via the clock's `ScheduledEffect` gauge; the caster is **committed**
+    until it lands; Speed governs charge-landing. *(infra built, unused)*
+  - **Cooldown** — a *sparing* per-skill re-arm (in CT) on **instant utility**
+    (Heal/Cleanse/Guard) so it can't repeat every turn. Not the main cadence. *(new)*
+- **Basic attack = the instant floor** (the martial analog of D17's free default
+  spell): always available, weak, no charge/cooldown.
+- **Instant-default, charged-for-power:** most abilities cast **instant**; **stronger
+  variants are charged** (e.g. Quick Shot instant ↔ Aimed Shot charged). Data:
+  either two records or one "chargeable" skill with an instant + a charged tier.
+- **Charge duration is one data number — arbitrary N.** Tiny ⇒ near-instant; large ⇒
+  a **multi-turn charge** for designed missions / special characters (a story-altering
+  spell charged over many turns is *just a long charge*, no special-casing). Denominate
+  precisely in CT/ticks; **display to the player as approximate turns.**
+- **Fizzle/disruption is a data-driven condition set** on the scheduled effect, checked
+  before it resolves — deliberately **left open/extensible**: caster-death,
+  target-death, target-moved-out-of-range/area, **counter-spell** (an ability that
+  targets an *in-flight* effect by its `id`). **Ship caster-death-cancels first;**
+  reserve the rest behind the predicate shape.
+- **Channeled abilities — the dual of charged.** Where a charge is a *delayed burst*,
+  a channel is a *sustained effect that ticks each clock-tick over a duration while the
+  caster is **locked/committed*** (regen aura, sustained beam, a held control field),
+  ended early by the **same disruption conditions**. Both are "committed-on-the-timeline,
+  interruptible" forms; modeled together. **First slice builds ONE martial channel
+  as the proof: the Knight's "Hold the Line"** — a sustained taunt + guard aura
+  while the Knight is locked in place, broken by the shared fizzle conditions. (This
+  doubles as gap C's *active* tank tool — see below.)
+- **Cooldown details (default, tunable):** cooldowns appear only on the **2–3
+  instant-utility skills** (Heal / Cleanse / Guard-type), ~**150–250 CT** each — not
+  on offense, which is paced by charge-time + the Act tax.
+- **Charge denomination (default):** fill tied to **elapsed clock time** (so "N turns"
+  ≈ N of the caster's turns), denominated in CT/ticks internally, **displayed as
+  "~N turns."** Not Speed-scaled unless we revisit.
+- **Compounding (no new "combo system"):** charge-time × **flanking** × Speed reinforce
+  — a fast unit pins an isolated target, an ally's charged hit lands while it's still
+  flanked. Combos fall out of the timing economy (cf. D16's bus-scheduled chains).
+
 ## Open discussion queue (one at a time)
 
-- **C — taunt extent.** Given flanking already shelters formation, does the Knight
-  still get an *active* Taunt (force aggro), or does positioning + AI target logic
-  carry C entirely? (Decide with the Knight's kit.)
-- **E — ability economy shape.** Cooldown (in CT/turns) vs charge (the clock's
-  `ScheduledEffect` gauge) vs uses-per-battle — which levers, and which skills use
-  which.
+- **C — taunt extent.** *Largely resolved:* passive formation-protection comes from
+  **flanking**; the Knight's *active* aggro tool is the **"Hold the Line" channel**.
+  The only residue is **making the AI honor taunt**, which lives in **D**. Confirm
+  the exact taunt effect when we spec the Knight's kit.
 - **Class kits.** The concrete skill list per class (Knight / Archer / Scout /
   Medic), each exercising the depth levers.
 - **Leveling payoff specifics (#2).** Stat-growth per class vs skill-unlock
@@ -117,3 +162,14 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   Magic deferred. First slice = 4 classes + leveling payoff + B/C/D/E. G + height
   deferred. Flanking fully specced (support/pincer, melee-only, symmetric, binary
   +4, immobilized-counts/captured-doesn't).
+- **2026-06-07** — Locked the combat ability economy (E): economy = time; two-lever,
+  charge-time the star (D5) + sparing cooldown on instant utility; basic attack the
+  instant floor; instant-default/charged-for-power; arbitrary-N charge duration
+  (story spells = long charges); fizzle as an extensible data-driven condition set
+  (caster-death first); channeled embraced as the dual of charged (scope open).
+- **2026-06-07** — Closed E: build **one** martial channel as the proof — the Knight's
+  **"Hold the Line"** (sustained taunt+guard while locked), which doubles as gap C's
+  active tank tool. Cooldowns only on instant utility (~150–250 CT); charge fill tied
+  to elapsed clock time, displayed as "~N turns." **C largely resolved** (flanking =
+  passive, Hold-the-Line = active, AI-honors-taunt folded into D). **Economy fully
+  specced.**
