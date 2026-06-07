@@ -163,6 +163,15 @@ export class CTClock {
   }
 
   /**
+   * Fill fraction (0..1) of a scheduled effect by id, or undefined if none — the
+   * render reads it for the bridge-cut timer / charge readouts (D37/D43).
+   */
+  scheduledProgress(id: string): number | undefined {
+    const e = this.scheduled.find((x) => x.id === id);
+    return e ? Math.min(1, (e.gauge ?? 0) / CHARGE_THRESHOLD) : undefined;
+  }
+
+  /**
    * Advance the clock one tick: fill + resolve scheduled effects, then add each
    * living unit's Speed to its CT.
    */

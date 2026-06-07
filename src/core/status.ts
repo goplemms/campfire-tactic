@@ -258,3 +258,28 @@ export function setCounter(unit: Unit, key: string, value: number): void {
 export function clearCounter(unit: Unit, key: string): void {
   delete unit.counters[key];
 }
+
+/**
+ * The status→visual registry (D41): the **data** the render's at-a-glance tracker
+ * reads (a glyph/badge + a tint). A new status gets a tracker by adding one row
+ * here, not bespoke draw code. Tints are hex ints for Phaser.
+ */
+export interface StatusVisual {
+  glyph: string;
+  tint: number;
+  label: string;
+}
+export const STATUS_VISUALS: Record<string, StatusVisual> = {
+  [IMMOBILIZED]: { glyph: "I", tint: 0x9a6bd0, label: "Immobilized" },
+  [SLOWED]: { glyph: "S", tint: 0x6f86c0, label: "Slowed" },
+  [EXPOSED]: { glyph: "X", tint: 0xe07b7b, label: "Exposed" },
+  [HASTENED]: { glyph: "H", tint: 0x7be0a0, label: "Hastened" },
+  [GUARDED]: { glyph: "G", tint: 0x8fb6e0, label: "Guarded" },
+  [SWIFT]: { glyph: "F", tint: 0xe0d27b, label: "Swift" },
+  [MARKED]: { glyph: "M", tint: 0xe0a070, label: "Marked Prey" },
+};
+
+/** The visual for a status id (a neutral default if unregistered). */
+export function statusVisual(id: string): StatusVisual {
+  return STATUS_VISUALS[id] ?? { glyph: "*", tint: 0xaaaaaa, label: id };
+}

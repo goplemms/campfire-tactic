@@ -18,7 +18,7 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 | M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
 | M11 — The event-node batch (shops · recruiters · story events) | done (in-browser gate confirmed 2026-06-07; merged PR #12) |
-| M12 — Combat depth, the class slice & the demo-quest proof | design finalized 2026-06-07 (D36–D44); ready to build |
+| M12 — Combat depth, the class slice & the demo-quest proof | testable (core+render code complete 2026-06-07; 325 tests green; awaiting in-browser gate) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
@@ -26,16 +26,47 @@ States: `todo` → `in-progress` → `testable` → `done`
 ## Current block
 
 - **Milestone:** **M12 — Combat depth, the class slice & the demo-quest proof.**
-  **DESIGN FINALIZED 2026-06-07; ready to build (no code yet).** A long design session
-  turned the "evaluate for baseline fun" ask into a full, locked design: the four-class
-  combat slice (Heavy Knight · Hunter · Scout · Medic) + the combat depth it forces
-  (flanking, the time-based ability economy, statuses with teeth, hybrid leveling, a
-  scoring AI) + a hand-crafted **demo quest** ("The Hollow Mill") as the proof harness.
-  All of it is captured in [`M12-kickoff.md`](M12-kickoff.md), logged as decisions
-  **D36–D44** in [`decisions.md`](decisions.md), rowed in [`plan.md`](plan.md), and the
-  build is kicked off by [`M12-build-prompt.md`](M12-build-prompt.md). **Next: build it**
-  (start at Phase 1 in the build prompt — the combat-depth substrate). The whole design
-  lives on branch `claude/testability-gaps-eval-YO0Kv`.
+  **CODE COMPLETE 2026-06-07 (core + render); TESTABLE — awaiting the in-browser gate.**
+  Built in the build-prompt's six phases on branch `claude/testability-gaps-eval-YO0Kv`.
+  `npm test` **325/325 green** (269 prior + 56 new), `npm run build` clean, `core/` free
+  of Phaser/DOM **and** `Math.random`.
+  - **Phase 1 — combat-depth substrate** (`combat.ts`/`status.ts`/`clock.ts`/`skills.ts`/
+    `units.ts`): **flanking** (D36 — melee-only support/pincer, `computeFlankBonus`,
+    `adjacentBodies`); **statuses with teeth** (D41 — Slowed/Exposed/Hastened/Guarded + a
+    `kind` classifier; read-hooks `clock.effectiveSpeed` + `combat.computeDamage`;
+    `cleanseOne`/`isDebuffed`/Deadeye read `kind`); **ability economy** (D37 — `SkillDef.cost`
+    charge/cooldown; charge via the clock's `ScheduledEffect` with caster-death **fizzle**;
+    per-unit CT cooldowns; the maintained-stance **channel**/Mark ramp); **ranged**
+    (`attackRange` stat + `inAttackRange`). Status authoring pattern graduated to
+    [`docs/guides/adding-statuses.md`].
+  - **Phase 2 — the four classes + Defend** (`jobs.ts`): **Heavy Knight / Hunter / Scout /
+    Medic** as data (2 active + 1 passive), passives stamped + wired (tarpit aura · Deadeye ·
+    solo-flank · Triage); primitives **Shove** (D19 forced move), directional **Cleave**,
+    **Mark Prey** channel, charged **Mend**; the **combat↔logistics bridge** (salve/stimulant/
+    antidote herbs + `resolveMedHeal` riders); **universal Defend** + reserved `standingOrder`.
+  - **Phase 3 — dissolved job model + hybrid leveling** (D38/D39): `units.ts` `primaryJob`/
+    `heldJobs`/`jobLevels`/`loadoutSlots`; `leveling.ts` per-job cumulative stat gains
+    (+1-all + growth table), `abilityScaleBonus`, `unlockedSkills` (2nd active at job-L2),
+    `routeCombatXp`, character-boon loadout growth; `isCombatant` dissolves the split.
+  - **Phase 4 — scoring AI + bandit archetypes** (D42): `ai.ts` enumerate-score-pick
+    (reachable-tile flood with tarpit-ring cost; flank exploit+avoid; target priority;
+    fog-respecting; enemy ability use; charge-interrupt); `generation.ts` `BANDIT_TEMPLATES`
+    (thug/bowman/snare-trapper/sapper/captain) + the Snare-Trapper job.
+  - **Phase 5 — authoring substrate + The Hollow Mill + graded failure** (D43/D44):
+    `authored.ts` (`AuthoredEncounter`/`AuthoredQuest` + deterministic builders + the
+    bridge-cut **objective** whose fizzle fires on Sapper death/Immobilize; `EncounterResult`
+    win|objective-failure|wipe); `demo-quest.ts` (`THE_HOLLOW_MILL` 5 beats + `DemoRunner`).
+  - **Phase 6 — render** (`game/scenes/DemoScene.ts`): standalone **demo mode** (boot via the
+    run-bar "▶ Demo" button / `#demo` hash) — provision screen, interactive battles with
+    data-driven kit buttons (charge/cooldown readouts), **status visual trackers** (the
+    `STATUS_VISUALS` registry), Defend, the **bridge-cut timer**, rest/level-up surfacing +
+    the deserter choice, and graded-failure results.
+  - **NEXT (the only remaining step):** confirm the **M12 in-browser gate** — `npm run dev`
+    → click **▶ Demo: The Hollow Mill** → play it end to end (provision → flank in E1 →
+    rest level-up + deserter choice → tarpit/cleanse/combo + scout in E2 → race the bridge
+    timer / beat the Captain *or* fail-and-retreat in E3). Then flip M12 → **done** + the
+    plan.md row; (on go-ahead) open the PR. *(Headless `npm test` covers all the rules; only
+    the visual/interaction confirmation is outstanding — the agent can't run a browser.)*
 
 <details><summary>M11 — The event-node batch — DONE (merged PR #12, 2026-06-07)</summary>
 
