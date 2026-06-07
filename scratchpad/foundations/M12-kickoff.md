@@ -125,16 +125,34 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   — a fast unit pins an isolated target, an ally's charged hit lands while it's still
   flanked. Combos fall out of the timing economy (cf. D16's bus-scheduled chains).
 
+### Job model — any job can be primary (settles D32) — *2026-06-07*
+
+> The **combat/non-combat job split dissolves.** Any job (Knight, Chef, Merchant, …)
+> can be a unit's **primary**. "Primary" is only a **designation** that affects
+> **(a) XP-gain rate** and **(b) class-gated content** (events/recruits/dialogue that
+> check whether the party holds a given class). Units can **hold multiple jobs** and
+> draw skills from all held jobs — this is the FFT secondary-class direction, so it
+> **settles D32** rather than deferring it.
+
+- **Parameters deferred to the leveling discussion** (XP-rate lives there): how many
+  jobs a unit may hold; whether non-primary jobs still earn XP (reduced rate); per-job
+  vs per-unit levels; the slot model (if any).
+- **First-slice impact: container only.** Units still carry **one** job each in the
+  first slice, so the *kits* are unchanged; the data shape (`primaryJob` + a held-jobs
+  list; `isCombatant` stops gating on a `noncombat` flag) is what changes. The
+  Survivalist/Chef/Merchant stay first-class jobs (not absorbed into a combat class).
+
 ## Open discussion queue (one at a time)
 
 - **C — taunt extent.** *Largely resolved:* passive formation-protection comes from
   **flanking**; the Knight's *active* aggro tool is the **"Hold the Line" channel**.
   The only residue is **making the AI honor taunt**, which lives in **D**. Confirm
   the exact taunt effect when we spec the Knight's kit.
-- **Class kits.** The concrete skill list per class (Knight / Archer / Scout /
-  Medic), each exercising the depth levers.
-- **Leveling payoff specifics (#2).** Stat-growth per class vs skill-unlock
-  breakpoints vs both; the growth curve.
+- **Class kits** *(in progress — one class at a time for identity; Knight first)*.
+  The concrete per-class skill list (Knight → Archer → Scout → Medic).
+- **Leveling payoff specifics (#2) + job-model parameters.** Stat-growth per class vs
+  skill-unlock breakpoints vs both; the growth curve; **plus** the deferred job-model
+  parameters (jobs-per-unit, non-primary XP rate, per-job vs per-unit levels, slots).
 - **D — AI scope.** How far the AI upgrade goes (range use, skill use, flank
   exploit/avoid, fog use) for the first slice vs deferred.
 
@@ -173,3 +191,8 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   to elapsed clock time, displayed as "~N turns." **C largely resolved** (flanking =
   passive, Hold-the-Line = active, AI-honors-taunt folded into D). **Economy fully
   specced.**
+- **2026-06-07** — Job model reshape: any job can be **primary** (combat/non-combat
+  split dissolves); primary only affects XP-rate + class-gated content; units may hold
+  multiple jobs & draw skills from all (settles D32). Parameters → leveling discussion.
+  First slice = container change only (one job per unit; kits unchanged). Began the
+  kit-by-kit identity pass (Knight first).
