@@ -284,7 +284,7 @@ exercise in the browser.
   [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (D33 recruitment,
   D34 two pools + Influence).
 
-### M11 — The event-node batch (shops · recruiters · story events) — *testable (code complete 2026-06-07; awaiting in-browser gate)*
+### M11 — The event-node batch (shops · recruiters · story events) — *done (in-browser gate confirmed 2026-06-07; merged PR #12)*
 
 - *Adjustment (not a pivot): the north star is unchanged; this turns the overworld's third
   node tier (`event`, M10) from a single hard-coded thief into a **data-driven event
