@@ -16,6 +16,43 @@
 
 import type { Unit, Side } from "./units";
 import type { EventBus } from "./events";
+import { hasStatus, statusAmount, SLOWED, HASTENED } from "./status";
+
+/**
+ * A unit's **effective** CT-gain speed this tick (D41): base Speed, plus
+ * Hastened, then capped down by Slowed (the Heavy Knight's tarpit drives it to
+ * 1). Floored at 1 so the clock can never stall. This is the single read-hook
+ * for the speed-affecting statuses — nothing else should branch on them.
+ */
+export function effectiveSpeed(unit: Unit): number {
+  let s = unit.speed;
+  if (hasStatus(unit, HASTENED)) s += statusAmount(unit, HASTENED);
+  if (hasStatus(unit, SLOWED)) s = Math.min(s, statusAmount(unit, SLOWED));
+  return Math.max(1, s);
+}
+
+/**
+ * Burn down a unit's per-skill cooldowns (D37) by `amount` CT (its effective
+ * speed for the tick), dropping any that reach 0. Denominated in CT, so a
+ * "~200 CT" cooldown re-arms in roughly two of the unit's turns.
+ */
+export function tickSkillCooldowns(unit: Unit, amount: number): void {
+  for (const id of Object.keys(unit.cooldowns)) {
+    const left = unit.cooldowns[id] - amount;
+    if (left <= 0) delete unit.cooldowns[id];
+    else unit.cooldowns[id] = left;
+  }
+}
+
+/** True if `skillId` is still cooling down on `unit` (D37). */
+export function onSkillCooldown(unit: Unit, skillId: string): boolean {
+  return (unit.cooldowns[skillId] ?? 0) > 0;
+}
+
+/** Arm a unit's cooldown for a skill (CT before reuse). */
+export function armSkillCooldown(unit: Unit, skillId: string, ct: number): void {
+  if (ct > 0) unit.cooldowns[skillId] = ct;
+}
 
 /** CT needed to take a turn. */
 export const TURN_THRESHOLD = 100;
@@ -44,6 +81,19 @@ export interface ScheduledEffect {
   /** Current fill; starts at 0. */
   gauge?: number;
   run: () => void;
+  /**
+   * The committed caster (D37), if any — lets the clock cancel a charge whose
+   * caster died and lets the AI ask "is this unit charging?" (the interrupt
+   * bonus). A charge with no caster (an environmental timer) is uninterruptible.
+   */
+  caster?: Unit;
+  /**
+   * Data-driven **fizzle** predicate (D37): checked when the gauge fills; if it
+   * returns true the effect is cancelled instead of run (`chargeFizzled` fires).
+   * Caster-death is wired by default ({@link CTClock.schedule}); the rest
+   * (target-moved, counter-spell) reserve this shape.
+   */
+  fizzleWhen?: () => boolean;
 }
 
 /**
@@ -91,14 +141,25 @@ export class CTClock {
     }
   }
 
-  /** Commit an effect to the timeline. */
+  /**
+   * Commit an effect to the timeline. A `caster` arms the default **caster-death
+   * fizzle** (D37) unless the effect already carries its own `fizzleWhen`.
+   */
   schedule(effect: ScheduledEffect): void {
-    this.scheduled.push({ gauge: 0, ...effect });
+    const fizzleWhen =
+      effect.fizzleWhen ??
+      (effect.caster ? () => !effect.caster!.alive : undefined);
+    this.scheduled.push({ gauge: 0, ...effect, fizzleWhen });
   }
 
   /** How many effects are still charging. */
   pendingEffects(): number {
     return this.scheduled.length;
+  }
+
+  /** True if `unit` is committed to an in-flight charge/channel (D37). */
+  isCharging(unit: Unit): boolean {
+    return this.scheduled.some((e) => e.caster === unit);
   }
 
   /**
@@ -109,7 +170,8 @@ export class CTClock {
     this.time += 1;
 
     // 1) Charged effects fill and resolve first, so a charge landing this tick
-    //    is processed before units act on it.
+    //    is processed before units act on it. A filled effect whose fizzle
+    //    predicate is true (e.g. its caster died) is cancelled, not run (D37).
     if (this.scheduled.length > 0) {
       const ready: ScheduledEffect[] = [];
       for (const e of this.scheduled) {
@@ -119,16 +181,24 @@ export class CTClock {
       if (ready.length > 0) {
         this.scheduled = this.scheduled.filter((e) => !ready.includes(e));
         for (const e of ready) {
+          if (e.fizzleWhen?.()) {
+            this.bus?.emit("chargeFizzled", { id: e.id });
+            continue;
+          }
           e.run();
           this.bus?.emit("chargeResolved", { id: e.id });
         }
       }
     }
 
-    // 2) Every living, non-captured unit charges by its Speed (a captured unit
-    //    is bound — it doesn't tick toward a turn until freed).
+    // 2) Every living, non-captured unit charges by its **effective** Speed
+    //    (Slowed/Hastened, D41) and burns down its cooldowns by the same amount
+    //    (D37) — a captured unit is bound and ticks toward neither.
     for (const u of this.units) {
-      if (u.alive && !u.captured) u.ct += u.speed;
+      if (!u.alive || u.captured) continue;
+      const sp = effectiveSpeed(u);
+      u.ct += sp;
+      tickSkillCooldowns(u, sp);
     }
   }
 

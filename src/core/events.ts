@@ -28,6 +28,8 @@ export interface BattleEvents {
   unitDefeated: { unit: Unit; source?: Unit };
   /** A scheduled/charged effect resolved on the timeline (D5/D16). */
   chargeResolved: { id: string };
+  /** A scheduled/charged effect was cancelled before it resolved (D37 fizzle). */
+  chargeFizzled: { id: string };
 }
 
 /** All valid event names. */

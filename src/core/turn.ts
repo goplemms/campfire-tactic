@@ -15,7 +15,7 @@ import type { Unit, Side } from "./units";
 import type { GridCoord } from "./iso";
 import type { TileGrid } from "./grid";
 import { EventBus } from "./events";
-import { CTClock, type TurnSpend } from "./clock";
+import { CTClock, type TurnSpend, onSkillCooldown, armSkillCooldown } from "./clock";
 import { EntityRegistry } from "./entities";
 import { resolveAttack, battleOutcome, type BattleOutcome } from "./combat";
 import { tickStatuses } from "./status";
@@ -71,18 +71,44 @@ export class Battle {
     }
   }
 
-  /** Resolve a basic attack, firing damage/defeat events. Returns damage dealt. */
+  /**
+   * Resolve a basic attack, firing damage/defeat events. Passes the full roster
+   * so **flanking** (D36) applies. Returns damage dealt.
+   */
   attack(attacker: Unit, target: Unit): number {
-    return resolveAttack(attacker, target, this.bus);
+    return resolveAttack(attacker, target, this.bus, attacker.attack, this.units);
+  }
+
+  /** True if `caster` may use `skill` right now (not cooling down, D37). */
+  canUseSkill(caster: Unit, skill: SkillDef): boolean {
+    return !onSkillCooldown(caster, skill.id);
   }
 
   /**
    * Resolve a job skill against a target (firing its bus events) and end the
    * caster's turn, spending CT per the skill's cost. The single entry the render
-   * layer uses for the skill buttons.
+   * layer uses for the skill buttons. Honors the **ability economy** (D37): a
+   * **charged** skill commits now and resolves later on the clock (caster-death
+   * fizzles it); a skill with a **cooldown** arms it; both still spend the Act.
    */
   useSkill(caster: Unit, skill: SkillDef, target: Unit): SkillOutcome {
-    const outcome = resolveSkill(skill, caster, target, this.bus);
+    if (!this.canUseSkill(caster, skill)) return {};
+    let outcome: SkillOutcome;
+    if (skill.cost?.charge) {
+      // Commit to the timeline; the effect lands when its gauge fills.
+      this.clock.schedule({
+        id: `charge:${caster.id}:${skill.id}:${this.clock.time}`,
+        speed: skill.cost.charge,
+        caster,
+        run: () => {
+          if (target.alive) resolveSkill(skill, caster, target, this.bus, this.units);
+        },
+      });
+      outcome = { charging: true };
+    } else {
+      outcome = resolveSkill(skill, caster, target, this.bus, this.units);
+    }
+    if (skill.cost?.cooldown) armSkillCooldown(caster, skill.id, skill.cost.cooldown);
     this.endTurn(caster, { acted: skill.spend === "act", moved: skill.spend === "move" });
     return outcome;
   }

@@ -27,6 +27,12 @@ export interface UnitStats {
   moveRange: number;
   /** Vision radius for the fog-of-war seam (D18). */
   sightRadius: number;
+  /**
+   * Attack reach in tiles (Manhattan), D40. Defaults to 1 (melee). A ranged unit
+   * (the Hunter, an enemy bowman) sets it higher and attacks without closing;
+   * **flanking is melee-only** so a ranged attacker never earns the flank bonus.
+   */
+  attackRange?: number;
 }
 /** The authored description of a unit — the data a designer writes. */
 export interface UnitSpec extends UnitStats {
@@ -89,6 +95,8 @@ export interface Unit extends UnitStats {
   readonly id: string;
   readonly side: Side;
   readonly name: string;
+  /** Attack reach in tiles (D40); always set on a live unit (1 = melee). */
+  attackRange: number;
   /** The unit's job, if any — the data that grants its skills. */
   readonly jobId?: string;
   /** Current tile. Replaced wholesale on a move (never mutated in place). */
@@ -125,6 +133,19 @@ export interface Unit extends UnitStats {
   statuses: StatusInstance[];
   /** Generic per-unit counters, e.g. a capture meter (D12). */
   counters: Record<string, number>;
+  /**
+   * Per-skill cooldowns in CT (D37 ability economy): skillId → remaining CT,
+   * decremented each clock tick by the unit's effective speed (so "~200 CT" ≈ two
+   * of the unit's turns). A skill is on cooldown while its entry is > 0.
+   */
+  cooldowns: Record<string, number>;
+  /**
+   * Passive parameters a unit's job grants (D40), stamped at roster setup
+   * ({@link "./jobs".stampPassives}) and read by combat resolution — the Scout's
+   * solo-flank, the Hunter's Deadeye, the Medic's Triage. Keyed by
+   * {@link "./combat".PASSIVE}. Empty for a unit with no passive.
+   */
+  passives: Record<string, number>;
 }
 
 /** Inflate an authored {@link UnitSpec} into a live {@link Unit}. */
@@ -153,8 +174,11 @@ export function createUnit(spec: UnitSpec): Unit {
     defense: spec.defense,
     moveRange: spec.moveRange,
     sightRadius: spec.sightRadius,
+    attackRange: spec.attackRange ?? 1,
     statuses: [],
     counters: {},
+    cooldowns: {},
+    passives: {},
   };
 }
 

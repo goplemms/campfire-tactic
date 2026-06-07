@@ -10,6 +10,15 @@
 import type { Unit, Side } from "./units";
 import type { GridCoord } from "./iso";
 import type { EventBus } from "./events";
+import {
+  hasStatus,
+  isDebuffed,
+  statusAmount,
+  markOf,
+  markBonus,
+  EXPOSED,
+  GUARDED,
+} from "./status";
 
 /** Manhattan distance — matches the grid's 4-connected movement. */
 export function manhattan(a: GridCoord, b: GridCoord): number {
@@ -21,13 +30,115 @@ export function isAdjacent(a: GridCoord, b: GridCoord): boolean {
   return manhattan(a, b) === 1;
 }
 
-/** Damage a basic attack would deal: attack minus defense, floored at 1. */
+/** True if `attacker` can reach `target` with a basic attack (its `attackRange`). */
+export function inAttackRange(attacker: Unit, target: Unit): boolean {
+  return manhattan(attacker.pos, target.pos) <= attacker.attackRange;
+}
+
+/** Flanking tuning (D36) — one tunable number. */
+export const FLANK = { bonus: 4 } as const;
+
+/**
+ * Passive-parameter keys (D40) a job stamps onto a unit and combat reads. Kept
+ * here so combat stays self-contained (no jobs import — that would cycle).
+ */
+export const PASSIVE = {
+  /** Scout Flanker: flank an isolated target **solo** (no second body needed). */
+  flankSolo: "flankSolo",
+  /** Scout Flanker: flank bonus override (bigger than the baseline +4). */
+  flankBonus: "flankBonus",
+  /** Hunter Deadeye: bonus damage against a debuffed target. */
+  deadeye: "deadeye",
+  /** Medic Triage: missing-HP heal-scaling factor (read by the heal resolver). */
+  triage: "triage",
+} as const;
+
+/**
+ * Count living, non-captured units on `side` orthogonally adjacent to `target`
+ * (excluding `target` itself). **Body-counting (D36):** an Immobilized unit
+ * still counts (it pincers / it shelters); captured or downed units don't (they
+ * aren't an active threat — `alive`/`captured` already exclude them).
+ */
+export function adjacentBodies(
+  target: Unit,
+  units: readonly Unit[],
+  side: Side,
+): number {
+  return units.filter(
+    (u) =>
+      u.alive &&
+      !u.captured &&
+      u.side === side &&
+      u !== target &&
+      isAdjacent(u.pos, target.pos),
+  ).length;
+}
+
+/**
+ * The flank bonus `attacker` earns hitting `defender` (D36): **melee-only**,
+ * symmetric, binary. Gang an isolated target with two blades — ≥2 of the
+ * attacker's side adjacent to the target **and no** unit on the target's side
+ * adjacent (formation shelters). The Scout's Flanker passive flanks **solo** and
+ * for a **bigger** bonus. Returns 0 when no flank applies.
+ */
+export function computeFlankBonus(
+  attacker: Unit,
+  defender: Unit,
+  units: readonly Unit[],
+): number {
+  // A ranged attacker never flanks (it already has a DPS/safety edge).
+  if (attacker.attackRange > 1) return 0;
+  if (!isAdjacent(attacker.pos, defender.pos)) return 0;
+  // Clause 2: a target with any ally adjacent is in formation — can't be flanked.
+  if (adjacentBodies(defender, units, defender.side) > 0) return 0;
+  // Clause 1: ≥2 of the attacker's side adjacent to the target (the attacker —
+  // already counted by adjacentBodies — plus at least one more). The Scout's
+  // solo-flank passive drops the requirement to 1 (the attacker alone).
+  const needed = attacker.passives[PASSIVE.flankSolo] ? 1 : 2;
+  if (adjacentBodies(defender, units, attacker.side) < needed) return 0;
+  return attacker.passives[PASSIVE.flankBonus] || FLANK.bonus;
+}
+
+/**
+ * Damage a basic attack would deal. Base is `max(1, atk − def)`, then the
+ * positional + status modifiers stack into the attack power before the floor:
+ * **flanking** (melee, when `units` is given, D36), the **Mark Prey** ramp and
+ * the **Deadeye** passive (D40), then the defender's **Exposed** (+) / **Guarded**
+ * (−) statuses (D41). Pass `units` to enable flanking; omit it for a context-free
+ * hit (a trap, a test).
+ */
 export function computeDamage(
   attacker: Unit,
   defender: Unit,
   attackPower: number = attacker.attack,
+  units?: readonly Unit[],
 ): number {
-  return Math.max(1, attackPower - defender.defense);
+  let power = attackPower;
+  if (units) power += computeFlankBonus(attacker, defender, units);
+  power += markBonus(attacker, defender.id);
+  const deadeye = attacker.passives[PASSIVE.deadeye] ?? 0;
+  if (deadeye && isDebuffed(defender)) power += deadeye;
+
+  let dmg = power - defender.defense + statusAmount(defender, EXPOSED);
+  if (hasStatus(defender, GUARDED)) dmg -= statusAmount(defender, GUARDED);
+  return Math.max(1, dmg);
+}
+
+/**
+ * Ramp the attacker's Mark Prey channel after a hit (D37): a hit on the marked
+ * prey adds a stack (capped); hitting a different target re-locks the mark and
+ * resets the ramp. No-op for an unmarked attacker.
+ */
+export function rampMark(attacker: Unit, defender: Unit): void {
+  const m = markOf(attacker);
+  if (!m || !m.data) return;
+  if (m.data.targetId === defender.id) {
+    const cap = (m.data.cap as number) ?? 0;
+    m.data.stacks = Math.min(cap, ((m.data.stacks as number) ?? 0) + 1);
+  } else {
+    m.data.targetId = defender.id;
+    m.data.stacks = 0;
+  }
 }
 
 /**
@@ -62,8 +173,16 @@ export function resolveAttack(
   defender: Unit,
   bus?: EventBus,
   attackPower: number = attacker.attack,
+  units?: readonly Unit[],
 ): number {
-  return applyDamage(defender, computeDamage(attacker, defender, attackPower), bus, attacker);
+  const dealt = applyDamage(
+    defender,
+    computeDamage(attacker, defender, attackPower, units),
+    bus,
+    attacker,
+  );
+  rampMark(attacker, defender);
+  return dealt;
 }
 
 /** The result of a win/lose check. */
