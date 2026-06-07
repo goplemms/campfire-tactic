@@ -111,13 +111,13 @@ Grounded in the code (`combat.ts`, `clock.ts`, `ai.ts`, `jobs.ts`, `skills.ts`,
   a channel is a *sustained effect that ticks each clock-tick over a duration while the
   caster is **locked/committed*** (regen aura, sustained beam, a held control field),
   ended early by the **same disruption conditions**. Both are "committed-on-the-timeline,
-  interruptible" forms; modeled together. **Channel BUILD deferred** (revised
-  2026-06-07): locking-yourself-in-place is not a natural *martial* verb — it fits
-  **magic / support casters** better (e.g. a bard channeling a tune that buffs morale
-  for adjacent units). **Keep the charged+channeled data shape now** so nothing's
-  blocked; build the first channel when casters land. (Charged stays well-represented
-  in the slice by the Archer's Aimed Shot.) The Heavy Knight's hold-fantasy became a
-  **passive tarpit** instead — see its kit.
+  interruptible" forms; modeled together. **Two channel flavors** (revised
+  2026-06-07): **(a) maintained-stance** — sustained self-buff while a condition holds,
+  the **caster keeps moving/acting** (the Hunter's *Mark Prey* ramp); **(b)
+  locked-emanation** — caster locked in place, effect ticks outward (a bard's
+  morale-tune, a regen aura). **Build (a) in the first slice** (Mark Prey); **defer (b)**
+  to magic / support casters. Both reuse the same sustained/interruptible machinery, so
+  the data shape covers both now.
 - **Cooldown details (default, tunable):** cooldowns appear only on the **2–3
   instant-utility skills** (Heal / Cleanse / Guard-type), ~**150–250 CT** each — not
   on offense, which is paced by charge-time + the Act tax.
@@ -182,13 +182,32 @@ signal the heavy/control subtype. *Texture: warp the geometry, tax proximity.*
 
 *(+ basic attack.)* No charged/channeled ability; C delivered without taunt.
 
+### Hunter — LOCKED *(2026-06-07)*
+
+Ranged prey-hunter / kiting skirmisher (renamed from "Archer"). `sp10 hp20 atk9 def1
+mv4`, **attackRange 3** (ranged basic). *Texture: keep spacing, lock prey, ramp it down.*
+Its **trap-layer half is NOT in the kit** — it comes from a **secondary class**
+(Survivalist), the two synergizing (the first real payoff of the multi-job model).
+
+| Slot | Skill | Effect |
+|---|---|---|
+| **Passive** | **Deadeye** *(name TBD)* | Bonus damage vs. **debuffed/afflicted** targets (Slowed / Pinned / Immobilized / Exposed…). Exact triggers finalize with the **WIP status set**. Threads into the Heavy Knight's tarpit (Slowed) + team setups. |
+| **Active** | **Mark Prey** *(channel — maintained-stance)* | Lock onto a target; **consecutive attacks on it ramp damage** (+X/stack, capped). Resets on target-switch; ends on disrupt / prey death. The Hunter **keeps moving & acting** while focused. The slice's channel proof. |
+| **Active** | **Reposition** | Move extra tiles (kite / hold spacing / stay on prey). Doesn't break Mark. |
+
+*(+ ranged basic attack.)* **`attackRange` becomes a unit stat** (default 1; Hunter 3)
+— infra also needed for D (enemy archers can finally shoot).
+
 ### Remaining kits — DRAFT (re-derive under 2 active + 1 passive; each gets a passive)
 
 | Class | Draft (to revise next, one at a time) | Exercises |
 |---|---|---|
-| **Archer** | passive: ? · Aimed Shot (ranged, **charged**) · Pin (ranged, Slow, cd) | D, E, F |
 | **Scout** | passive: bigger-flank trait? · Backstab (flank payoff) · Dash (reposition) | B, F |
 | **Medic** | passive: ? · Heal (cd) · Mend (**charged** heal) / Cleanse | E, F |
+
+> **Open lever seeking a home (identity-first):** **charged *offense*** (commit-now,
+> resolve-later) isn't on any locked class yet — let it land where it fits naturally
+> (Scout/Medic), or wait for casters. Not forced.
 
 > **Status set — re-derive after the roster is complete.** Likely survivors:
 > **Immobilized, Slowed, Exposed**. **Taunt** drops (reserve for later — C is now
@@ -232,3 +251,11 @@ signal the heavy/control subtype. *Texture: warp the geometry, tax proximity.*
   Hold the Line (adjacent enemies → speed 1 tarpit, range 1, tunable; C via tempo-denial,
   no hard taunt) + Shove (D19 forced movement) + Cleave (directional AoE). Taunt status
   drops; Guarded needs a new home; status set re-derived after the roster.
+- **2026-06-07** — **Hunter LOCKED** (renamed from Archer): ranged prey-hunter; passive
+  Deadeye (bonus dmg vs debuffed targets, keyed to the WIP status set) + Mark Prey
+  (maintained-stance **channel** — ramp dmg on consecutive same-target hits; Hunter
+  keeps acting) + Reposition (extra move). `attackRange` becomes a unit stat (Hunter 3;
+  needed for D). Trap-laying comes via **secondary class** (Survivalist), not the kit —
+  first payoff of the multi-job model. Channel build **back in** via the maintained-stance
+  flavor (Mark Prey); locked-emanation (bard) still deferred. Charged *offense* now an
+  **open lever** (identity-first; no forced home).
