@@ -15,7 +15,7 @@ import type { Unit, UnitStats } from "./units";
 import type { Phase, SkillDef } from "./skills";
 import type { PhaseSkillRegistry } from "./phases";
 import { PASSIVE, FLANK } from "./combat";
-import { guarded, exposed, swift } from "./status";
+import { guarded, exposed, swift, immobilized } from "./status";
 
 /**
  * Per-stat growth weights (D39): a job level-up banks **+1 to every main stat**
@@ -344,6 +344,29 @@ export const MEDIC: JobDef = {
 };
 
 /**
+ * The **Snare-Trapper** (D42 enemy ability use): a bandit debuffer whose Snare
+ * Immobilizes a foe at range — giving the Medic's antidote-cleanse and the
+ * Hunter's Deadeye something to act on in-slice.
+ */
+export const SNARE_TRAPPER: JobDef = {
+  id: "snare-trapper",
+  name: "Snare-Trapper",
+  description: "Bandit trapper: roots the unwary with thrown snares.",
+  skills: [
+    {
+      id: "snare",
+      name: "Snare",
+      description: "Immobilize a foe up to 2 tiles away.",
+      phase: "battle",
+      target: "enemy",
+      range: 2,
+      spend: "act",
+      effect: { kind: "status", status: immobilized(2) },
+    },
+  ],
+};
+
+/**
  * The **universal Defend** action (D41): every unit can brace (instant Act →
  * self-Guarded until its next turn). Re-homes the Guarded status (earned, not
  * granted) and is the Chef's field verb. Not on any job — surfaced for all.
@@ -369,6 +392,7 @@ export const JOBS: Record<string, JobDef> = {
   [HUNTER.id]: HUNTER,
   [SCOUT_JOB.id]: SCOUT_JOB,
   [MEDIC.id]: MEDIC,
+  [SNARE_TRAPPER.id]: SNARE_TRAPPER,
 };
 
 /** Look up a job by id. */

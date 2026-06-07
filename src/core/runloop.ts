@@ -526,8 +526,14 @@ export class RunLoop {
       if (o.over) return o.winner;
       const actor = battle.nextActor();
       if (!actor) break;
-      const plan = planEnemyTurn(actor, battle.units, battle.grid);
+      const plan = planEnemyTurn(actor, battle.units, battle.grid, {
+        isCharging: (u) => battle.clock.isCharging(u),
+      });
       if (plan.path.length > 0) battle.moveUnit(actor, plan.path);
+      if (plan.ability && plan.target?.alive) {
+        battle.useSkill(actor, plan.ability, plan.target);
+        continue;
+      }
       if (plan.target && plan.target.alive) battle.attack(actor, plan.target);
       battle.endTurn(actor, { moved: plan.path.length > 0, acted: plan.target !== null });
     }

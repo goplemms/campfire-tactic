@@ -218,8 +218,15 @@ export class Battle {
    * to animate.
    */
   runEnemyTurn(unit: Unit): AIPlan {
-    const plan = planEnemyTurn(unit, this.units, this.grid);
+    const plan = planEnemyTurn(unit, this.units, this.grid, {
+      isCharging: (u) => this.clock.isCharging(u),
+    });
     if (plan.path.length > 0) this.moveUnit(unit, plan.path);
+    if (plan.ability && plan.target?.alive) {
+      // A debuff ability (the snare) — useSkill ends the turn itself.
+      this.useSkill(unit, plan.ability, plan.target);
+      return plan;
+    }
     if (plan.target && plan.target.alive) this.attack(unit, plan.target);
     this.endTurn(unit, {
       moved: plan.path.length > 0,
