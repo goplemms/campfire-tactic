@@ -1,0 +1,518 @@
+/**
+ * Node events (M11, D23/D4) — the event-node registry + one resolver.
+ *
+ * M10 added a third overworld node kind — `event` — but with exactly **one** event
+ * behind it (the thief that skims the purse, {@link "./theft"}). D23 deferred the
+ * rest of the menagerie. M11 is that batch: it generalizes `event` into a
+ * **data-driven registry**. An {@link EventDef} declares an event (id, kind, name,
+ * teaser, weight, an {@link EventDef.autoResolve} for the headless path); {@link
+ * eventForNode} picks **which** event an event-node runs, **deterministically per
+ * node** (D22); and one interpreter ({@link resolveEvent}/{@link eventChoices}/
+ * {@link chooseEventOption}) drives them. **New events are new records, not new
+ * branches** (D4).
+ *
+ * Four events ship, each **reusing M10's machinery** rather than adding economy:
+ *
+ * - **thief** — folds the M10 skim into a record ({@link "./theft".thiefEventSkim}).
+ * - **shop** — a seeded stock bought from the **purse** into caravan storage,
+ *   reusing the Merchant verb ({@link "./economy-actions".merchantBuy}), node-tier
+ *   priced, under the storage cap (D6), never the treasury (D34).
+ * - **recruiter** — a **rolled** body ({@link "./guild".rollMercenary}) hired for
+ *   purse gold who joins `run.party` immediately (a field reinforcement). Honors the
+ *   temp↔permanent flag (D33) when an authored body appears (authored cast deferred).
+ * - **story** — a small **authored-as-data** choice (2 options), each applying a
+ *   **deterministic** outcome (gold/morale/fatigue/material). The first narrative
+ *   beat — data, not a story engine (D23).
+ *
+ * **Determinism (D22):** which event fires, the shop stock, the recruiter roll, the
+ * story drawn, and every outcome roll all derive from seeds (`streamFor(seed,
+ * "event:<nodeId>")` + per-facet labels) — no live RNG, no `Math.random`. Each
+ * {@link EventDef} carries an {@link EventDef.autoResolve} so the headless path
+ * ({@link "./runloop".RunLoop.autoTraverse}) stays deterministic.
+ *
+ * Pure logic: no Phaser, no DOM.
+ */
+
+import type { RunState } from "./run";
+import type { MapNode } from "./overworld";
+import type { Unit } from "./units";
+import { streamFor } from "./rng";
+import { MATERIALS, addItem, canAdd } from "./inventory";
+import { merchantBuy, merchantPrice } from "./economy-actions";
+import { rollMercenary } from "./guild";
+import { recruitClassify, type RecruitOutcome } from "./recruitment";
+import { thiefEventSkim } from "./theft";
+
+/** An event kind (M11). New kinds are new records on {@link EVENTS} (D4). */
+export type EventKind = "thief" | "shop" | "recruiter" | "story";
+
+/** Node-event tuning — all data, a numbers pass later (D23/D30/D33). */
+export const NODE_EVENTS = {
+  /** How many distinct supplies a shop offers at once (seeded from the registry). */
+  shopStockSize: 2,
+  /** Purse cost to hire a recruiter's rolled body (D33). */
+  recruiterHireCost: 40,
+} as const;
+
+/**
+ * The structured outcome an event resolution produces — the render reads it and the
+ * run-history records its `goldDelta`. Every field is a *net* effect already applied
+ * to the run (the resolvers mutate `run`); this is the report, not a command.
+ */
+export interface EventOutcome {
+  kind: EventKind;
+  /** Net purse (`run.camp.gold`) delta — negative for a skim/spend, positive for a find. */
+  goldDelta: number;
+  /** Net camp morale delta (story). */
+  moraleDelta: number;
+  /** Net fatigue delta applied across the party (story; + tires, − would rest). */
+  fatigueDelta: number;
+  /** Material ids added to storage (a shop buy / a story reward). */
+  materials: string[];
+  /** A body recruited into `run.party` (recruiter), if any. */
+  recruited?: Unit;
+  /** Theft only: gold skimmed off the purse (blunted by Banker protection, D30). */
+  stolen?: number;
+  /** A human-readable result line for the render. */
+  summary: string;
+}
+
+/** A blank outcome of a kind (resolvers fill in what they apply). */
+function emptyOutcome(kind: EventKind, summary = ""): EventOutcome {
+  return { kind, goldDelta: 0, moraleDelta: 0, fatigueDelta: 0, materials: [], summary };
+}
+
+/**
+ * An event definition (M11) — **data**. `weight` drives the deterministic pick;
+ * `teaser` is the banded map preview (D24); `autoResolve` is the headless default
+ * resolution (D22) so {@link "./runloop".RunLoop.autoTraverse} stays deterministic.
+ */
+export interface EventDef {
+  id: string;
+  kind: EventKind;
+  name: string;
+  /** A banded teaser shown on the map before committing (D24). */
+  teaser: string;
+  /** Relative weight in the deterministic per-node pick. */
+  weight: number;
+  /**
+   * The headless default resolution (D22): what the auto path applies when nobody
+   * is interacting — a thief skims, a shop is passed, a recruiter is declined, a
+   * story takes its seed-picked option. Mutates `run`; returns the outcome.
+   */
+  autoResolve(run: RunState, node: MapNode): EventOutcome;
+}
+
+// --- Shop (Merchant ACCESS reused, D30) -------------------------------------
+
+/** A single shop offer — a supply at a node-tier price (M11). */
+export interface ShopOffer {
+  materialId: string;
+  name: string;
+  price: number;
+}
+
+/**
+ * A shop's **seeded** stock (M11) — a stable, node-keyed selection of supplies from
+ * the {@link "./inventory".MATERIALS} registry, each at the **node-tier price**
+ * ({@link "./economy-actions".merchantPrice}). Stable for a seed (D22).
+ */
+export function shopStock(seed: string | number, node: MapNode): ShopOffer[] {
+  const rng = streamFor(seed, `event:${node.id}:shop`);
+  const price = merchantPrice(node.kind);
+  const ids = rng.shuffle(Object.keys(MATERIALS)).slice(0, NODE_EVENTS.shopStockSize);
+  return ids.map((id) => ({ materialId: id, name: MATERIALS[id].name, price }));
+}
+
+/**
+ * Buy one supply from a shop offer (M11) — reuses the Merchant verb
+ * ({@link "./economy-actions".merchantBuy}): spends **purse** gold into caravan
+ * storage under the cap (D6), never the treasury (D34). Returns the outcome
+ * (`goldDelta < 0` on a buy; `summary` carries any refusal).
+ */
+export function shopBuy(run: RunState, node: MapNode, materialId: string): EventOutcome {
+  const before = run.camp.gold;
+  const res = merchantBuy(run, materialId, node.kind);
+  const out = emptyOutcome("shop");
+  if (!res.applied) {
+    out.summary = res.reason ?? "Can't buy that.";
+    return out;
+  }
+  out.goldDelta = run.camp.gold - before; // negative (spent)
+  out.materials = [materialId];
+  out.summary = res.detail ?? `Bought ${MATERIALS[materialId]?.name ?? materialId}.`;
+  return out;
+}
+
+// --- Recruiter (a rolled body for purse gold, D33) --------------------------
+
+/** A recruiter's offered body + its purse price (M11, D33). */
+export interface RecruiterOffer {
+  unit: Unit;
+  price: number;
+  /** How it would resolve on return (temp generic / perm authored, D33). */
+  classify: RecruitOutcome;
+}
+
+/**
+ * A recruiter's **deterministic** offer (M11, D33): a {@link "./guild".rollMercenary}
+ * rolled body keyed by the node (so its stats + the price are stable for a seed,
+ * D22), at the {@link NODE_EVENTS.recruiterHireCost} purse price. The rolled body's
+ * id is node-scoped so two recruiter nodes never collide.
+ */
+export function recruiterOffer(seed: string | number, node: MapNode): RecruiterOffer {
+  const base = rollMercenary(`${seed}#recruit:${node.id}`, 0);
+  const unit: Unit = { ...base, id: `recruit-${node.id}` };
+  return { unit, price: NODE_EVENTS.recruiterHireCost, classify: recruitClassify(unit) };
+}
+
+/**
+ * Hire a recruiter's offered body (M11, D33): spend **purse** gold and push the unit
+ * into `run.party` immediately — a field reinforcement for the rest of the run.
+ * Refuses (spending nothing) if the purse can't cover it, or if the body already
+ * joined (idempotent). Honors the temp↔permanent flag for an authored body (D33).
+ */
+export function hireRecruit(run: RunState, offer: RecruiterOffer): EventOutcome {
+  const out = emptyOutcome("recruiter");
+  if (run.party.some((u) => u.id === offer.unit.id)) {
+    out.summary = `${offer.unit.name} already rides with the caravan.`;
+    return out;
+  }
+  if (run.camp.gold < offer.price) {
+    out.summary = `Not enough purse gold (${offer.price}g) to hire ${offer.unit.name}.`;
+    return out;
+  }
+  run.camp.gold -= offer.price;
+  run.party.push(offer.unit);
+  out.goldDelta = -offer.price;
+  out.recruited = offer.unit;
+  out.summary = offer.classify.permanent
+    ? `${offer.unit.name} joins the caravan — and the guild on return.`
+    : `${offer.unit.name} joins the caravan for the run.`;
+  return out;
+}
+
+// --- Story (an authored-as-data choice, D23) --------------------------------
+
+/** A story option's deterministic outcome spec — **data** (M11, D23). */
+export interface StoryOutcomeSpec {
+  /** Fixed purse delta (negative = pay, positive = gain). */
+  goldDelta?: number;
+  /** A *seeded* purse gain rolled in `[min,max]` (instead of a fixed `goldDelta`). */
+  goldRoll?: readonly [number, number];
+  /** Camp morale delta (D8). */
+  moraleDelta?: number;
+  /** Party fatigue delta (D35; + tires the party). */
+  fatigueDelta?: number;
+  /** A small material reward dropped into storage under the cap (D6). */
+  material?: string;
+  /** The result line shown after picking this option. */
+  summary: string;
+}
+
+/** A story option (M11) — a label + its deterministic outcome. */
+export interface StoryChoiceSpec {
+  id: string;
+  label: string;
+  outcome: StoryOutcomeSpec;
+}
+
+/** An authored story event (M11) — a prompt + a small (2-option) choice set. */
+export interface StorySpec {
+  id: string;
+  prompt: string;
+  choices: StoryChoiceSpec[];
+}
+
+/**
+ * The authored story pool (M11, D23) — **data**, not a story engine. A couple of
+ * sample beats prove the pattern: each is a prompt + two options, each option a
+ * deterministic outcome. New stories are new records.
+ */
+export const STORIES: readonly StorySpec[] = [
+  {
+    id: "wounded-traveler",
+    prompt: "A wounded traveler slumped by the roadside begs the caravan for aid.",
+    choices: [
+      {
+        id: "help",
+        label: "Tend their wounds",
+        outcome: {
+          moraleDelta: 2,
+          fatigueDelta: 1,
+          material: "rune-reagent",
+          summary: "You tend the traveler; grateful, they press a pouch of reagent on you. (Morale up; the party tires a little.)",
+        },
+      },
+      {
+        id: "pass",
+        label: "Press on without stopping",
+        outcome: {
+          moraleDelta: -1,
+          summary: "You leave them to their fate; the caravan's mood sours a little.",
+        },
+      },
+    ],
+  },
+  {
+    id: "abandoned-shrine",
+    prompt: "An abandoned wayside shrine stands by the path, its offering bowl long empty.",
+    choices: [
+      {
+        id: "offer",
+        label: "Leave an offering",
+        outcome: {
+          goldDelta: -10,
+          moraleDelta: 3,
+          summary: "You leave a few coins; the party marches on feeling watched over.",
+        },
+      },
+      {
+        id: "loot",
+        label: "Pry the shrine for valuables",
+        outcome: {
+          goldRoll: [15, 40],
+          moraleDelta: -2,
+          summary: "You strip the shrine of what remains; a cold unease follows the caravan.",
+        },
+      },
+    ],
+  },
+];
+
+/** Look up a story by id (M11). */
+export function getStory(id: string): StorySpec | undefined {
+  return STORIES.find((s) => s.id === id);
+}
+
+/** The **deterministic** story drawn for an event node (M11) — stable for a seed (D22). */
+export function storyForNode(seed: string | number, node: MapNode): StorySpec {
+  const rng = streamFor(seed, `event:${node.id}:story`);
+  return rng.pick(STORIES);
+}
+
+/**
+ * Apply a story option to the run (M11, D23): mutate the purse/morale/fatigue and
+ * drop any material reward (under the storage cap, D6). A seeded `goldRoll` rolls
+ * deterministically from the node + option (D22). Returns the outcome.
+ */
+export function applyStoryChoice(run: RunState, node: MapNode, story: StorySpec, choiceId: string): EventOutcome {
+  const choice = story.choices.find((c) => c.id === choiceId) ?? story.choices[0];
+  const spec = choice.outcome;
+  const out = emptyOutcome("story", spec.summary);
+
+  let gold = spec.goldDelta ?? 0;
+  if (spec.goldRoll) {
+    const rng = streamFor(run.seed, `event:${node.id}:story:${choice.id}`);
+    gold += rng.range(spec.goldRoll[0], spec.goldRoll[1]);
+  }
+  if (gold !== 0) {
+    // A pay can never drive the purse negative.
+    const applied = gold < 0 ? -Math.min(run.camp.gold, -gold) : gold;
+    run.camp.gold += applied;
+    out.goldDelta = applied;
+  }
+  if (spec.moraleDelta) {
+    run.camp.morale += spec.moraleDelta;
+    out.moraleDelta = spec.moraleDelta;
+  }
+  if (spec.fatigueDelta) {
+    for (const u of run.party) u.fatigue += spec.fatigueDelta;
+    out.fatigueDelta = spec.fatigueDelta;
+  }
+  if (spec.material) {
+    // Reuse the inventory cap (D6): a full stash simply drops the reward.
+    const before = run.inventory.counts[spec.material] ?? 0;
+    addItem(run.inventory, spec.material);
+    if ((run.inventory.counts[spec.material] ?? 0) > before) out.materials = [spec.material];
+  }
+  return out;
+}
+
+// --- The registry + the deterministic per-node pick (D4/D22) ----------------
+
+/**
+ * The event registry (M11, D4) — **data**. `eventForNode` weighted-picks among
+ * these per event-node. Adding an event is adding a record here.
+ */
+export const EVENTS: readonly EventDef[] = [
+  {
+    id: "thief",
+    kind: "thief",
+    name: "Thief on the Road",
+    teaser: "A thief on the road — it skims the purse (Banker protection blunts it).",
+    weight: 3,
+    autoResolve(run, node) {
+      const theft = thiefEventSkim(run, node);
+      const out = emptyOutcome("thief");
+      out.stolen = theft.stolen;
+      out.goldDelta = -theft.stolen;
+      out.summary = theft.stolen > 0
+        ? `A thief skimmed ${theft.stolen}g off the purse.`
+        : "A thief tried the purse but came away empty.";
+      return out;
+    },
+  },
+  {
+    id: "shop",
+    kind: "shop",
+    name: "Roadside Market",
+    teaser: "A roadside market — spend purse gold on supplies (node-tier prices).",
+    weight: 3,
+    autoResolve(_run, _node) {
+      // Headless default: buy nothing (a deterministic no-op).
+      return emptyOutcome("shop", "The caravan passed the roadside market without trading.");
+    },
+  },
+  {
+    id: "recruiter",
+    kind: "recruiter",
+    name: "Wandering Sellsword",
+    teaser: "A wandering sellsword — hire a body for purse gold to join the run.",
+    weight: 2,
+    autoResolve(_run, _node) {
+      // Headless default: decline (a clean no-op — no party change).
+      return emptyOutcome("recruiter", "The caravan passed on the sellsword's offer.");
+    },
+  },
+  {
+    id: "story",
+    kind: "story",
+    name: "A Choice on the Road",
+    teaser: "Something on the road asks a choice of the caravan.",
+    weight: 2,
+    autoResolve(run, node) {
+      // Headless default: take a seed-picked option (deterministic, D22).
+      const story = storyForNode(run.seed, node);
+      const rng = streamFor(run.seed, `event:${node.id}:story:auto`);
+      const choice = rng.pick(story.choices);
+      return applyStoryChoice(run, node, story, choice.id);
+    },
+  },
+];
+
+/** Look up an event def by id (M11). */
+export function getEvent(id: string): EventDef {
+  const def = EVENTS.find((e) => e.id === id);
+  if (!def) throw new Error(`node-events: no event "${id}"`);
+  return def;
+}
+
+/**
+ * The event an event-node runs (M11, D22) — a **deterministic weighted pick** from
+ * `streamFor(seed, "event:<nodeId>")`, so each event node has a **stable** event for
+ * a seed, and different nodes/seeds diverge. (Callers should only ask this of an
+ * `event`-kind node; it doesn't check the kind.)
+ */
+export function eventForNode(seed: string | number, node: MapNode): EventDef {
+  const rng = streamFor(seed, `event:${node.id}`);
+  return rng.pickWeighted(EVENTS, (e) => e.weight);
+}
+
+// --- The interpreter: resolve / choices / choose (D4) -----------------------
+
+/**
+ * The **headless** resolution of the current node's event (M11) — applies the
+ * event's {@link EventDef.autoResolve} (the deterministic default the auto path
+ * uses). Returns the outcome (already applied to `run`).
+ */
+export function resolveEvent(run: RunState, node: MapNode): EventOutcome {
+  return eventForNode(run.seed, node).autoResolve(run, node);
+}
+
+/** An interactive option the render surfaces for an event (M11). */
+export interface EventChoice {
+  id: string;
+  label: string;
+  /** Purse cost to take this option (shop/recruiter), if any. */
+  cost?: number;
+  /** True if the option is takeable right now (affordable / has room). */
+  available: boolean;
+  /** Hover/detail text. */
+  detail?: string;
+}
+
+/**
+ * The interactive options for the current node's event (M11) — dispatched by kind:
+ * a shop lists its (re-queryable) stock, a recruiter offers Hire/Decline, a story
+ * its authored options, a thief none (it resolves with no choice). Pure read — it
+ * mutates nothing.
+ */
+export function eventChoices(run: RunState, node: MapNode): EventChoice[] {
+  const def = eventForNode(run.seed, node);
+  switch (def.kind) {
+    case "shop": {
+      return shopStock(run.seed, node).map((offer) => {
+        const room = canStoreMore(run, offer.materialId);
+        const affordable = run.camp.gold >= offer.price;
+        return {
+          id: `buy:${offer.materialId}`,
+          label: `Buy ${offer.name} (${offer.price}g purse)`,
+          cost: offer.price,
+          available: affordable && room,
+          detail: !affordable ? "Not enough purse gold." : !room ? "No storage room." : "Spend purse gold into storage.",
+        };
+      });
+    }
+    case "recruiter": {
+      const offer = recruiterOffer(run.seed, node);
+      const affordable = run.camp.gold >= offer.price;
+      return [
+        {
+          id: "hire",
+          label: `Hire ${offer.unit.name} (${offer.price}g purse)`,
+          cost: offer.price,
+          available: affordable,
+          detail: affordable ? `${describeUnit(offer.unit)} — joins the run party.` : "Not enough purse gold.",
+        },
+        { id: "decline", label: "Decline", available: true, detail: "Send the sellsword on their way." },
+      ];
+    }
+    case "story": {
+      const story = storyForNode(run.seed, node);
+      return story.choices.map((c) => ({ id: c.id, label: c.label, available: true }));
+    }
+    case "thief":
+    default:
+      return [];
+  }
+}
+
+/**
+ * Apply a chosen event option to the run (M11) — dispatched by kind. Shop buys
+ * reuse the Merchant verb; a recruiter Hire/Decline; a story option applies its
+ * deterministic outcome; a thief (no choice) resolves the skim. Returns the
+ * outcome (already applied).
+ */
+export function chooseEventOption(run: RunState, node: MapNode, choiceId: string): EventOutcome {
+  const def = eventForNode(run.seed, node);
+  switch (def.kind) {
+    case "shop": {
+      if (choiceId.startsWith("buy:")) return shopBuy(run, node, choiceId.slice(4));
+      return emptyOutcome("shop", "The caravan moved on from the market.");
+    }
+    case "recruiter": {
+      if (choiceId === "hire") return hireRecruit(run, recruiterOffer(run.seed, node));
+      return emptyOutcome("recruiter", "The caravan declined the sellsword.");
+    }
+    case "story": {
+      const story = storyForNode(run.seed, node);
+      return applyStoryChoice(run, node, story, choiceId);
+    }
+    case "thief":
+    default:
+      return resolveEvent(run, node);
+  }
+}
+
+// --- Small local helpers ----------------------------------------------------
+
+/** True if storage has room for one more of a material (reuses the cap, D6). */
+function canStoreMore(run: RunState, materialId: string): boolean {
+  return canAdd(run.inventory, materialId);
+}
+
+/** A one-line stat blurb for a recruiter's offered body. */
+function describeUnit(u: Unit): string {
+  return `${u.jobId ?? "fighter"} · HP ${u.maxHp} · ATK ${u.attack} · SPD ${u.speed}`;
+}

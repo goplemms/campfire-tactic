@@ -284,6 +284,47 @@ exercise in the browser.
   [`docs/design/systems/guild.md`](../../docs/design/systems/guild.md) (D33 recruitment,
   D34 two pools + Influence).
 
+### M11 — The event-node batch (shops · recruiters · story events) — *testable (code complete 2026-06-07; awaiting in-browser gate)*
+
+- *Adjustment (not a pivot): the north star is unchanged; this turns the overworld's third
+  node tier (`event`, M10) from a single hard-coded thief into a **data-driven event
+  registry**.* It is D23's named "next batch" (shops/merchants-as-nodes, recruitment, event
+  nodes, narrative), built additively on M10's machinery — no new economy, no change to the
+  tactical core or the guild tier.
+- core: **`node-events.ts`** — the registry + one resolver (D4). An `EventKind`
+  (`thief | shop | recruiter | story`) + an `EventDef` (`id`, `kind`, `name`, `teaser`,
+  `weight`, an `autoResolve(run, node)` for the headless path) + an `EVENTS` registry +
+  `getEvent`. **`eventForNode(seed, node)`** is a **deterministic weighted pick** from
+  `streamFor(seed, "event:<nodeId>")` so each event node has a **stable** event for a seed
+  (D22). One interpreter — `resolveEvent` (headless auto), `eventChoices`/`chooseEventOption`
+  (interactive) — drives them, returning a structured `EventOutcome`. Four events, each
+  **reusing M10**: **thief** folds the M10 skim into a record
+  ([`theft.thiefEventSkim`](../../src/core/theft.ts)); **shop** offers a seeded stock bought
+  from the **purse** into storage via the Merchant verb
+  ([`merchantBuy`/`merchantPrice`](../../src/core/economy-actions.ts)), node-tier priced,
+  under the storage cap (D6), never the treasury (D34); **recruiter** rolls a body
+  ([`rollMercenary`](../../src/core/guild.ts)) hired for purse gold who joins `run.party`
+  (honoring the temp↔permanent flag, D33); **story** is an authored-as-data 2-option choice
+  with deterministic seeded outcomes (gold/morale/fatigue/material). `runloop.eventNode()`
+  becomes a **dispatcher** over `eventForNode` (auto-resolving for the headless path) +
+  `eventChoices()`/`chooseEvent()`/`recordEventNight()` for the render; `intel.previewNode`'s
+  event branch shows the picked event's **banded teaser** (D24); exported via `core/index.ts`.
+- render: `OverworldScene` opens an **event screen dispatched by kind** — shop (buy buttons
+  spending the purse + a Leave), recruiter (the offered body + Hire/Decline), story (the
+  prompt + choice buttons → outcome), thief (the existing skim/recover result). Distinct
+  glyphs/tints per event kind on the map ($ thief · ⚖ shop · ✚ recruiter · ? story) + the
+  banded teaser on the preview.
+- **User-testable gate:** `npm run dev` → a seeded run's event nodes present a **shop**
+  (spend purse for supplies), a **recruiter** (hire a body for purse), a **story choice**
+  (pick → deterministic outcome), and the **thief** (skim / kill-to-recover / flee, blunted
+  by Banker protection); replaying the seed + same choices reproduces which event fires and
+  every number. `npm test` green (event-pick determinism, shop/recruiter/story resolvers,
+  thief regression, the registry is data); `npm run build` clean; `core/` free of Phaser/DOM
+  **and** `Math.random`.
+- See [`docs/design/systems/overworld.md`](../../docs/design/systems/overworld.md) (D22–D24
+  node types / preview) and [`decisions.md`](decisions.md) (D23 the named "next batch", D4
+  data + resolver, D30/D33/D34 reuse).
+
 ## Notes
 
 - Pivot = revise Goal + supersede affected decisions (see decisions.md).

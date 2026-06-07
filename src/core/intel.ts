@@ -24,6 +24,7 @@ import type { Unit } from "./units";
 import type { Rng } from "./rng";
 import type { EncounterDef, EncounterType } from "./generation";
 import { getNode, nodeEncounter, type NodeKind } from "./overworld";
+import { eventForNode } from "./node-events";
 import type { RunState } from "./run";
 
 /** Banded intel tier (D10). 0 = nothing known. */
@@ -174,7 +175,9 @@ export function previewNode(run: RunState, nodeId: string, extraTier = 0): NodeP
     return preview;
   }
   if (node.kind === "event") {
-    preview.eventHint = "A thief on the road — it skims the purse (Banker protection blunts it).";
+    // The banded teaser of whichever event this node runs (M11, D24) — stable for
+    // a seed, since the event is a deterministic per-node pick.
+    preview.eventHint = eventForNode(run.seed, node).teaser;
     return preview;
   }
   const def = nodeEncounter(run.seed, node);

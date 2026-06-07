@@ -44,7 +44,15 @@ import { planEnemyTurn } from "./ai";
 import { restoreFatigue } from "./fatigue";
 import { takeOverworldAction, type ActionOpts, type ActionResult } from "./overworld-actions";
 import { gainRunGold } from "./economy";
-import { thiefEventSkim } from "./theft";
+import {
+  eventForNode,
+  resolveEvent,
+  eventChoices,
+  chooseEventOption,
+  type EventDef,
+  type EventOutcome,
+  type EventChoice,
+} from "./node-events";
 
 /** What a resolved encounter produced (for the render/run-end screen). */
 export interface ResolveResult {
@@ -78,12 +86,15 @@ export interface RestResult {
   over: boolean;
 }
 
-/** What a thief **event** node produced (no battle, D30). */
-export interface EventResult {
-  /** Purse gold skimmed by the thief (blunted by Banker protection, D30). */
-  stolen: number;
-  /** The purse balance after the skim. */
-  purseAfter: number;
+/**
+ * What an **event** node produced (no battle, M11) — the chosen/auto-resolved
+ * {@link EventDef} plus its structured {@link EventOutcome} and the run terminal.
+ */
+export interface EventResolution {
+  /** The event that fired at this node (deterministic for a seed, D22). */
+  def: EventDef;
+  /** The structured outcome (already applied to the run). */
+  outcome: EventOutcome;
   over: boolean;
 }
 
@@ -207,25 +218,57 @@ export class RunLoop {
     return { upkeep, rpAdded, healed, moraleGained: REST.moraleGain, fatigueRestored, dyingLost: lost.map((u) => u.id), over };
   }
 
-  // --- Event node (the thief, no battle, D30) -------------------------------
+  // --- Event node (the data-driven registry, no battle, M11) ----------------
+
+  /** The event the current node runs — deterministic for a seed (M11, D22). */
+  eventDef(): EventDef {
+    return eventForNode(this.run.seed, currentNode(this.run));
+  }
 
   /**
-   * Play a thief **event** node (M10, D30): a no-battle overworld hazard that
-   * **skims the run purse** ({@link "./theft".thiefEventSkim}), blunted by any
-   * Banker theft protection. Ticks the night/cooldowns like any node-step and
-   * records the loss. Returns the skim summary for the render's event screen.
+   * Play an **event** node **headlessly** (M11, D4/D22): resolve the node's event
+   * through its {@link EventDef.autoResolve} (the deterministic default — a thief
+   * skims, a shop/recruiter is passed, a story takes its seed-picked option), then
+   * record the night/cooldown tick. This is the path {@link autoTraverse} and {@link
+   * playCurrentNode} take; the interactive render uses {@link eventChoices}/{@link
+   * chooseEvent}/{@link recordEventNight} instead.
    */
-  eventNode(): EventResult {
+  eventNode(): EventResolution {
     const node = currentNode(this.run);
-    const theft = thiefEventSkim(this.run, node);
-    const over = recordNight(this.run, {
+    const def = eventForNode(this.run.seed, node);
+    const outcome = resolveEvent(this.run, node);
+    const over = this.recordEventNight(outcome.goldDelta);
+    return { def, outcome, over };
+  }
+
+  /** The interactive options for the current event node (M11) — render-facing. */
+  eventChoices(): EventChoice[] {
+    return eventChoices(this.run, currentNode(this.run));
+  }
+
+  /**
+   * Apply one interactive event option (M11) — a shop buy, a recruiter Hire/Decline,
+   * a story option. Does **not** record the night; the render calls {@link
+   * recordEventNight} once the player is done interacting.
+   */
+  chooseEvent(choiceId: string): EventOutcome {
+    return chooseEventOption(this.run, currentNode(this.run), choiceId);
+  }
+
+  /**
+   * Record the event node's night/cooldown tick once the player has finished
+   * interacting (M11). `goldEarned` is the net purse delta the render accumulated
+   * (informational in the history). Returns the run terminal.
+   */
+  recordEventNight(goldEarned = 0): boolean {
+    const node = currentNode(this.run);
+    return recordNight(this.run, {
       nodeId: node.id,
       layer: node.layer,
       kind: node.kind,
-      goldEarned: -theft.stolen,
+      goldEarned,
       fallen: [],
     });
-    return { stolen: theft.stolen, purseAfter: theft.purseAfter, over };
   }
 
   // --- Camp (between battles, D9/D15) ---------------------------------------
