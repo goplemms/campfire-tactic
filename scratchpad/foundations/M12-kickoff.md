@@ -494,6 +494,25 @@ trackers debut** safely; **enemy debuffs (snare→Immobilize) held for E2**. Low
 (recoverable — it's a teacher). **Reward:** gold + a herb refill + XP toward the rest-beat
 level-up.
 
+### Beat 3 — Rest + Level-up — LOCKED *(2026-06-07)*
+
+The party holes up in the mill's grain loft. **Triple duty:**
+- **Recovery** — HP / fatigue / morale restored (reuses the rest-node machinery); wipes
+  E1's wounds so E2 starts clean.
+- **Level-up (payoff + a pacing trick):** demo characters **start at job-L1 (passive + 1
+  active)**; E1's XP is tuned to **level them to L2 here, unlocking each class's 2nd
+  active**. Proves payoff — visible **stat gains** (+1-all + job weight) *and* a new
+  ability — and **paces the advanced mechanics** (E1 = instant basics; the advanced toys
+  unlock now for E2/E3). Split — 1st active (E1) → 2nd (unlocked here): **Knight**
+  Cleave→**Shove** · **Hunter** Reposition→**Mark Prey** (channel debuts) · **Scout**
+  Dash→**Expose** (tees E2's synergy) · **Medic** Heal→**Mend** (charge debuts). (Unlock
+  breakpoint tuned to land here.)
+- **Story choice (roguelike staple; feeds E2):** a wounded **bandit deserter** — **spare**
+  → intel revealing E2's **hidden ambush** + a warning of the **snare-trapper** (→ buy
+  **antidotes**); **press** → some **gold**, no intel (you must **scout** E2; antidotes a
+  blind gamble). One choice teaches **choice-weight + the fog lesson + the logistics
+  reversal** (Beat 1 said antidotes low-value; now they matter).
+
 ## Architectural rules (non-negotiable, unchanged)
 
 - Core/render split (D2): logic in `src/core/` (headless, no Phaser/DOM); export via
@@ -601,3 +620,10 @@ level-up.
   camp, Defend in field — dissolved-split payoff). **Locked Party + Beat 1 (Provision) +
   Encounter 1 (Skirmish)** detail. *(Open: Defend universal vs Chef-only — locked
   universal pending confirm.)*
+- **2026-06-07** — **Beat 3 (Rest + Level-up) LOCKED.** Recovery + the marquee growth
+  proof: characters start job-L1 (passive + 1 active); E1 XP tuned to hit L2 here,
+  unlocking each class's 2nd (advanced) active — Knight→Shove, Hunter→Mark Prey (channel
+  debuts), Scout→Expose (tees E2), Medic→Mend (charge debuts) — so E1 = instant basics,
+  E2/E3 = full kits. Plus a deserter **story choice** (spare→E2 intel + antidote warning /
+  press→gold, must scout) feeding E2's fog + the logistics reversal. Universal Defend
+  confirmed.
