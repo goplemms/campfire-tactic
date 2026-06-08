@@ -170,10 +170,7 @@ export class DemoScene extends Phaser.Scene {
     this.clearBoard();
     this.clearButtons();
     this.clearOverlay();
-    this.timerText.setText("");
-    this.orderText.setText("");
-    this.orderLines.forEach((t) => t.setVisible(false));
-    this.orderBg.setVisible(false);
+    this.hideBattleHud();
     const beat = this.runner.currentBeat();
     if (!beat || this.runner.outcome) return this.showEnd();
     if (beat.kind === "provision") this.showProvision();
@@ -532,9 +529,21 @@ export class DemoScene extends Phaser.Scene {
     this.nextBeat();
   }
 
+  /** Tear down the in-battle HUD header — turn order, the bridge timer, and the
+   *  ally/foe tally — so non-battle screens (rest) and the end overlay don't
+   *  inherit stale battle chrome at the top. */
+  private hideBattleHud(): void {
+    this.subText.setText("");
+    this.timerText.setText("");
+    this.orderText.setText("");
+    this.orderLines.forEach((t) => t.setVisible(false));
+    this.orderBg.setVisible(false);
+  }
+
   private showEnd(): void {
     this.clearBoard();
     this.clearButtons();
+    this.hideBattleHud();
     const o = this.runner.outcome ?? "complete";
     const title = o === "complete" ? "The Hollow Mill is Cleared!" : o === "failed" ? "Quest Failed — the Party Survives" : "Party Wiped";
     this.titleText.setText("");

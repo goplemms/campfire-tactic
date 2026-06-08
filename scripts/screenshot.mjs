@@ -44,25 +44,65 @@ const OUT_DIR = path.resolve(ROOT, process.env.SHOTS_OUT ?? "screenshots");
 const CACHE_DIR = path.resolve(ROOT, ".cache", "chrome");
 const PORT = Number(process.env.SHOTS_PORT ?? 5188);
 
-// The demo is driven entirely from the keyboard (Space = advance/primary,
-// 1–9 = ability buttons — the same controls a playtester uses), which makes it
-// scriptable without guessing canvas pixel coordinates. Each step optionally
-// presses some keys, waits for animations/tweens to settle, then captures the
-// canvas. Add or reorder entries here to capture different moments.
-// `minMs` is just a floor before the animation-idle gate (waitForSettled) takes
-// over — the gate handles the variable animation length and makes every frame
-// deterministic. `hoverCanvas` parks the cursor over a token (in 800×600 canvas
-// coords) to exercise the hover-only nameplate; otherwise the cursor is parked
-// off the board so no stray hover state leaks in.
+// A "standard route" walk of the whole demo — one capture per screen the game can
+// show, so a glance at the sheet flags any regression (panel sizing, board layout,
+// overlays, hint wiring). Each step optionally presses keys, runs an `eval`, parks
+// the cursor, waits for the animation-idle gate, then screenshots the canvas.
+//
+// Two ways to drive it:
+//   • keys      — the real playtester controls (Space = advance/primary, 1–9 =
+//                 abilities). Preferred: it exercises the genuine input path.
+//   • eval      — a function run in the page to reach screens the keyboard can't.
+//                 The mid-quest beats (rest choice, encounters 2–3, the end) sit
+//                 behind combat that can't be scripted by clicks, so we jump there
+//                 via the runner's `beatIndex` and let the scene render the beat
+//                 with its own methods — the same code the live game runs.
+//
+// `minMs` floors the wait before the idle gate (waitForSettled) takes over and
+// makes the frame deterministic. `hoverCanvas` parks the cursor (800×600 canvas
+// coords) to exercise a hover state; otherwise it's parked off-board so no stray
+// hover leaks in.
 const STEPS = [
+  // --- Beat 1: Provision, then Encounter 1 (real keyboard play) --------------
   { name: "01-provision", minMs: 800 },                        // initial load — Provision screen
-  { name: "02-encounter-open", keys: ["Space"], minMs: 400 },  // March Out → Encounter 1 board
-  { name: "02b-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
+  { name: "02-encounter1-open", keys: ["Space"], minMs: 400 }, // March Out → Encounter 1 board
+  { name: "02b-encounter1-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
-  { name: "04-advance-2", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
+  { name: "04-kit-panel", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
   { name: "05-advance-3", keys: ["Space"], minMs: 300 },
   { name: "06-advance-4", keys: ["Space"], minMs: 300 },
+  // --- Beat 3: Rest + the deserter choice ------------------------------------
+  { name: "07-rest-choice", minMs: 300, eval: gotoBeat(2) },   // jump to the rest beat → choice box
+  { name: "07b-rest-hover", hoverCanvas: { x: 713, y: 264 }, minMs: 300 }, // hover Spare → tradeoff in the hint bar
+  // --- Beats 4–5: the later encounters ---------------------------------------
+  { name: "08-encounter2", minMs: 300, eval: stageEncounter(3, true) }, // Ambush (spare path reveals it)
+  { name: "09-encounter3", minMs: 300, eval: stageEncounter(4, false) }, // the Captain's Holdout (bridge-cut)
+  // --- Terminal: a full auto-played run, then the end screen ------------------
+  { name: "10-end", minMs: 300, eval: autoPlayToEnd() },
 ];
+
+// Each helper returns a *plain function* puppeteer serializes and runs in the page
+// (so it can't close over anything here). They call the DemoScene's own render
+// methods, keeping every captured frame faithful to what the live game draws.
+
+/** Jump to beat `i` and let the scene dispatch it (provision / rest). */
+function gotoBeat(i) {
+  return new Function(`const s=window.game.scene.getScene("DemoScene");s.runner.outcome=undefined;s.runner.beatIndex=${i};s.nextBeat();`);
+}
+/** Stage encounter beat `i` and draw its opening board; `reveal` un-hides the ambush.
+ *  Clears any leftover command panel — a fresh board shows none until a player's turn
+ *  (in live play the prior beat's panel is torn down on the click that advanced it). */
+function stageEncounter(i, reveal) {
+  return new Function(`const s=window.game.scene.getScene("DemoScene");const r=s.runner;r.outcome=undefined;r.beatIndex=${i};r.ambushRevealed=${reveal};s.startEncounter();s.clearButtons();`);
+}
+/** Reset to a pristine party, auto-play the whole quest, then show the end screen. */
+function autoPlayToEnd() {
+  return new Function(
+    `const s=window.game.scene.getScene("DemoScene");const r=s.runner;` +
+      `r.beatIndex=0;r.outcome=undefined;r.log.length=0;r.ambushRevealed=false;r.gold=0;` +
+      `r.party.forEach(u=>{u.hp=u.maxHp;u.alive=true;});r.autoPlay("spare");s.nextBeat();`,
+  );
+}
 
 // chrome-for-testing packages per platform: [zip subpath, binary subpath].
 const PLATFORMS = {
@@ -166,6 +206,7 @@ async function main() {
     const canvas = await page.waitForSelector("canvas", { timeout: 15000 });
 
     for (const step of STEPS) {
+      if (step.eval) await page.evaluate(step.eval);
       for (const key of step.keys ?? []) await page.keyboard.press(key);
       // Position the cursor (canvas coords → page coords via the canvas box).
       const box = await canvas.boundingBox();
