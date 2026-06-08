@@ -16,9 +16,11 @@ import {
   settleAlert,
   NOISE_PER_DEPTH,
   CAPTURE_CHANCE_MAX,
+  resolveDeployAction,
 } from "./deployment";
 import { CTClock, sideSeed } from "./clock";
 import { Rng } from "./rng";
+import { TileGrid } from "./grid";
 import { createUnit, type Side, type Unit } from "./units";
 
 function unit(id: string, side: Side, awareness: number, speed = 10): Unit {
@@ -168,5 +170,55 @@ describe("deployment stealth-alert layer (D11)", () => {
     alert.meter = 80;
     settleAlert(alert);
     expect(alert.meter).toBe(40);
+  });
+});
+
+describe("resolveDeployAction — the shared stealth resolver (D11)", () => {
+  // 6-wide board; awareness 2 → safe depth 3.
+  const grid = () => new TileGrid(6, 4);
+  const deep = (col: number) => {
+    const u = unit("scout", "player", 2);
+    u.pos = { col, row: 1 };
+    return u;
+  };
+
+  it("a move inside the safe zone is silent (never spotted)", () => {
+    const u = deep(2); // within safe depth 3
+    const alert = createAlert();
+    const out = resolveDeployAction(alert, u, grid(), [u], new Rng(1));
+    expect(out.spotted).toBe(false);
+    expect(alert.meter).toBe(0);
+  });
+
+  it("a forward action with a hot meter is spotted and retreats toward cover", () => {
+    const u = deep(5); // 2 past safe
+    const ally = unit("ally", "player", 2); // a second body so the last-unit shield doesn't apply
+    const alert = createAlert();
+    alert.meter = 100; // guarantee a spot
+    const out = resolveDeployAction(alert, u, grid(), [u, ally], new Rng(7));
+    expect(out.spotted).toBe(true);
+    expect(out.retreatPath.length).toBeGreaterThan(0);
+    // the retreat ends inside the safe zone
+    expect(out.retreatPath[out.retreatPath.length - 1].col).toBeLessThanOrEqual(safeDepth(u));
+  });
+
+  it("the party's last un-captured unit is spotted but never netted", () => {
+    const u = deep(5);
+    const alert = createAlert();
+    alert.meter = 100;
+    const out = resolveDeployAction(alert, u, grid(), [u], new Rng(7)); // u is the only unit
+    expect(out.spotted).toBe(true);
+    expect(out.capturedAt).toBe(-1); // protected
+  });
+
+  it("is deterministic for a given seed", () => {
+    const run = (seed: number) => {
+      const u = deep(5);
+      const ally = unit("ally", "player", 2);
+      const alert = createAlert();
+      alert.meter = 80;
+      return resolveDeployAction(alert, u, grid(), [u, ally], new Rng(seed));
+    };
+    expect(run(123)).toEqual(run(123));
   });
 });

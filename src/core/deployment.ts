@@ -16,6 +16,10 @@
 
 import type { Unit } from "./units";
 import type { Rng } from "./rng";
+import type { TileGrid } from "./grid";
+import type { GridCoord } from "./iso";
+import { findPath } from "./pathfinding";
+import { occupiedGrid } from "./ai";
 
 /** Exposure at which a unit is captured. */
 export const CAPTURE_THRESHOLD = 100;
@@ -165,4 +169,73 @@ export function captureChance(unit: Unit, depth: number, moraleDepthBonus = 0): 
 /** Settle the meter after a survived spotting — the patrol checked and relaxed. */
 export function settleAlert(alert: DeployAlert): void {
   alert.meter = Math.round(alert.meter * ALERT_SETTLE);
+}
+
+/**
+ * The resolved outcome of one noisy deploy action: whether the camp spotted it,
+ * and if so the spotted unit's retreat path to cover and where (if anywhere) it
+ * gets netted. The scene just *plays* this plan — all the rolls happened here.
+ */
+export interface DeployOutcome {
+  spotted: boolean;
+  /** Tiles the spotted unit retreats along toward cover (empty if not spotted). */
+  retreatPath: GridCoord[];
+  /** Index into retreatPath where the unit is netted, or -1 if it reaches cover. */
+  capturedAt: number;
+}
+
+/**
+ * The closest reachable, unoccupied tile inside `unit`'s safe depth — returned as
+ * the retreat path (origin tile dropped), or `[]` if there's nowhere to fall back.
+ */
+export function nearestSafePath(grid: TileGrid, units: readonly Unit[], unit: Unit, moraleDepthBonus = 0): GridCoord[] {
+  const safe = Math.min(safeDepth(unit, moraleDepthBonus), grid.cols - 1);
+  const nav = occupiedGrid(grid, units, [unit]);
+  let best: GridCoord[] | null = null;
+  for (let col = safe; col >= 0; col--) {
+    for (let row = 0; row < grid.rows; row++) {
+      const t = { col, row };
+      if (!grid.isWalkable(t)) continue;
+      if (units.some((u) => u !== unit && u.alive && u.pos.col === col && u.pos.row === row)) continue;
+      const p = findPath(nav, unit.pos, t);
+      if (p && (!best || p.length < best.length)) best = p;
+    }
+  }
+  return best ? best.slice(1) : [];
+}
+
+/**
+ * Resolve a noisy deployment action end to end (the D11 stealth gamble), the one
+ * model both the demo and the full game run on: add the unit's depth noise to the
+ * shared meter, roll whether the camp spots it, and if so plan the retreat to
+ * cover and roll capture per tile — the party's last un-captured fighter is never
+ * netted. A silent action (within safe depth) is a no-op. Every roll takes the
+ * seeded `rng`, so the whole outcome is reproducible.
+ */
+export function resolveDeployAction(
+  alert: DeployAlert,
+  unit: Unit,
+  grid: TileGrid,
+  units: readonly Unit[],
+  rng: Rng,
+  moraleDepthBonus = 0,
+): DeployOutcome {
+  const quiet: DeployOutcome = { spotted: false, retreatPath: [], capturedAt: -1 };
+  if (deployNoise(unit, unit.pos.col, moraleDepthBonus) === 0) return quiet; // within cover — silent
+  addNoise(alert, unit, unit.pos.col, moraleDepthBonus);
+  if (!rollAlerted(alert, rng)) return quiet;
+
+  const retreatPath = nearestSafePath(grid, units, unit, moraleDepthBonus);
+  const protectedLast = units.filter((u) => u.side === unit.side && !u.captured).length <= 1;
+  let capturedAt = -1;
+  if (!protectedLast) {
+    for (let i = 0; i < retreatPath.length; i++) {
+      if (rng.chance(captureChance(unit, retreatPath[i].col, moraleDepthBonus))) {
+        capturedAt = i;
+        break;
+      }
+    }
+  }
+  if (capturedAt === -1) settleAlert(alert); // got away — the patrol relaxes
+  return { spotted: true, retreatPath, capturedAt };
 }
