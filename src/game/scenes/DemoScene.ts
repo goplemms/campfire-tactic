@@ -109,6 +109,8 @@ export class DemoScene extends Phaser.Scene {
   private pendingHerb: string | null = null;
   private busy = false;
   private ended = false;
+  /** Set by the screenshot harness (window.__SHOT__) to freeze perpetual motion. */
+  private readonly reduceMotion = !!(window as Window & { __SHOT__?: boolean }).__SHOT__;
 
   constructor() {
     super("DemoScene");
@@ -761,7 +763,19 @@ export class DemoScene extends Phaser.Scene {
     // Clears the active unit's nameplate (name sits at cy − 36).
     const baseY = y - TILE_HEIGHT / 2 - 48;
     this.activeMarker.setPosition(x, baseY).setVisible(true);
+    // The perpetual bob is the one animation that never "settles"; skip it under
+    // the screenshot harness so captures are deterministic (chevron sits static).
+    if (this.reduceMotion) return;
     this.tweens.add({ targets: this.activeMarker, y: baseY - 6, duration: 480, yoyo: true, repeat: -1, ease: "Sine.InOut" });
+  }
+
+  /**
+   * True when no transient animation is in flight — the screenshot harness polls
+   * this as an idle sync point so frames aren't captured mid-tween. (Only
+   * meaningful under reduceMotion, which suppresses the perpetual chevron bob.)
+   */
+  isSettled(): boolean {
+    return !this.busy && this.floaters.size === 0 && this.tweens.getTweens().length === 0;
   }
 
   /**

@@ -49,17 +49,19 @@ const PORT = Number(process.env.SHOTS_PORT ?? 5188);
 // scriptable without guessing canvas pixel coordinates. Each step optionally
 // presses some keys, waits for animations/tweens to settle, then captures the
 // canvas. Add or reorder entries here to capture different moments.
-// `hoverCanvas` parks the cursor over a token (in 800×600 canvas coords) so the
-// shot exercises the hover-only nameplate; otherwise the cursor is parked off
-// the board so no stray hover state leaks in.
+// `minMs` is just a floor before the animation-idle gate (waitForSettled) takes
+// over — the gate handles the variable animation length and makes every frame
+// deterministic. `hoverCanvas` parks the cursor over a token (in 800×600 canvas
+// coords) to exercise the hover-only nameplate; otherwise the cursor is parked
+// off the board so no stray hover state leaks in.
 const STEPS = [
-  { name: "01-provision", settleMs: 3500 },                       // initial load — Provision screen
-  { name: "02-encounter-open", keys: ["Space"], settleMs: 2500 }, // March Out → Encounter 1 board
-  { name: "02b-hover", hoverCanvas: { x: 536, y: 309 }, settleMs: 500 }, // hover the isolated Bandit Cutthroat
-  { name: "03-advance-1", keys: ["Space"], settleMs: 1800 },      // advance the clock; a player turn
-  { name: "04-advance-2", keys: ["Space"], settleMs: 1800 },      // opens the right-hand kit panel
-  { name: "05-advance-3", keys: ["Space"], settleMs: 1800 },
-  { name: "06-advance-4", keys: ["Space"], settleMs: 1800 },
+  { name: "01-provision", minMs: 800 },                        // initial load — Provision screen
+  { name: "02-encounter-open", keys: ["Space"], minMs: 400 },  // March Out → Encounter 1 board
+  { name: "02b-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
+  { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
+  { name: "04-advance-2", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
+  { name: "05-advance-3", keys: ["Space"], minMs: 300 },
+  { name: "06-advance-4", keys: ["Space"], minMs: 300 },
 ];
 
 // chrome-for-testing packages per platform: [zip subpath, binary subpath].
@@ -72,6 +74,24 @@ const PLATFORMS = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const exists = (p) => access(p).then(() => true, () => false);
+
+/**
+ * Wait for the demo to reach an animation-idle state so frames are deterministic
+ * (no tween caught mid-flight). Floors at `minMs` to let the keypress kick off
+ * whatever it triggers, then polls DemoScene.isSettled() until true or timeout.
+ */
+async function waitForSettled(page, minMs = 250, timeoutMs = 8000) {
+  await sleep(minMs);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const settled = await page.evaluate(() => {
+      const scene = window.game?.scene?.getScene?.("DemoScene");
+      return !scene || typeof scene.isSettled !== "function" ? true : scene.isSettled();
+    });
+    if (settled) return;
+    await sleep(80);
+  }
+}
 
 /** Resolve a usable Chrome binary, downloading + caching it on first run. */
 async function ensureChrome() {
@@ -139,6 +159,9 @@ async function main() {
     page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
     page.on("console", (m) => m.type() === "error" && problems.push(`console: ${m.text()}`));
 
+    // Tell the scene we're capturing, so it freezes perpetual motion (the
+    // chevron bob) — set before any page script runs.
+    await page.evaluateOnNewDocument(() => { window.__SHOT__ = true; });
     await page.goto(`${url}#demo`, { waitUntil: "networkidle0", timeout: 30000 });
     const canvas = await page.waitForSelector("canvas", { timeout: 15000 });
 
@@ -149,7 +172,7 @@ async function main() {
       const h = step.hoverCanvas;
       if (h) await page.mouse.move(box.x + (h.x * box.width) / 800, box.y + (h.y * box.height) / 600);
       else await page.mouse.move(box.x + 2, box.y + 2); // parked off the board
-      await sleep(step.settleMs ?? 1500);
+      await waitForSettled(page, step.minMs ?? 250);
       const file = path.join(OUT_DIR, `${step.name}.png`);
       // Clip to the canvas so every shot is exactly the 800×600 game, free of
       // the surrounding page chrome.

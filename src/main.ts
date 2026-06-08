@@ -13,4 +13,9 @@ if (demoBtn) {
 
 // Web entry point: boot the Phaser game into #app. This is the only file that
 // owns a live engine instance; everything testable lives under `core/`.
-new Phaser.Game(gameConfig);
+const game = new Phaser.Game(gameConfig);
+
+// Expose the running game so the screenshot harness (scripts/screenshot.mjs) can
+// poll scene state for an animation-idle sync point. Harmless in production — a
+// single reference on window.
+(window as Window & { game?: Phaser.Game }).game = game;
