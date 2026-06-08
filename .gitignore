@@ -13,6 +13,9 @@ scratchpad/archive/*
 node_modules/
 dist/
 .vite/
+# downloaded chrome-for-testing + output for `npm run shots`
+.cache/
+screenshots/
 *.local
 .env
 .env.*
