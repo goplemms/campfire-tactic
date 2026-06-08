@@ -82,16 +82,17 @@ const STEPS = [
   // --- Terminal: a full auto-played run, then the end screen ------------------
   { name: "10-end", minMs: 300, eval: autoPlayToEnd() },
   // --- The guild hall (boots on the base URL, no #demo) -----------------------
-  { name: "11-guild", goto: "", minMs: 500 },
+  { name: "11-guild", goto: "", minMs: 500 },                  // hall: card pinned open (feedback visible)
+  { name: "11b-guild-collapsed", minMs: 600, eval: togglePin("GuildScene") }, // unpin → collapses to a bottom-right chip
 ];
 
 // Each helper returns a *plain function* puppeteer serializes and runs in the page
 // (so it can't close over anything here). They call the DemoScene's own render
 // methods, keeping every captured frame faithful to what the live game draws.
 
-/** Toggle the top-right hint card's pinned-open state. */
-function togglePin() {
-  return new Function(`window.game.scene.getScene("DemoScene").hintPanel.togglePin();`);
+/** Toggle a scene's hint-card pinned-open state (DemoScene unless named). */
+function togglePin(scene = "DemoScene") {
+  return new Function(`window.game.scene.getScene(${JSON.stringify(scene)}).hintPanel.togglePin();`);
 }
 /** Jump to beat `i` and let the scene dispatch it (provision / rest). */
 function gotoBeat(i) {
