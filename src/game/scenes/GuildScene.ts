@@ -30,6 +30,7 @@ import {
   type CaravanResolution,
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
+import { fitText } from "../ui";
 
 /** Data handed back to the hall when a caravan reaches a terminal (D27). */
 export interface GuildHandoff {
@@ -399,7 +400,9 @@ export class GuildScene extends Phaser.Scene {
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setFillStyle(selected ? 0x387051 : 0x26314a));
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => bg.setFillStyle(selected ? 0x2f5d44 : 0x1b2030));
     this.ui.push(bg);
-    this.ui.push(this.add.text(x + 8, y + 4, label, { color: "#dbe5fb", fontSize: "12px" }).setDepth(2));
+    const text = this.add.text(x + 8, y + 4, label, { color: "#dbe5fb", fontSize: "12px" }).setDepth(2);
+    fitText(text, w - 16);
+    this.ui.push(text);
   }
 
   private wideButton(x: number, y: number, w: number, label: string, enabled: boolean, onClick: () => void): void {
@@ -409,13 +412,17 @@ export class GuildScene extends Phaser.Scene {
       bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     }
     this.ui.push(bg);
-    this.ui.push(this.add.text(x + w / 2, y + 15, label, { color: enabled ? "#eafff0" : "#6b7488", fontSize: "12px" }).setOrigin(0.5).setDepth(2));
+    const text = this.add.text(x + w / 2, y + 15, label, { color: enabled ? "#eafff0" : "#6b7488", fontSize: "12px" }).setOrigin(0.5).setDepth(2);
+    fitText(text, w - 12);
+    this.ui.push(text);
   }
 
   private smallButton(x: number, y: number, w: number, label: string, onClick: () => void, h = 22, fill = 0x26314a, stroke = 0x4a5d86, originX = 0): void {
     const bg = this.add.rectangle(x, y, w, h, fill, 1).setStrokeStyle(1, stroke).setOrigin(originX, 0.5).setDepth(2).setInteractive({ useHandCursor: true });
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     this.ui.push(bg);
-    this.ui.push(this.add.text(x + (originX === 0 ? w / 2 : 0), y, label, { color: "#eafff0", fontSize: "12px" }).setOrigin(0.5).setDepth(3));
+    const text = this.add.text(x + (originX === 0 ? w / 2 : 0), y, label, { color: "#eafff0", fontSize: "12px" }).setOrigin(0.5).setDepth(3);
+    fitText(text, w - 12);
+    this.ui.push(text);
   }
 }

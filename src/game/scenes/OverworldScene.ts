@@ -41,6 +41,7 @@ import {
   type SkillDef,
   type Guild,
 } from "../../core";
+import { fitText } from "../ui";
 
 /** A small text button with a hover highlight. */
 interface TextButton {
@@ -518,6 +519,7 @@ export class OverworldScene extends Phaser.Scene {
     const fill = enabled ? 0x26314a : 0x1b2030;
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(1, enabled ? 0x4a5d86 : 0x2a3142).setOrigin(0, 0.5).setDepth(10);
     const label = this.add.text(x + 8, y, text, { color: enabled ? "#dbe5fb" : "#6b7488", fontSize: "12px" }).setOrigin(0, 0.5).setDepth(11);
+    fitText(label, w - 16);
     if (enabled) {
       bg.setInteractive({ useHandCursor: true });
       bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
@@ -796,6 +798,7 @@ export class OverworldScene extends Phaser.Scene {
   private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void): TextButton {
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(22);
     const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: "13px" }).setOrigin(0.5).setDepth(23);
+    fitText(label, w - 10);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color));
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => bg.setFillStyle(fill));

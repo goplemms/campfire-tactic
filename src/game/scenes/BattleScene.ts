@@ -48,6 +48,7 @@ import {
   type TheftAttempt,
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
+import { fitText } from "../ui";
 
 /** A small text button with a hover highlight. */
 interface TextButton {
@@ -868,6 +869,7 @@ export class BattleScene extends Phaser.Scene {
   private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
     const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: "13px" }).setOrigin(0.5).setDepth(13);
+    fitText(label, w - 10);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
       bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color);
@@ -882,6 +884,7 @@ export class BattleScene extends Phaser.Scene {
 
   private setPrimary(text: string, visible = true): void {
     this.primary.label.setText(text);
+    fitText(this.primary.label, this.primary.bg.width - 10);
     this.primary.bg.setVisible(visible);
     this.primary.label.setVisible(visible);
   }
