@@ -64,8 +64,10 @@ const PORT = Number(process.env.SHOTS_PORT ?? 5188);
 // hover leaks in.
 const STEPS = [
   // --- Beat 1: Provision, then Encounter 1 (real keyboard play) --------------
-  { name: "01-provision", minMs: 800 },                        // initial load — Provision screen
-  { name: "02-encounter1-open", keys: ["Space"], minMs: 400 }, // March Out → Encounter 1 board
+  { name: "01-provision", minMs: 800 },                        // initial load — Provision screen (hint card collapsed, top-right)
+  { name: "01b-hint-peek", hoverCanvas: { x: 693, y: 248 }, minMs: 300 }, // hover a herb button → tip peeks the card open
+  { name: "01c-hint-pinned", minMs: 300, eval: togglePin() }, // click-pin → card stays open (resting tip + keys)
+  { name: "02-encounter1-open", keys: ["Space"], minMs: 400, eval: togglePin() }, // unpin, then March Out → Encounter 1 board
   { name: "02b-encounter1-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
   { name: "04-kit-panel", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
@@ -85,6 +87,10 @@ const STEPS = [
 // (so it can't close over anything here). They call the DemoScene's own render
 // methods, keeping every captured frame faithful to what the live game draws.
 
+/** Toggle the top-right hint card's pinned-open state. */
+function togglePin() {
+  return new Function(`window.game.scene.getScene("DemoScene").hintPanel.togglePin();`);
+}
 /** Jump to beat `i` and let the scene dispatch it (provision / rest). */
 function gotoBeat(i) {
   return new Function(`const s=window.game.scene.getScene("DemoScene");s.runner.outcome=undefined;s.runner.beatIndex=${i};s.nextBeat();`);

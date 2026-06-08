@@ -30,6 +30,7 @@ import {
   type EncounterResult,
 } from "../../core";
 import { Button, ButtonColumn } from "../button";
+import { HintPanel } from "../hint-panel";
 
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
@@ -98,7 +99,7 @@ export class DemoScene extends Phaser.Scene {
   /** One reusable Text per turn-order row (Phaser Text can't colour lines individually). */
   private orderLines: Phaser.GameObjects.Text[] = [];
   private timerText!: Phaser.GameObjects.Text;
-  private hintText!: Phaser.GameObjects.Text;
+  private hintPanel!: HintPanel;
   private lastHint = "";
   private primary!: Button;
   /** The current right-hand command panel (kit abilities / provision / choices), if any. */
@@ -126,9 +127,9 @@ export class DemoScene extends Phaser.Scene {
     this.orderBg = this.add.rectangle(4, 64, 10, 10, 0x141925, 0.55).setStrokeStyle(1, 0x3d4b6e).setOrigin(0, 0).setDepth(9).setVisible(false);
     this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: FONT.caption, lineSpacing: 3 }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
-    // Centered in the area left of the right-hand command panel so long hints
-    // (and the per-button descriptions shown on hover) never run under it.
-    this.hintText = this.add.text((this.scale.width - 170) / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: FONT.label, align: "center", wordWrap: { width: 540 } }).setOrigin(0.5).setDepth(10);
+    // A collapsible top-right card consolidates contextual tips and the command
+    // keys in one consistent place (hover to peek, click to pin).
+    this.hintPanel = new HintPanel(this, "Space / Enter = advance · 1–9 = abilities");
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
@@ -139,7 +140,6 @@ export class DemoScene extends Phaser.Scene {
       .setVisible(false);
     this.primary = new Button(this, this.scale.width / 2, this.scale.height - 26, { text: "", w: 220, h: 32, fill: 0x2f6b46, stroke: 0x57b07a, onClick: () => this.onPrimary() });
     this.add.existing(this.primary).setDepth(12);
-    this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: FONT.caption }).setOrigin(1, 1).setDepth(10);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.setupKeyboard();
     this.nextBeat();
@@ -929,14 +929,14 @@ export class DemoScene extends Phaser.Scene {
       centerY: this.scale.height / 2 - 20,
       minW: this.panelMinW,
       maxW: this.panelMaxW,
-      hintBar: this.hintText,
+      hintBar: this.hintPanel,
       idleHint: () => this.lastHint,
     });
   }
 
   private setHint(text: string): void {
     this.lastHint = text;
-    this.hintText.setText(text);
+    this.hintPanel.setResting(text);
   }
 
   private clearOverlay(): void {

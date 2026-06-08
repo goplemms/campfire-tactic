@@ -4,11 +4,17 @@ import { fitText } from "./ui";
 
 const Events = Phaser.Input.Events;
 
-/** Hover-hint wiring: while the pointer is over the button, the bar shows
+/** Anything that can receive hint text — a plain Phaser.Text bar or the richer
+ *  HintPanel. Kept minimal so buttons stay decoupled from how a scene shows hints. */
+export interface HintSink {
+  setText(text: string): unknown;
+}
+
+/** Hover-hint wiring: while the pointer is over the button, the sink shows
  *  `description`; on out it restores to whatever `idle()` reports (the scene's
- *  current resting hint). Omit for buttons that have no hint bar. */
+ *  current resting hint). Omit for buttons that have no hint sink. */
 export interface ButtonHint {
-  bar: Phaser.GameObjects.Text;
+  bar: HintSink;
   description?: string;
   idle: () => string;
 }
@@ -106,7 +112,7 @@ export interface ButtonColumnOptions {
   panelStroke?: number;
   panelAlpha?: number;
   depth?: number;
-  hintBar?: Phaser.GameObjects.Text;
+  hintBar?: HintSink;
   idleHint?: () => string;
 }
 
