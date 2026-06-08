@@ -17,9 +17,16 @@ import {
   isImmobilized,
   computeFlankBonus,
   safeDepth,
-  placementCost,
   captureUnit,
-  CAPTURE_THRESHOLD,
+  createAlert,
+  addNoise,
+  deployNoise,
+  rollAlerted,
+  captureChance,
+  settleAlert,
+  streamFor,
+  type DeployAlert,
+  type Rng,
   jobLevelOf,
   canSee,
   statusVisual,
@@ -113,10 +120,13 @@ export class DemoScene extends Phaser.Scene {
   private commandPanel?: ButtonColumn;
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
-  // Deployment (M5b): before each fight, reposition the party — pushing a unit
-  // past its safe depth raises capture risk.
+  // Deployment (M5b/D11): reposition before each fight. Pushing a unit past its
+  // safe depth raises a shared camp-alert meter; on a spot the unit bolts for
+  // cover, risking capture along the way. Rolls use a seeded, reproducible stream.
   private deploying = false;
   private deployActor: Unit | null = null;
+  private deployAlert: DeployAlert = createAlert();
+  private deployRng!: Rng;
 
   // Battle interaction.
   private waitingFor: Unit | null = null;
@@ -294,22 +304,20 @@ export class DemoScene extends Phaser.Scene {
 
   // --- Deployment (M5b) ------------------------------------------------------
 
-  /** Begin the pre-battle deployment step: pick a unit and show its safe zone. */
+  /** Begin the pre-battle deployment step: pick a unit, reset the camp alert. */
   private enterDeploy(): void {
     this.deploying = true;
     this.waitingFor = null;
     this.armed = null;
+    this.deployAlert = createAlert();
+    this.deployRng = streamFor(this.staged!.encounter.id, "deploy");
     this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
     this.refreshDeploy();
     this.setPrimary("Start Battle →");
   }
 
-  /** Exposure (0–100+) a unit would carry from its current deploy depth. */
-  private exposureOf(unit: Unit): number {
-    return placementCost(unit, unit.pos.col);
-  }
-
   private refreshDeploy(): void {
+    this.refreshHud(); // keep the CT order current (captured units drop); we override its subtitle below
     this.drawDeployZone(this.deployActor);
     this.highlightTile(this.deployActor?.pos ?? null);
     this.setActiveUnit(this.deployActor);
@@ -321,12 +329,12 @@ export class DemoScene extends Phaser.Scene {
       this.setHint("Press Start Battle to begin.");
       return;
     }
-    const exp = Math.min(100, Math.round(this.exposureOf(u)));
-    this.subText.setText(`Deploy ${u.name}  ·  exposure ${exp}%  ·  safe to depth ${safeDepth(u)}`);
-    this.setHint(`${u.name}: click a tile to reposition. Push past the green safe zone for tempo, but cross ${CAPTURE_THRESHOLD}% exposure and they're captured. Start Battle when set.`);
+    const past = Math.max(0, u.pos.col - safeDepth(u));
+    this.subText.setText(`Deploy ${u.name}  ·  camp alert ${this.deployAlert.meter}%  ·  ${past > 0 ? `${past} past safe` : "in cover"}`);
+    this.setHint(`${u.name}: reposition. Pushing past the green safe zone raises the camp's alert — get spotted and they bolt for cover, risking a net on the way. Start Battle when set.`);
   }
 
-  /** Tint the safe-depth tiles (zero-risk deployment) for the chosen unit. */
+  /** Tint the safe-depth tiles (silent deployment) for the chosen unit. */
   private drawDeployZone(unit: Unit | null): void {
     this.preview.clear();
     if (!unit) return;
@@ -367,24 +375,110 @@ export class DemoScene extends Phaser.Scene {
     this.animateMove(actor, steps, () => {
       this.busy = false;
       this.placeView(actor);
-      if (this.exposureOf(actor) >= CAPTURE_THRESHOLD && !actor.captured) {
-        captureUnit(actor);
-        this.captureDeploy(actor);
-      } else {
-        this.refreshDeploy();
+      // A noisy (forward) move raises the shared alert, then rolls a spot.
+      if (deployNoise(actor, actor.pos.col) > 0) {
+        addNoise(this.deployAlert, actor, actor.pos.col);
+        if (rollAlerted(this.deployAlert, this.deployRng)) return this.spotAndRetreat(actor);
       }
+      this.refreshDeploy();
     });
   }
 
-  /** A unit that ranged too deep is captured: bound in the enemy corner, out of the fight. */
-  private captureDeploy(unit: Unit): void {
+  /** A spotted unit bolts for the nearest cover, rolling capture on each tile. */
+  private spotAndRetreat(unit: Unit): void {
+    this.floatText(unit, "SPOTTED!", "#ffd86b", -22);
+    const target = this.nearestSafeTile(unit);
+    const nav = occupiedGrid(this.battle.grid, this.battle.units, [unit]);
+    const path = target ? findPath(nav, unit.pos, target) : null;
+    if (!path || path.length < 2) {
+      settleAlert(this.deployAlert); // nowhere to fall back — the moment passes
+      return this.refreshDeploy();
+    }
+    this.setHint(`${unit.name} was spotted — bolting for cover!`);
+    this.retreatStep(unit, path.slice(1), 0);
+  }
+
+  /** Walk the retreat one tile at a time; each landing is a depth-scaled capture roll. */
+  private retreatStep(unit: Unit, steps: readonly GridCoord[], i: number): void {
+    if (i >= steps.length) {
+      settleAlert(this.deployAlert);
+      this.busy = false;
+      this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
+      return this.refreshDeploy();
+    }
+    this.busy = true;
+    const tile = steps[i];
+    unit.pos = { ...tile };
+    this.animateMove(unit, [tile], () => {
+      this.placeView(unit);
+      // The party's last un-captured fighter can be spotted but never netted.
+      const lastStanding = this.battle.units.filter((u) => u.side === "player" && !u.captured).length <= 1;
+      if (!lastStanding && this.deployRng.chance(captureChance(unit, tile.col))) return this.netCapture(unit);
+      this.retreatStep(unit, steps, i + 1);
+    });
+  }
+
+  /** Netted mid-retreat: drop the net, bind the unit in the enemy corner. */
+  private netCapture(unit: Unit): void {
+    captureUnit(unit);
+    this.dropNet(unit);
+    this.floatText(unit, "NETTED!", "#ff9d5c", -22);
     unit.pos = { col: this.battle.grid.cols - 1, row: this.battle.grid.rows - 1 };
     this.placeView(unit);
     this.refreshHp();
-    this.floatText(unit, "CAPTURED", "#ff9d5c", -14);
-    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured && u !== unit) ?? null;
+    this.busy = false;
+    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
     this.refreshDeploy();
-    this.setHint(`${unit.name} ranged too deep and was captured — bound for this fight, back with you next encounter.`);
+    this.setHint(`${unit.name} was netted mid-retreat — bound for this fight, back with you next encounter.`);
+  }
+
+  /** Nearest reachable, unoccupied tile inside the unit's safe depth. */
+  private nearestSafeTile(unit: Unit): GridCoord | null {
+    const safe = safeDepth(unit);
+    const nav = occupiedGrid(this.battle.grid, this.battle.units, [unit]);
+    let best: GridCoord | null = null;
+    let bestLen = Infinity;
+    for (let col = safe; col >= 0; col--) {
+      for (let row = 0; row < this.battle.grid.rows; row++) {
+        const t = { col, row };
+        if (!this.battle.grid.isWalkable(t)) continue;
+        if (this.battle.units.some((u) => u !== unit && u.alive && u.pos.col === col && u.pos.row === row)) continue;
+        const path = findPath(nav, unit.pos, t);
+        if (path && path.length < bestLen) {
+          bestLen = path.length;
+          best = t;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** A net dropping onto a captured unit — a crosshatched cage that falls and fades. */
+  private dropNet(unit: Unit): void {
+    const { x, y } = this.tileToWorld(unit.pos);
+    const cy = y - TILE_HEIGHT / 2;
+    const r = 15;
+    const g = this.add.graphics().setDepth(28);
+    g.lineStyle(2, 0xe6d8b0, 0.95);
+    g.strokeRect(x - r, cy - r, r * 2, r * 2);
+    g.lineBetween(x - r, cy - r, x + r, cy + r);
+    g.lineBetween(x + r, cy - r, x - r, cy + r);
+    g.lineBetween(x, cy - r, x, cy + r);
+    g.lineBetween(x - r, cy, x + r, cy);
+    this.boardObjects.push(g);
+    if (this.reduceMotion) {
+      this.time.delayedCall(450, () => g.destroy());
+      return;
+    }
+    g.setY(-44).setAlpha(0.3);
+    this.tweens.add({
+      targets: g,
+      y: 0,
+      alpha: 1,
+      duration: 170,
+      ease: "Quad.In",
+      onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 480, delay: 320, onComplete: () => g.destroy() }),
+    });
   }
 
   /** Commit the deployment and start combat: re-seed initiative on the final board. */

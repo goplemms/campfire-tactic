@@ -68,7 +68,7 @@ const STEPS = [
   { name: "01b-hint-peek", hoverCanvas: { x: 693, y: 248 }, minMs: 300 }, // hover a herb button → tip peeks the card open
   { name: "01c-hint-pinned", minMs: 300, eval: togglePin() }, // click-pin → card stays open (resting tip + keys)
   { name: "02-encounter1-open", keys: ["Space"], minMs: 400, eval: togglePin() }, // unpin, then March Out → deployment
-  { name: "02a-deploy-gamble", minMs: 300, eval: pushDeploy(6) }, // push Edrin past the safe zone → exposure climbs
+  { name: "02a-deploy-gamble", minMs: 600, eval: spotDeploy(6) }, // push Edrin deep + spotted → he bolts for cover (capture rolls)
   { name: "02b-encounter1-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
   { name: "04-kit-panel", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
@@ -95,11 +95,12 @@ const STEPS = [
 function togglePin(scene = "DemoScene") {
   return new Function(`window.game.scene.getScene(${JSON.stringify(scene)}).hintPanel.togglePin();`);
 }
-/** Push the current deploy unit forward to depth `col` so its exposure climbs. */
-function pushDeploy(col) {
+/** Push the current deploy unit deep, max the alert, and trigger a spot → the unit
+ *  bolts for cover rolling capture per tile (seeded, so the outcome is reproducible). */
+function spotDeploy(col) {
   return new Function(
     `const s=window.game.scene.getScene("DemoScene");const u=s.deployActor;` +
-      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.refreshDeploy();}`,
+      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.deployAlert.meter=100;s.spotAndRetreat(u);}`,
   );
 }
 /** Jump to beat `i` and let the scene dispatch it (provision / rest). */
