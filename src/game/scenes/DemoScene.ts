@@ -16,6 +16,10 @@ import {
   effectiveMove,
   isImmobilized,
   computeFlankBonus,
+  safeDepth,
+  placementCost,
+  captureUnit,
+  CAPTURE_THRESHOLD,
   jobLevelOf,
   canSee,
   statusVisual,
@@ -108,6 +112,11 @@ export class DemoScene extends Phaser.Scene {
   /** The current right-hand command panel (kit abilities / provision / choices), if any. */
   private commandPanel?: ButtonColumn;
   private overlay: Phaser.GameObjects.GameObject[] = [];
+
+  // Deployment (M5b): before each fight, reposition the party — pushing a unit
+  // past its safe depth raises capture risk.
+  private deploying = false;
+  private deployActor: Unit | null = null;
 
   // Battle interaction.
   private waitingFor: Unit | null = null;
@@ -279,6 +288,115 @@ export class DemoScene extends Phaser.Scene {
     // gold aren't actionable mid-fight.
     this.rebuildBoard();
     this.refreshHud();
+    // M5b — a deployment step opens each fight: reposition before the seed.
+    this.enterDeploy();
+  }
+
+  // --- Deployment (M5b) ------------------------------------------------------
+
+  /** Begin the pre-battle deployment step: pick a unit and show its safe zone. */
+  private enterDeploy(): void {
+    this.deploying = true;
+    this.waitingFor = null;
+    this.armed = null;
+    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
+    this.refreshDeploy();
+    this.setPrimary("Start Battle →");
+  }
+
+  /** Exposure (0–100+) a unit would carry from its current deploy depth. */
+  private exposureOf(unit: Unit): number {
+    return placementCost(unit, unit.pos.col);
+  }
+
+  private refreshDeploy(): void {
+    this.drawDeployZone(this.deployActor);
+    this.highlightTile(this.deployActor?.pos ?? null);
+    this.setActiveUnit(this.deployActor);
+    const others = this.battle.units.filter((u) => u.side === "player" && !u.captured).length > 1;
+    this.layoutButtons(others ? [{ text: "Next Unit", description: "Switch which unit you're positioning.", onClick: () => this.cycleDeploy() }] : []);
+    const u = this.deployActor;
+    if (!u) {
+      this.subText.setText("Deployment — everyone's in. Start Battle.");
+      this.setHint("Press Start Battle to begin.");
+      return;
+    }
+    const exp = Math.min(100, Math.round(this.exposureOf(u)));
+    this.subText.setText(`Deploy ${u.name}  ·  exposure ${exp}%  ·  safe to depth ${safeDepth(u)}`);
+    this.setHint(`${u.name}: click a tile to reposition. Push past the green safe zone for tempo, but cross ${CAPTURE_THRESHOLD}% exposure and they're captured. Start Battle when set.`);
+  }
+
+  /** Tint the safe-depth tiles (zero-risk deployment) for the chosen unit. */
+  private drawDeployZone(unit: Unit | null): void {
+    this.preview.clear();
+    if (!unit) return;
+    const maxCol = safeDepth(unit);
+    for (let row = 0; row < this.battle.grid.rows; row++) {
+      for (let col = 0; col <= maxCol && col < this.battle.grid.cols; col++) {
+        if (this.battle.grid.isWalkable({ col, row })) this.fillTile(this.preview, { col, row }, 0x2f6b46, 0.22);
+      }
+    }
+  }
+
+  private cycleDeploy(): void {
+    if (this.busy) return;
+    const players = this.battle.units.filter((u) => u.side === "player" && !u.captured);
+    if (players.length === 0) return;
+    const i = this.deployActor ? players.indexOf(this.deployActor) : -1;
+    this.deployActor = players[(i + 1) % players.length];
+    this.refreshDeploy();
+  }
+
+  private onDeployClick(tile: GridCoord): void {
+    if (this.busy) return;
+    // Click a (deployable) party member to select it.
+    const clicked = this.battle.units.find((u) => u.alive && !u.captured && u.pos.col === tile.col && u.pos.row === tile.row);
+    if (clicked && clicked.side === "player") {
+      this.deployActor = clicked;
+      return this.refreshDeploy();
+    }
+    const actor = this.deployActor;
+    if (!actor || actor.captured) return;
+    if (!this.battle.grid.isWalkable(tile)) return this.setHint("Can't deploy onto that tile.");
+    const nav = occupiedGrid(this.battle.grid, this.battle.units, [actor]);
+    const path = findPath(nav, actor.pos, tile);
+    if (!path || path.length < 2) return this.setHint("No deploy path there.");
+    const steps = path.slice(1).slice(0, effectiveMove(actor));
+    actor.pos = { ...steps[steps.length - 1] };
+    this.busy = true;
+    this.animateMove(actor, steps, () => {
+      this.busy = false;
+      this.placeView(actor);
+      if (this.exposureOf(actor) >= CAPTURE_THRESHOLD && !actor.captured) {
+        captureUnit(actor);
+        this.captureDeploy(actor);
+      } else {
+        this.refreshDeploy();
+      }
+    });
+  }
+
+  /** A unit that ranged too deep is captured: bound in the enemy corner, out of the fight. */
+  private captureDeploy(unit: Unit): void {
+    unit.pos = { col: this.battle.grid.cols - 1, row: this.battle.grid.rows - 1 };
+    this.placeView(unit);
+    this.refreshHp();
+    this.floatText(unit, "CAPTURED", "#ff9d5c", -14);
+    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured && u !== unit) ?? null;
+    this.refreshDeploy();
+    this.setHint(`${unit.name} ranged too deep and was captured — bound for this fight, back with you next encounter.`);
+  }
+
+  /** Commit the deployment and start combat: re-seed initiative on the final board. */
+  private startBattle(): void {
+    this.deploying = false;
+    this.deployActor = null;
+    this.preview.clear();
+    this.clearButtons();
+    this.setActiveUnit(null);
+    this.highlightTile(null);
+    this.battle.seed(); // positions + captures are final — seed initiative now
+    this.refreshHud();
     this.setPrimary("Advance Clock");
     this.setHint("Battle: press Advance Clock. Flank isolated foes, tarpit with Edrin, cleanse snares with Sela's antidote.");
   }
@@ -398,6 +516,7 @@ export class DemoScene extends Phaser.Scene {
     if (!this.staged) return;
     const tile = this.worldToTile(pointer.worldX, pointer.worldY);
     if (!this.battle.grid.inBounds(tile)) return;
+    if (this.deploying) return this.onDeployClick(tile);
     const actor = this.waitingFor;
     if (this.ended || this.busy || !actor) return;
     const clicked = this.battle.units.find((u) => u.alive && !u.hidden && u.pos.col === tile.col && u.pos.row === tile.row);
@@ -521,6 +640,7 @@ export class DemoScene extends Phaser.Scene {
     }
     if (!beat) return this.showEnd();
     if (beat.kind === "encounter") {
+      if (this.deploying) return this.startBattle();
       if (this.ended) {
         this.runner.advance();
         return this.nextBeat();
@@ -585,6 +705,8 @@ export class DemoScene extends Phaser.Scene {
     this.boardObjects = [];
     this.views.clear();
     this.deadSeen.clear();
+    this.deploying = false;
+    this.deployActor = null;
     this.activeUnitId = null;
     this.hoveredUnitId = null;
     this.orderBg.setVisible(false);
@@ -703,7 +825,7 @@ export class DemoScene extends Phaser.Scene {
       const badges = unit.statuses.map((s) => statusVisual(s.id).glyph).join("");
       view.badges.setText(badges);
       if (unit.statuses.length > 0) view.badges.setColor(`#${statusVisual(unit.statuses[0].id).tint.toString(16).padStart(6, "0")}`);
-      view.container.setAlpha(!unit.alive ? 0.2 : unit.hidden ? 0.35 : 1);
+      view.container.setAlpha(!unit.alive ? 0.2 : unit.captured ? 0.4 : unit.hidden ? 0.35 : 1);
       // Death pop: the first time a unit reads as dead, collapse its token so the
       // kill registers (it then rests as the faded "downed" marker). The fade above
       // is the capture-safe end state; the shrink is the juice, skipped under reduceMotion.
