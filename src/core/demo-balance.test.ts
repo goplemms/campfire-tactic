@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { DemoRunner, type RunReport } from "./demo-quest";
 
+// Minimal local typing for the node global (the project carries no @types/node);
+// used only to print the sheet, which vitest's console.log interception hides.
+declare const process: { stdout: { write(s: string): boolean } };
+
 // A readable "balance sheet" for The Hollow Mill: auto-play the quest down both
 // branches of the deserter choice and tabulate the per-encounter telemetry, so we
 // can spot pushovers / coin-flips and see whether the choice changes the fight.
