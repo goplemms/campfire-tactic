@@ -36,6 +36,13 @@ interface TextButton {
   label: Phaser.GameObjects.Text;
 }
 
+/** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
+function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return (name[0]?.toUpperCase() ?? "") + (name[1]?.toLowerCase() ?? "");
+}
+
 /**
  * Standalone **demo mode** (D44): plays *The Hollow Mill* end to end, bypassing
  * the guild/overworld. It drives a {@link DemoRunner} beat by beat — Provision →
@@ -68,16 +75,22 @@ export class DemoScene extends Phaser.Scene {
     {
       container: Phaser.GameObjects.Container;
       body: Phaser.GameObjects.Arc;
+      /** Floating "Name  hp/max" plate — shown only for the active or hovered unit. */
+      label: Phaser.GameObjects.Text;
       hp: Phaser.GameObjects.Text;
       badges: Phaser.GameObjects.Text;
       hpBarFill: Phaser.GameObjects.Rectangle;
       hpBarW: number;
     }
   >();
+  /** The unit whose turn it is, and the one under the cursor — both get a nameplate. */
+  private activeUnitId: string | null = null;
+  private hoveredUnitId: string | null = null;
 
   private titleText!: Phaser.GameObjects.Text;
   private subText!: Phaser.GameObjects.Text;
   private orderText!: Phaser.GameObjects.Text;
+  private orderBg!: Phaser.GameObjects.Rectangle;
   private timerText!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
   private lastHint = "";
@@ -102,6 +115,8 @@ export class DemoScene extends Phaser.Scene {
     this.runner = new DemoRunner();
     this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
     this.subText = this.add.text(this.scale.width / 2, 38, "", { color: "#cdd7ee", fontSize: "12px" }).setOrigin(0.5).setDepth(10);
+    // A faint backing groups the turn-order readout; sized to the text each refresh.
+    this.orderBg = this.add.rectangle(4, 64, 10, 10, 0x141925, 0.55).setStrokeStyle(1, 0x3d4b6e).setOrigin(0, 0).setDepth(9).setVisible(false);
     this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: "11px", lineSpacing: 3 }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
     // Centered in the area left of the right-hand command panel so long hints
@@ -247,7 +262,8 @@ export class DemoScene extends Phaser.Scene {
     this.armed = null;
     this.pendingHerb = null;
     this.titleText.setText(beat.encounter.name);
-    this.subText.setText(`Storage ${slotsUsed(this.runner.inventory)}/${this.runner.inventory.storageCap}  ·  Gold ${this.runner.gold}`);
+    // The header subtitle carries a live ally/foe tally (refreshHud) — storage and
+    // gold aren't actionable mid-fight.
     this.rebuildBoard();
     this.refreshHud();
     this.setPrimary("Advance Clock");
@@ -274,6 +290,7 @@ export class DemoScene extends Phaser.Scene {
       return;
     }
     this.highlightTile(actor.pos);
+    this.setActiveUnit(actor);
     if (actor.side === "enemy") {
       this.busy = true;
       this.setHint(`${actor.name} (enemy) acts…`);
@@ -431,6 +448,7 @@ export class DemoScene extends Phaser.Scene {
     this.revealScouted();
     this.refreshHud();
     this.highlightTile(null);
+    this.setActiveUnit(null);
     if (this.checkEncounterEnd()) return;
     this.setHint("Press Advance Clock for the next turn.");
   }
@@ -534,6 +552,9 @@ export class DemoScene extends Phaser.Scene {
     for (const o of this.boardObjects) o.destroy();
     this.boardObjects = [];
     this.views.clear();
+    this.activeUnitId = null;
+    this.hoveredUnitId = null;
+    this.orderBg.setVisible(false);
     this.gridGfx?.destroy();
     this.gridGfx = undefined;
     this.highlight.clear();
@@ -573,19 +594,48 @@ export class DemoScene extends Phaser.Scene {
   private spawnUnit(unit: Unit): void {
     const color = unit.side === "player" ? 0xffcf6b : 0xe06b6b;
     const stroke = unit.side === "player" ? 0x6b4a1c : 0x6b1c1c;
-    const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(2, stroke);
-    const label = this.add.text(0, -TILE_HEIGHT / 2 - 28, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5);
-    const hp = this.add.text(0, -TILE_HEIGHT / 2 - 15, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5);
-    const badges = this.add.text(0, -TILE_HEIGHT / 2 + 9, "", { color: "#ffe6a0", fontSize: "10px" }).setOrigin(0.5);
+    const cy = -TILE_HEIGHT / 2;
+    const body = this.add.circle(0, cy, 12, color).setStrokeStyle(2, stroke);
+    // Identity lives *inside* the token (initials), so the board reads at a glance
+    // without a floating label over every unit.
+    const initials = this.add.text(0, cy, initialsOf(unit.name), { color: "#1b1f2a", fontSize: "9px", fontStyle: "bold" }).setOrigin(0.5);
+    // The full "Name  hp/max" plate is created hidden and only revealed for the
+    // active or hovered unit (see refreshNameplate) — that's what keeps spawn
+    // clusters from collapsing into a pile of overlapping text.
+    const label = this.add.text(0, cy - 30, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
+    const hp = this.add.text(0, cy - 18, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
+    const badges = this.add.text(0, cy + 10, "", { color: "#ffe6a0", fontSize: "10px" }).setOrigin(0.5);
     // An at-a-glance HP bar under the token; fill width + tint track the fraction.
     const hpBarW = 24;
-    const hpBarY = -TILE_HEIGHT / 2 - 2;
+    const hpBarY = cy - 4;
     const hpBarBg = this.add.rectangle(0, hpBarY, hpBarW, 4, 0x101521).setStrokeStyle(1, 0x000000, 0.6);
     const hpBarFill = this.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, 4, 0x57b07a).setOrigin(0, 0.5);
-    const container = this.add.container(0, 0, [hpBarBg, hpBarFill, body, label, hp, badges]).setDepth(1);
-    this.views.set(unit.id, { container, body, hp, badges, hpBarFill, hpBarW });
+    const container = this.add.container(0, 0, [hpBarBg, hpBarFill, body, initials, label, hp, badges]).setDepth(1);
+    this.views.set(unit.id, { container, body, label, hp, badges, hpBarFill, hpBarW });
+    // Hovering a token reveals its nameplate (the other half of "active/hover only").
+    body.setInteractive({ useHandCursor: false });
+    body.on("pointerover", () => { this.hoveredUnitId = unit.id; this.refreshNameplate(unit.id); });
+    body.on("pointerout", () => { if (this.hoveredUnitId === unit.id) this.hoveredUnitId = null; this.refreshNameplate(unit.id); });
     this.boardObjects.push(container);
     this.placeView(unit);
+  }
+
+  /** Show a unit's floating nameplate iff it's the active or hovered (and visible) unit. */
+  private refreshNameplate(unitId: string): void {
+    const view = this.views.get(unitId);
+    if (!view) return;
+    const unit = this.battle.units.find((u) => u.id === unitId);
+    const show = !!unit && unit.alive && !unit.hidden && (unitId === this.activeUnitId || unitId === this.hoveredUnitId);
+    view.label.setVisible(show);
+    view.hp.setVisible(show);
+  }
+
+  /** Mark the unit taking its turn; its nameplate stays up until the turn ends. */
+  private setActiveUnit(unit: Unit | null): void {
+    const prev = this.activeUnitId;
+    this.activeUnitId = unit?.id ?? null;
+    if (prev && prev !== this.activeUnitId) this.refreshNameplate(prev);
+    if (this.activeUnitId) this.refreshNameplate(this.activeUnitId);
   }
 
   private placeView(unit: Unit): void {
@@ -614,12 +664,23 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private refreshHud(): void {
-    const order = [...this.battle.units]
-      .filter((u) => u.alive && !u.captured && !u.hidden)
+    const live = [...this.battle.units].filter((u) => u.alive && !u.captured && !u.hidden);
+    // Live ally/foe tally in the header — actionable battle state, unlike storage/gold.
+    const allies = live.filter((u) => u.side === "player").length;
+    const foes = live.filter((u) => u.side === "enemy").length;
+    this.subText.setText(`Allies ${allies}  ·  Foes ${foes}`);
+    const order = live
       .sort((a, b) => b.ct - a.ct)
-      .map((u) => `${u.side === "player" ? "●" : "○"} ${u.name} CT${Math.round(u.ct)}${this.battle.clock.isCharging(u) ? " ⏳" : ""}`)
+      // A "▸" flags whoever is acting now; the faction dot keeps sides legible.
+      .map((u) => {
+        const mark = u.id === this.activeUnitId ? "▸" : " ";
+        const dot = u.side === "player" ? "●" : "○";
+        return `${mark} ${dot} ${u.name} CT${Math.round(u.ct)}${this.battle.clock.isCharging(u) ? " ⏳" : ""}`;
+      })
       .join("\n");
     this.orderText.setText(`CT order\n${order}`);
+    // Grow the backing to wrap the (variable-length) readout.
+    this.orderBg.setSize(this.orderText.width + 12, this.orderText.height + 12).setVisible(true);
     this.refreshHp();
     // The bridge-cut timer (D43): a visible race readout.
     const prog = this.battle.clock.scheduledProgress(`objective:${this.staged?.encounter.id}:bridge-cut`);
