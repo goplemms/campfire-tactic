@@ -67,6 +67,8 @@ export class DemoScene extends Phaser.Scene {
   private lastHint = "";
   private primary!: TextButton;
   private buttons: Phaser.GameObjects.GameObject[] = [];
+  /** Click handlers for the current action-row buttons (number-key hotkeys 1–9). */
+  private buttonActions: (() => void)[] = [];
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
   // Battle interaction.
@@ -89,8 +91,28 @@ export class DemoScene extends Phaser.Scene {
     this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: "12px", align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeButton(this.scale.width / 2, this.scale.height - 26, 220, 32, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
+    this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: "11px" }).setOrigin(1, 1).setDepth(10);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
+    this.setupKeyboard();
     this.nextBeat();
+  }
+
+  /** Keyboard control (D44 playtest QoL): Space/Enter = primary, 1–9 = actions. */
+  private setupKeyboard(): void {
+    const kb = this.input.keyboard;
+    if (!kb) return;
+    // Stop Space/Enter/digits from scrolling or otherwise leaking to the page.
+    kb.addCapture("SPACE,ENTER,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,NINE");
+    kb.on("keydown", (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        if (this.primary.bg.visible) this.onPrimary();
+        return;
+      }
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1 && n <= this.buttonActions.length) {
+        this.buttonActions[n - 1]();
+      }
+    });
   }
 
   // --- Beat dispatch ---------------------------------------------------------
@@ -623,6 +645,7 @@ export class DemoScene extends Phaser.Scene {
   private clearButtons(): void {
     for (const o of this.buttons) o.destroy();
     this.buttons = [];
+    this.buttonActions = [];
   }
 
   private layoutButtons(specs: { text: string; description?: string; onClick: () => void }[]): void {
@@ -632,8 +655,11 @@ export class DemoScene extends Phaser.Scene {
     const gap = Math.min(160, 760 / specs.length);
     const startX = this.scale.width / 2 - ((specs.length - 1) * gap) / 2;
     specs.forEach((spec, i) => {
-      const btn = this.makeButton(startX + i * gap, y, gap - 10, 28, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
+      // The number-key hotkey (1–9) is shown on the label and recorded for keys.
+      const label = i < 9 ? `${i + 1}. ${spec.text}` : spec.text;
+      const btn = this.makeButton(startX + i * gap, y, gap - 10, 28, label, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
       this.buttons.push(btn.bg, btn.label);
+      this.buttonActions.push(spec.onClick);
     });
   }
 
