@@ -8,8 +8,17 @@ import {
   freeCaptive,
   isCaptured,
   CAPTURE_THRESHOLD,
+  createAlert,
+  deployNoise,
+  addNoise,
+  rollAlerted,
+  captureChance,
+  settleAlert,
+  NOISE_PER_DEPTH,
+  CAPTURE_CHANCE_MAX,
 } from "./deployment";
 import { CTClock, sideSeed } from "./clock";
+import { Rng } from "./rng";
 import { createUnit, type Side, type Unit } from "./units";
 
 function unit(id: string, side: Side, awareness: number, speed = 10): Unit {
@@ -110,5 +119,54 @@ describe("initiative seed excludes captured units (D7 → D11)", () => {
       if (actor) clock.spend(actor, { acted: true });
     }
     expect(sawValeNow).toBe(true);
+  });
+});
+
+describe("deployment stealth-alert layer (D11)", () => {
+  // awareness 2 → safe depth 3 (2 + floor(2/2)).
+  const scout = () => unit("scout", "player", 2);
+
+  it("noise is silent within the safe zone and scales past it", () => {
+    const u = scout();
+    expect(safeDepth(u)).toBe(3);
+    expect(deployNoise(u, 3)).toBe(0); // at the safe edge
+    expect(deployNoise(u, 4)).toBe(NOISE_PER_DEPTH); // one tile past
+    expect(deployNoise(u, 6)).toBe(3 * NOISE_PER_DEPTH);
+  });
+
+  it("the shared meter accumulates across units and clamps at the cap", () => {
+    const alert = createAlert();
+    addNoise(alert, scout(), 5); // +24
+    addNoise(alert, scout(), 5); // +24 → 48
+    expect(alert.meter).toBe(48);
+    for (let i = 0; i < 20; i++) addNoise(alert, scout(), 7);
+    expect(alert.meter).toBe(100); // clamped to ALERT_CAP
+  });
+
+  it("capture chance rises with depth and is capped", () => {
+    const u = scout();
+    expect(captureChance(u, 3)).toBe(0); // safe
+    expect(captureChance(u, 4)).toBeCloseTo(0.15, 5);
+    expect(captureChance(u, 99)).toBe(CAPTURE_CHANCE_MAX); // capped, never a sure loss
+  });
+
+  it("alert rolls are deterministic for a given seed", () => {
+    const seq = (seed: number) => {
+      const alert = createAlert();
+      alert.meter = 50;
+      const rng = new Rng(seed);
+      return Array.from({ length: 8 }, () => rollAlerted(alert, rng));
+    };
+    expect(seq(42)).toEqual(seq(42)); // same seed → same outcomes
+    // a 50% meter over 8 rolls should produce a mix (not all one way)
+    const rolls = seq(42);
+    expect(rolls.some(Boolean) && rolls.some((b) => !b)).toBe(true);
+  });
+
+  it("settling halves the meter after a survived spotting", () => {
+    const alert = createAlert();
+    alert.meter = 80;
+    settleAlert(alert);
+    expect(alert.meter).toBe(40);
   });
 });
