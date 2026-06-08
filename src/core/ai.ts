@@ -102,7 +102,7 @@ export function occupiedGrid(
 }
 
 /** A reachable destination with its movement cost and the path to it. */
-interface Reach {
+export interface Reach {
   tile: GridCoord;
   cost: number;
   path: GridCoord[];
@@ -128,10 +128,16 @@ function ringTilesAgainst(unit: Unit, units: readonly Unit[]): Set<string> {
 /**
  * Cost-limited flood (Dijkstra) of the tiles `unit` can reach this turn within
  * its move budget, treating tarpit-ring tiles as high-cost. Includes the start
- * tile (cost 0). Other living units block tiles.
+ * tile (cost 0). Other living units block tiles. The render layer reuses this to
+ * tint the move-range preview (pass `budget = effectiveMove(unit)` so the preview
+ * accounts for a Swift buff; the AI uses the default base `moveRange`).
  */
-function reachableTiles(unit: Unit, units: readonly Unit[], grid: TileGrid): Reach[] {
-  const budget = isImmobilized(unit) ? 0 : unit.moveRange;
+export function reachableTiles(
+  unit: Unit,
+  units: readonly Unit[],
+  grid: TileGrid,
+  budget: number = isImmobilized(unit) ? 0 : unit.moveRange,
+): Reach[] {
   const occupied = new Set(
     units.filter((u) => u.alive && u !== unit).map((u) => tileKey(u.pos)),
   );

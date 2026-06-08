@@ -67,14 +67,16 @@ data in `demo-quest.ts`).
 Ordered roughly by bang-for-buck. None of these touch the rules — they're feel/clarity.
 
 ### High value — readability of a turn
-- [ ] **Move/attack range preview** — on a player's turn, tint the reachable tiles (use
-  the AI's `reachableTiles` idea) + show attack-range tiles. Today you click blind.
+- [x] **Move/attack range preview** — on a player's turn, tint the reachable tiles
+  (`reachableTiles` extracted from the AI into a shared, tested core helper) + outline the
+  foes in reach this turn; with an ability armed, tint its valid targets.
 - [ ] **Move-then-act (FFT-style)** — split movement from the action so you can move,
   *see*, then choose attack/ability/Defend, with a cancel. Today move+attack is one click.
-- [ ] **Floating combat text** — damage / heal / "FLANK!" / "cleanse" pop-ups; right now
-  only the HP number changes + a flash.
-- [ ] **HP bars** under tokens (not just `x/y` text); color by fraction.
-- [ ] **Active-unit indicator** — a clearer "it's X's turn" marker than the tile outline.
+- [x] **Floating combat text** — damage / heal / "FLANK!" / "cleanse" pop-ups, driven off
+  the rules' own damage/heal bus events so every source is covered.
+- [x] **HP bars** under tokens (not just `x/y` text); color by fraction.
+- [x] **Active-unit indicator** — a bobbing chevron over the acting unit, above the tile
+  outline.
 
 ### Status & ability clarity
 - [ ] **Per-status badges + hover tooltips** — today it's single letters tinted by the

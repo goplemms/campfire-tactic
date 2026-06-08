@@ -5,6 +5,7 @@ import {
   findPath,
   occupiedGrid,
   manhattan,
+  reachableTiles,
   TILE_WIDTH,
   TILE_HEIGHT,
   DemoRunner,
@@ -12,6 +13,8 @@ import {
   isValidSkillTarget,
   inAttackRange,
   effectiveMove,
+  isImmobilized,
+  computeFlankBonus,
   jobLevelOf,
   canSee,
   statusVisual,
@@ -48,7 +51,15 @@ export class DemoScene extends Phaser.Scene {
   private originY = 0;
   private gridGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
+  /** Move-range / attack / valid-target preview, painted on the player's turn. */
+  private preview!: Phaser.GameObjects.Graphics;
+  /** A bobbing chevron over the unit currently taking its turn. */
+  private activeMarker!: Phaser.GameObjects.Triangle;
   private boardObjects: Phaser.GameObjects.GameObject[] = [];
+  /** Self-destroying floating-combat-text objects, tracked so a scene change can sweep them. */
+  private floaters = new Set<Phaser.GameObjects.Text>();
+  /** Bus unsubscribers for the active encounter (floating combat text). */
+  private busUnsubs: (() => void)[] = [];
   private views = new Map<
     string,
     {
@@ -56,6 +67,8 @@ export class DemoScene extends Phaser.Scene {
       body: Phaser.GameObjects.Arc;
       hp: Phaser.GameObjects.Text;
       badges: Phaser.GameObjects.Text;
+      hpBarFill: Phaser.GameObjects.Rectangle;
+      hpBarW: number;
     }
   >();
 
@@ -89,7 +102,14 @@ export class DemoScene extends Phaser.Scene {
     this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: "11px", lineSpacing: 3 }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
     this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: "12px", align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
+    this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
+    // A downward chevron that hovers over the acting unit (the active-unit cue).
+    this.activeMarker = this.add
+      .triangle(0, 0, -8, -10, 8, -10, 0, 2, 0xffe06a)
+      .setStrokeStyle(1.5, 0x7a5a10)
+      .setDepth(2)
+      .setVisible(false);
     this.primary = this.makeButton(this.scale.width / 2, this.scale.height - 26, 220, 32, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
     this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: "11px" }).setOrigin(1, 1).setDepth(10);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
@@ -206,6 +226,16 @@ export class DemoScene extends Phaser.Scene {
     if (beat?.kind !== "encounter") return;
     this.staged = this.runner.stageEncounter(beat);
     this.staged.battle.seed();
+    // Floating combat text rides the same bus the rules already emit on — so
+    // damage/heal pop-ups cover every source (attacks, cleave, charged skills).
+    this.busUnsubs.push(
+      this.battle.bus.on("unitDamaged", ({ unit, amount }) => {
+        if (amount > 0) this.floatText(unit, `-${amount}`, "#ff9a9a");
+      }),
+      this.battle.bus.on("unitHealed", ({ unit, amount }) => {
+        if (amount > 0) this.floatText(unit, `+${amount}`, "#9ff0bf");
+      }),
+    );
     this.ended = false;
     this.busy = false;
     this.waitingFor = null;
@@ -272,6 +302,7 @@ export class DemoScene extends Phaser.Scene {
     }
     specs.push({ text: "Defend", description: DEFEND.description, onClick: () => this.commitSkill(actor, DEFEND, actor) });
     this.layoutButtons(specs);
+    this.drawPreview();
   }
 
   private onKitButton(actor: Unit, skill: SkillDef): void {
@@ -289,6 +320,7 @@ export class DemoScene extends Phaser.Scene {
             this.pendingHerb = h;
             this.armed = skill;
             this.setHint(`Heal (${h}): click a wounded ally.`);
+            this.drawPreview();
           },
         })),
       );
@@ -297,6 +329,7 @@ export class DemoScene extends Phaser.Scene {
     if (skill.target === "self") return this.commitSkill(actor, skill, actor);
     this.armed = skill;
     this.setHint(`${skill.name}: click a target (or click ${actor.name} to cancel).`);
+    this.drawPreview();
   }
 
   private commitSkill(actor: Unit, skill: SkillDef, target: Unit): void {
@@ -310,6 +343,7 @@ export class DemoScene extends Phaser.Scene {
       const out = this.battle.useHeal(actor, skill, target, this.pendingHerb, this.runner.inventory);
       this.pendingHerb = null;
       verb = out.cleansed ? `cleanses ${out.cleansed}` : out.healed ? `heals ${out.healed}` : "no herb";
+      if (out.cleansed) this.floatText(target, `cleanse ${out.cleansed}`, "#9fe0e0");
       this.flash(actor, target);
     } else if (skill.effect.kind === "cleave") {
       const dir = { col: Math.sign(target.pos.col - actor.pos.col) || 1, row: target.pos.col === actor.pos.col ? Math.sign(target.pos.row - actor.pos.row) : 0 };
@@ -373,7 +407,13 @@ export class DemoScene extends Phaser.Scene {
     this.clearButtons();
     this.highlightTile(null);
     if (path.length > 0) this.battle.moveUnit(actor, path);
-    if (target && target.alive) this.battle.attack(actor, target);
+    if (target && target.alive) {
+      // Flank is computed from the post-move position, so a "FLANK!" cue fires
+      // exactly when the +bonus actually lands.
+      const flanked = computeFlankBonus(actor, target, this.battle.units) > 0;
+      this.battle.attack(actor, target);
+      if (flanked) this.floatText(target, "FLANK!", "#ffd86b", -14);
+    }
     this.battle.endTurn(actor, { moved: path.length > 0, acted: target !== null });
     this.animateMove(actor, path, () => {
       if (target) this.flash(actor, target);
@@ -480,12 +520,18 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private clearBoard(): void {
+    for (const u of this.busUnsubs) u();
+    this.busUnsubs = [];
+    for (const f of this.floaters) f.destroy();
+    this.floaters.clear();
     for (const o of this.boardObjects) o.destroy();
     this.boardObjects = [];
     this.views.clear();
     this.gridGfx?.destroy();
     this.gridGfx = undefined;
     this.highlight.clear();
+    this.preview.clear();
+    this.setActiveMarker(null);
   }
 
   private drawGrid(): void {
@@ -524,8 +570,13 @@ export class DemoScene extends Phaser.Scene {
     const label = this.add.text(0, -TILE_HEIGHT / 2 - 28, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5);
     const hp = this.add.text(0, -TILE_HEIGHT / 2 - 15, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5);
     const badges = this.add.text(0, -TILE_HEIGHT / 2 + 9, "", { color: "#ffe6a0", fontSize: "10px" }).setOrigin(0.5);
-    const container = this.add.container(0, 0, [body, label, hp, badges]).setDepth(1);
-    this.views.set(unit.id, { container, body, hp, badges });
+    // An at-a-glance HP bar under the token; fill width + tint track the fraction.
+    const hpBarW = 24;
+    const hpBarY = -TILE_HEIGHT / 2 - 2;
+    const hpBarBg = this.add.rectangle(0, hpBarY, hpBarW, 4, 0x101521).setStrokeStyle(1, 0x000000, 0.6);
+    const hpBarFill = this.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, 4, 0x57b07a).setOrigin(0, 0.5);
+    const container = this.add.container(0, 0, [hpBarBg, hpBarFill, body, label, hp, badges]).setDepth(1);
+    this.views.set(unit.id, { container, body, hp, badges, hpBarFill, hpBarW });
     this.boardObjects.push(container);
     this.placeView(unit);
   }
@@ -542,6 +593,11 @@ export class DemoScene extends Phaser.Scene {
       const view = this.views.get(unit.id);
       if (!view) continue;
       view.hp.setText(`${Math.max(0, unit.hp)}/${unit.maxHp}`);
+      // HP bar: width by fraction, tint green→amber→red as it drops.
+      const frac = unit.maxHp > 0 ? Math.max(0, unit.hp) / unit.maxHp : 0;
+      view.hpBarFill.width = Math.max(0, view.hpBarW * frac);
+      view.hpBarFill.setFillStyle(frac > 0.5 ? 0x57b07a : frac > 0.25 ? 0xd8b24a : 0xc8504a);
+      view.hpBarFill.setVisible(unit.alive);
       // Status trackers (D41): one glyph per active status, tinted by the registry.
       const badges = unit.statuses.map((s) => statusVisual(s.id).glyph).join("");
       view.badges.setText(badges);
@@ -582,7 +638,11 @@ export class DemoScene extends Phaser.Scene {
 
   private highlightTile(coord: GridCoord | null): void {
     this.highlight.clear();
-    if (!coord) return;
+    this.setActiveMarker(coord);
+    if (!coord) {
+      this.preview.clear();
+      return;
+    }
     const { x, y } = this.tileToWorld(coord);
     const hw = TILE_WIDTH / 2;
     const hh = TILE_HEIGHT / 2;
@@ -594,6 +654,102 @@ export class DemoScene extends Phaser.Scene {
     this.highlight.lineTo(x - hw, y);
     this.highlight.closePath();
     this.highlight.strokePath();
+  }
+
+  /** Hover the bobbing active-unit chevron over a tile (or hide it on null). */
+  private setActiveMarker(coord: GridCoord | null): void {
+    this.tweens.killTweensOf(this.activeMarker);
+    if (!coord) return void this.activeMarker.setVisible(false);
+    const { x, y } = this.tileToWorld(coord);
+    const baseY = y - TILE_HEIGHT / 2 - 36;
+    this.activeMarker.setPosition(x, baseY).setVisible(true);
+    this.tweens.add({ targets: this.activeMarker, y: baseY - 6, duration: 480, yoyo: true, repeat: -1, ease: "Sine.InOut" });
+  }
+
+  /**
+   * Paint the player's options on their turn (the "don't click blind" preview):
+   * with an ability armed, tint its **valid targets**; otherwise tint the
+   * **reachable** move tiles and outline the **foes in reach** this turn.
+   */
+  private drawPreview(): void {
+    this.preview.clear();
+    const actor = this.waitingFor;
+    if (!actor || this.busy || this.ended) return;
+    const g = this.preview;
+    if (this.armed) {
+      for (const u of this.battle.units) {
+        if (!u.alive || u.hidden || !isValidSkillTarget(this.armed, actor, u)) continue;
+        const ally = u.side === actor.side;
+        this.fillTile(g, u.pos, ally ? 0x57b07a : 0xc85a5a, 0.22, ally ? 0x8fe0b0 : 0xe89090);
+      }
+      return;
+    }
+    const budget = isImmobilized(actor) ? 0 : effectiveMove(actor);
+    const reach = reachableTiles(actor, this.battle.units, this.battle.grid, budget);
+    for (const r of reach) {
+      if (r.tile.col === actor.pos.col && r.tile.row === actor.pos.row) continue;
+      this.fillTile(g, r.tile, 0x3a7bd5, 0.18);
+    }
+    for (const foe of this.battle.units) {
+      if (!foe.alive || foe.hidden || foe.side === actor.side) continue;
+      if (reach.some((r) => manhattan(r.tile, foe.pos) <= actor.attackRange)) {
+        this.outlineTile(g, foe.pos, 0xe07b7b);
+      }
+    }
+  }
+
+  private fillTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, fill: number, alpha: number, line?: number): void {
+    const { x, y } = this.tileToWorld(coord);
+    const hw = TILE_WIDTH / 2;
+    const hh = TILE_HEIGHT / 2;
+    g.fillStyle(fill, alpha);
+    g.beginPath();
+    g.moveTo(x, y - hh);
+    g.lineTo(x + hw, y);
+    g.lineTo(x, y + hh);
+    g.lineTo(x - hw, y);
+    g.closePath();
+    g.fillPath();
+    if (line !== undefined) {
+      g.lineStyle(2, line, 0.9);
+      g.strokePath();
+    }
+  }
+
+  private outlineTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, color: number): void {
+    const { x, y } = this.tileToWorld(coord);
+    const hw = TILE_WIDTH / 2;
+    const hh = TILE_HEIGHT / 2;
+    g.lineStyle(2.5, color, 0.95);
+    g.beginPath();
+    g.moveTo(x, y - hh);
+    g.lineTo(x + hw, y);
+    g.lineTo(x, y + hh);
+    g.lineTo(x - hw, y);
+    g.closePath();
+    g.strokePath();
+  }
+
+  /** A short-lived combat-text pop-up that drifts up off a unit and fades. */
+  private floatText(unit: Unit, text: string, color: string, dy = 0): void {
+    if (!this.views.has(unit.id)) return;
+    const { x, y } = this.tileToWorld(unit.pos);
+    const t = this.add
+      .text(x, y - TILE_HEIGHT / 2 - 18 + dy, text, { color, fontSize: "13px", fontStyle: "bold" })
+      .setOrigin(0.5)
+      .setDepth(30);
+    this.floaters.add(t);
+    this.tweens.add({
+      targets: t,
+      y: t.y - 26,
+      alpha: 0,
+      duration: 760,
+      ease: "Cubic.Out",
+      onComplete: () => {
+        this.floaters.delete(t);
+        t.destroy();
+      },
+    });
   }
 
   // --- Animation -------------------------------------------------------------
