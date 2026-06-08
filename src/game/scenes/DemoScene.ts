@@ -91,6 +91,8 @@ export class DemoScene extends Phaser.Scene {
   private subText!: Phaser.GameObjects.Text;
   private orderText!: Phaser.GameObjects.Text;
   private orderBg!: Phaser.GameObjects.Rectangle;
+  /** One reusable Text per turn-order row (Phaser Text can't colour lines individually). */
+  private orderLines: Phaser.GameObjects.Text[] = [];
   private timerText!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
   private lastHint = "";
@@ -163,6 +165,8 @@ export class DemoScene extends Phaser.Scene {
     this.clearOverlay();
     this.timerText.setText("");
     this.orderText.setText("");
+    this.orderLines.forEach((t) => t.setVisible(false));
+    this.orderBg.setVisible(false);
     const beat = this.runner.currentBeat();
     if (!beat || this.runner.outcome) return this.showEnd();
     if (beat.kind === "provision") this.showProvision();
@@ -555,6 +559,7 @@ export class DemoScene extends Phaser.Scene {
     this.activeUnitId = null;
     this.hoveredUnitId = null;
     this.orderBg.setVisible(false);
+    this.orderLines.forEach((t) => t.setVisible(false));
     this.gridGfx?.destroy();
     this.gridGfx = undefined;
     this.highlight.clear();
@@ -602,14 +607,16 @@ export class DemoScene extends Phaser.Scene {
     // The full "Name  hp/max" plate is created hidden and only revealed for the
     // active or hovered unit (see refreshNameplate) — that's what keeps spawn
     // clusters from collapsing into a pile of overlapping text.
-    const label = this.add.text(0, cy - 30, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
-    const hp = this.add.text(0, cy - 18, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
+    const label = this.add.text(0, cy - 36, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
+    const hp = this.add.text(0, cy - 24, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
     const badges = this.add.text(0, cy + 10, "", { color: "#ffe6a0", fontSize: "10px" }).setOrigin(0.5);
-    // An at-a-glance HP bar under the token; fill width + tint track the fraction.
-    const hpBarW = 24;
-    const hpBarY = cy - 4;
-    const hpBarBg = this.add.rectangle(0, hpBarY, hpBarW, 4, 0x101521).setStrokeStyle(1, 0x000000, 0.6);
-    const hpBarFill = this.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, 4, 0x57b07a).setOrigin(0, 0.5);
+    // An at-a-glance HP bar capping the token (sat just above it, not behind it,
+    // so it actually reads); fill width + tint track the fraction.
+    const hpBarW = 26;
+    const hpBarH = 6;
+    const hpBarY = cy - 14;
+    const hpBarBg = this.add.rectangle(0, hpBarY, hpBarW, hpBarH, 0x101521).setStrokeStyle(1, 0x000000, 0.6);
+    const hpBarFill = this.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, hpBarH, 0x57b07a).setOrigin(0, 0.5);
     const container = this.add.container(0, 0, [hpBarBg, hpBarFill, body, initials, label, hp, badges]).setDepth(1);
     this.views.set(unit.id, { container, body, label, hp, badges, hpBarFill, hpBarW });
     // Hovering a token reveals its nameplate (the other half of "active/hover only").
@@ -669,18 +676,20 @@ export class DemoScene extends Phaser.Scene {
     const allies = live.filter((u) => u.side === "player").length;
     const foes = live.filter((u) => u.side === "enemy").length;
     this.subText.setText(`Allies ${allies}  ·  Foes ${foes}`);
-    const order = live
-      .sort((a, b) => b.ct - a.ct)
-      // A "▸" flags whoever is acting now; the faction dot keeps sides legible.
-      .map((u) => {
-        const mark = u.id === this.activeUnitId ? "▸" : " ";
-        const dot = u.side === "player" ? "●" : "○";
-        return `${mark} ${dot} ${u.name} CT${Math.round(u.ct)}${this.battle.clock.isCharging(u) ? " ⏳" : ""}`;
-      })
-      .join("\n");
-    this.orderText.setText(`CT order\n${order}`);
-    // Grow the backing to wrap the (variable-length) readout.
-    this.orderBg.setSize(this.orderText.width + 12, this.orderText.height + 12).setVisible(true);
+    // Turn-order readout. One tinted row per unit: faction reads at a glance from
+    // colour (warm = ally, cool = foe), a "▸" flags whoever is acting, and fallen
+    // units trail dimmed at the bottom so casualties stay trackable.
+    this.orderText.setText("CT order");
+    const rowOf = (u: Unit, dead: boolean) => ({
+      text: `${u.id === this.activeUnitId ? "▸" : " "} ${u.side === "player" ? "●" : "○"} ${u.name}${
+        dead ? "  ✕" : `  CT${Math.round(u.ct)}${this.battle.clock.isCharging(u) ? " ⏳" : ""}`
+      }`,
+      color: u.side === "player" ? "#ecd6a3" : "#e6a39b",
+      alpha: dead ? 0.4 : 1,
+    });
+    const rows = live.sort((a, b) => b.ct - a.ct).map((u) => rowOf(u, false));
+    const dead = this.battle.units.filter((u) => !u.alive && !u.captured && !u.hidden).map((u) => rowOf(u, true));
+    this.renderOrderRows([...rows, ...dead]);
     this.refreshHp();
     // The bridge-cut timer (D43): a visible race readout.
     const prog = this.battle.clock.scheduledProgress(`objective:${this.staged?.encounter.id}:bridge-cut`);
@@ -690,6 +699,25 @@ export class DemoScene extends Phaser.Scene {
     } else if (this.staged?.encounter.objective && !this.staged.objective.failed) {
       this.timerText.setText("Bridge secured — the Sapper is down.");
     }
+  }
+
+  /** Draw the turn-order rows into a reusable Text pool and size the backing to fit. */
+  private renderOrderRows(rows: { text: string; color: string; alpha: number }[]): void {
+    const x = 14;
+    const y0 = 90;
+    const step = 15;
+    let maxW = this.orderText.width;
+    rows.forEach((r, i) => {
+      let t = this.orderLines[i];
+      if (!t) {
+        t = this.add.text(x, 0, "", { fontSize: "11px" }).setDepth(10);
+        this.orderLines[i] = t;
+      }
+      t.setPosition(x, y0 + i * step).setText(r.text).setColor(r.color).setAlpha(r.alpha).setVisible(true);
+      maxW = Math.max(maxW, t.width);
+    });
+    for (let i = rows.length; i < this.orderLines.length; i++) this.orderLines[i].setVisible(false);
+    this.orderBg.setSize(maxW + 18, y0 + rows.length * step - 64).setVisible(true);
   }
 
   // --- Geometry --------------------------------------------------------------
@@ -729,7 +757,8 @@ export class DemoScene extends Phaser.Scene {
     this.tweens.killTweensOf(this.activeMarker);
     if (!coord) return void this.activeMarker.setVisible(false);
     const { x, y } = this.tileToWorld(coord);
-    const baseY = y - TILE_HEIGHT / 2 - 36;
+    // Clears the active unit's nameplate (name sits at cy − 36).
+    const baseY = y - TILE_HEIGHT / 2 - 48;
     this.activeMarker.setPosition(x, baseY).setVisible(true);
     this.tweens.add({ targets: this.activeMarker, y: baseY - 6, duration: 480, yoyo: true, repeat: -1, ease: "Sine.InOut" });
   }

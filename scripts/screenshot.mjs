@@ -49,9 +49,13 @@ const PORT = Number(process.env.SHOTS_PORT ?? 5188);
 // scriptable without guessing canvas pixel coordinates. Each step optionally
 // presses some keys, waits for animations/tweens to settle, then captures the
 // canvas. Add or reorder entries here to capture different moments.
+// `hoverCanvas` parks the cursor over a token (in 800×600 canvas coords) so the
+// shot exercises the hover-only nameplate; otherwise the cursor is parked off
+// the board so no stray hover state leaks in.
 const STEPS = [
   { name: "01-provision", settleMs: 3500 },                       // initial load — Provision screen
   { name: "02-encounter-open", keys: ["Space"], settleMs: 2500 }, // March Out → Encounter 1 board
+  { name: "02b-hover", hoverCanvas: { x: 536, y: 309 }, settleMs: 500 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], settleMs: 1800 },      // advance the clock; a player turn
   { name: "04-advance-2", keys: ["Space"], settleMs: 1800 },      // opens the right-hand kit panel
   { name: "05-advance-3", keys: ["Space"], settleMs: 1800 },
@@ -140,6 +144,11 @@ async function main() {
 
     for (const step of STEPS) {
       for (const key of step.keys ?? []) await page.keyboard.press(key);
+      // Position the cursor (canvas coords → page coords via the canvas box).
+      const box = await canvas.boundingBox();
+      const h = step.hoverCanvas;
+      if (h) await page.mouse.move(box.x + (h.x * box.width) / 800, box.y + (h.y * box.height) / 600);
+      else await page.mouse.move(box.x + 2, box.y + 2); // parked off the board
       await sleep(step.settleMs ?? 1500);
       const file = path.join(OUT_DIR, `${step.name}.png`);
       // Clip to the canvas so every shot is exactly the 800×600 game, free of
