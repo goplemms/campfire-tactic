@@ -67,7 +67,8 @@ const STEPS = [
   { name: "01-provision", minMs: 800 },                        // initial load — Provision screen (hint card collapsed, top-right)
   { name: "01b-hint-peek", hoverCanvas: { x: 693, y: 248 }, minMs: 300 }, // hover a herb button → tip peeks the card open
   { name: "01c-hint-pinned", minMs: 300, eval: togglePin() }, // click-pin → card stays open (resting tip + keys)
-  { name: "02-encounter1-open", keys: ["Space"], minMs: 400, eval: togglePin() }, // unpin, then March Out → Encounter 1 board
+  { name: "02-encounter1-open", keys: ["Space"], minMs: 400, eval: togglePin() }, // unpin, then March Out → deployment
+  { name: "02a-deploy-gamble", minMs: 300, eval: pushDeploy(6) }, // push Edrin past the safe zone → exposure climbs
   { name: "02b-encounter1-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
   { name: "04-kit-panel", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
@@ -93,6 +94,13 @@ const STEPS = [
 /** Toggle a scene's hint-card pinned-open state (DemoScene unless named). */
 function togglePin(scene = "DemoScene") {
   return new Function(`window.game.scene.getScene(${JSON.stringify(scene)}).hintPanel.togglePin();`);
+}
+/** Push the current deploy unit forward to depth `col` so its exposure climbs. */
+function pushDeploy(col) {
+  return new Function(
+    `const s=window.game.scene.getScene("DemoScene");const u=s.deployActor;` +
+      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.refreshDeploy();}`,
+  );
 }
 /** Jump to beat `i` and let the scene dispatch it (provision / rest). */
 function gotoBeat(i) {
