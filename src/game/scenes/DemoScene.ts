@@ -89,6 +89,8 @@ export class DemoScene extends Phaser.Scene {
       hpBarW: number;
     }
   >();
+  /** Units we've already played the death animation for (reset each encounter). */
+  private deadSeen = new Set<string>();
   /** The unit whose turn it is, and the one under the cursor — both get a nameplate. */
   private activeUnitId: string | null = null;
   private hoveredUnitId: string | null = null;
@@ -575,6 +577,7 @@ export class DemoScene extends Phaser.Scene {
     for (const o of this.boardObjects) o.destroy();
     this.boardObjects = [];
     this.views.clear();
+    this.deadSeen.clear();
     this.activeUnitId = null;
     this.hoveredUnitId = null;
     this.orderBg.setVisible(false);
@@ -664,6 +667,12 @@ export class DemoScene extends Phaser.Scene {
     this.activeUnitId = unit?.id ?? null;
     if (prev && prev !== this.activeUnitId) this.refreshNameplate(prev);
     if (this.activeUnitId) this.refreshNameplate(this.activeUnitId);
+    // A quick scale-pop when a unit takes the turn — a clearer hand-off than the
+    // chevron alone. End state is unchanged (yoyo), so captures are unaffected.
+    if (unit && prev !== this.activeUnitId && !this.reduceMotion) {
+      const view = this.views.get(unit.id);
+      if (view) this.tweens.add({ targets: view.container, scaleX: 1.18, scaleY: 1.18, duration: 130, yoyo: true, ease: "Quad.Out" });
+    }
   }
 
   private placeView(unit: Unit): void {
@@ -688,6 +697,14 @@ export class DemoScene extends Phaser.Scene {
       view.badges.setText(badges);
       if (unit.statuses.length > 0) view.badges.setColor(`#${statusVisual(unit.statuses[0].id).tint.toString(16).padStart(6, "0")}`);
       view.container.setAlpha(!unit.alive ? 0.2 : unit.hidden ? 0.35 : 1);
+      // Death pop: the first time a unit reads as dead, collapse its token so the
+      // kill registers (it then rests as the faded "downed" marker). The fade above
+      // is the capture-safe end state; the shrink is the juice, skipped under reduceMotion.
+      if (!unit.alive && !this.deadSeen.has(unit.id)) {
+        this.deadSeen.add(unit.id);
+        view.hpBarFill.setVisible(false);
+        if (!this.reduceMotion) this.tweens.add({ targets: view.container, scaleX: 0.72, scaleY: 0.72, duration: 260, ease: "Quad.Out" });
+      }
     }
   }
 
@@ -902,7 +919,15 @@ export class DemoScene extends Phaser.Scene {
       const toward = this.tileToWorld(target.pos);
       this.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true });
     }
-    if (tv) this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshHp() });
+    if (tv) {
+      // Punchier impact: a white flash on the struck token + a short camera shake,
+      // on top of the alpha blink. The body colour is restored once the blink settles.
+      const base = target.side === "player" ? 0xffcf6b : 0xe06b6b;
+      tv.body.setFillStyle(0xffffff);
+      this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshHp() });
+      this.time.delayedCall(95, () => tv.body.setFillStyle(base));
+      if (!this.reduceMotion) this.cameras.main.shake(70, 0.0035);
+    }
   }
 
   // --- UI primitives ---------------------------------------------------------
