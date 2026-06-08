@@ -5,19 +5,23 @@ const Events = Phaser.Input.Events;
 
 /**
  * A collapsible top-right info card that gives tips and command instructions one
- * consistent home. It stays out of the way as a slim header bar and reveals its
- * body two ways, no setting to manage:
+ * consistent home. It stays out of the way as a small chip and reveals its body
+ * two ways, no setting to manage:
  *
  *   • **hover-peek** — pointing at the card expands it; moving away collapses it
- *     again after a short grace delay. A contextual tip arriving (a button hover)
- *     also peeks it open so the tip is never shown into a collapsed void.
+ *     after a short grace delay. A contextual tip arriving (a button hover) also
+ *     peeks it open so the tip is never shown into a collapsed void.
  *   • **click-pin** — clicking the header pins it open (or unpins) so it won't
  *     auto-collapse while you read or play.
  *
- * The body holds the live contextual tip and the static keybindings. It satisfies
- * the buttons' `{ setText }` hint sink, so it drops into the existing Button /
- * ButtonColumn wiring: on-hover passes a tip (peeks open), on-out restores the
- * resting hint (collapses if unpinned).
+ * Collapsed it shrinks to just its header chip (right-anchored), so it clears even
+ * a long centered scene title; it only grows to full width when expanded — an
+ * opaque interaction state that's fine to overlap the title behind it.
+ *
+ * The body holds the live contextual tip and (optionally) the static keybindings.
+ * It satisfies the buttons' `{ setText }` hint sink, so it drops into the existing
+ * Button / ButtonColumn wiring: on-hover passes a tip (peeks open), on-out restores
+ * the resting hint (collapses if unpinned).
  */
 export class HintPanel extends Phaser.GameObjects.Container {
   private readonly headerBg: Phaser.GameObjects.Rectangle;
@@ -26,6 +30,8 @@ export class HintPanel extends Phaser.GameObjects.Container {
   private readonly bodyBg: Phaser.GameObjects.Rectangle;
   private readonly tipText: Phaser.GameObjects.Text;
   private readonly keysText: Phaser.GameObjects.Text;
+  private readonly baseLabel: string;
+  private readonly hasKeys: boolean;
 
   private static readonly W = 244;
   private static readonly HEADER_H = 24;
@@ -38,21 +44,27 @@ export class HintPanel extends Phaser.GameObjects.Container {
   private collapseTimer?: Phaser.Time.TimerEvent;
 
   /**
-   * @param keys the static command instructions shown in the body (e.g.
-   *             "Space / Enter = advance · 1–9 = abilities")
+   * @param keys the static command instructions for the body (e.g.
+   *             "Space / Enter = advance · 1–9 = abilities"). Empty for
+   *             mouse-only scenes — the card then reads just "Tips".
+   * @param top  the card's top y (default 10).
    */
-  constructor(scene: Phaser.Scene, keys: string) {
-    // Anchor the card's top-left so it hugs the top-right corner with a 10px margin.
-    super(scene, scene.scale.width - HintPanel.W - 10, 10);
+  constructor(scene: Phaser.Scene, keys = "", top = 10) {
     const W = HintPanel.W;
     const hH = HintPanel.HEADER_H;
+    // Right-anchored: the card's right edge sits 10px from the screen edge; it
+    // grows leftward within this W-wide span (collapsed it occupies only the right
+    // slice of it).
+    super(scene, scene.scale.width - 10 - W, top);
+    this.hasKeys = keys.length > 0;
+    this.baseLabel = this.hasKeys ? "Tips & Keys" : "Tips";
 
-    this.headerBg = scene.add.rectangle(0, 0, W, hH, 0x232b40, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
-    this.headerLabel = scene.add.text(8, hH / 2, "Tips & Keys", { color: "#cdd9f2", fontSize: FONT.caption }).setOrigin(0, 0.5);
-    this.chevron = scene.add.text(W - 8, hH / 2, "▸", { color: "#8fa0c8", fontSize: FONT.caption }).setOrigin(1, 0.5);
     this.bodyBg = scene.add.rectangle(0, hH, W, 10, 0x161b29, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
     this.tipText = scene.add.text(10, hH + 9, "", { color: "#aebbd6", fontSize: FONT.caption, align: "left", lineSpacing: 3, wordWrap: { width: W - 20 } }).setOrigin(0, 0);
     this.keysText = scene.add.text(10, 0, keys, { color: "#6f7c98", fontSize: FONT.micro, wordWrap: { width: W - 20 } }).setOrigin(0, 0);
+    this.headerBg = scene.add.rectangle(0, 0, W, hH, 0x232b40, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
+    this.headerLabel = scene.add.text(0, hH / 2, this.baseLabel, { color: "#cdd9f2", fontSize: FONT.caption }).setOrigin(0, 0.5);
+    this.chevron = scene.add.text(0, hH / 2, "▸", { color: "#8fa0c8", fontSize: FONT.caption }).setOrigin(1, 0.5);
 
     this.add([this.bodyBg, this.tipText, this.keysText, this.headerBg, this.headerLabel, this.chevron]);
     this.setDepth(15);
@@ -110,7 +122,7 @@ export class HintPanel extends Phaser.GameObjects.Container {
 
   private togglePin(): void {
     this.pinned = !this.pinned;
-    this.headerLabel.setText(this.pinned ? "Tips & Keys · pinned" : "Tips & Keys");
+    this.headerLabel.setText(this.pinned ? `${this.baseLabel} · pinned` : this.baseLabel);
     if (this.pinned) this.expand();
     else this.scheduleCollapse();
   }
@@ -130,17 +142,33 @@ export class HintPanel extends Phaser.GameObjects.Container {
     });
   }
 
-  /** Lay out for the open/closed state, sizing the body to its text. */
+  /** Lay out for the open/closed state: full width open, a right-anchored chip closed. */
   private apply(expanded: boolean): void {
     this.isOpen = expanded;
     this.chevron.setText(expanded ? "▾" : "▸");
-    const accent = this.pinned ? 0x7f9bd6 : 0x44557e;
-    this.headerBg.setStrokeStyle(1, accent);
-    for (const o of [this.bodyBg, this.tipText, this.keysText]) o.setVisible(expanded);
+    this.headerBg.setStrokeStyle(1, this.pinned ? 0x7f9bd6 : 0x44557e);
+
+    const W = HintPanel.W;
+    const hH = HintPanel.HEADER_H;
+    // Collapsed: shrink the header to fit its label and pin it to the right edge.
+    const wc = expanded ? W : Math.min(W, Math.ceil(this.headerLabel.width) + 30);
+    const hx = W - wc;
+    this.headerBg.setSize(wc, hH).setPosition(hx, 0);
+    this.headerLabel.setPosition(hx + 8, hH / 2);
+    this.chevron.setPosition(W - 7, hH / 2);
+
+    this.bodyBg.setVisible(expanded);
+    this.tipText.setVisible(expanded);
+    this.keysText.setVisible(expanded && this.hasKeys);
     if (!expanded) return;
-    // Stack the keys line under the (variable-height) tip, then fit the backing.
-    this.keysText.setY(this.tipText.y + this.tipText.height + 7);
-    const bodyH = this.keysText.y + this.keysText.height + 8 - HintPanel.HEADER_H;
-    this.bodyBg.setSize(HintPanel.W, bodyH);
+
+    // Stack the (optional) keys line under the variable-height tip, then fit the backing.
+    this.tipText.setY(hH + 9);
+    let bottom = this.tipText.y + this.tipText.height;
+    if (this.hasKeys) {
+      this.keysText.setY(bottom + 7);
+      bottom = this.keysText.y + this.keysText.height;
+    }
+    this.bodyBg.setSize(W, bottom + 8 - hH).setPosition(0, hH);
   }
 }

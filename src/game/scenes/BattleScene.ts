@@ -50,6 +50,7 @@ import {
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
 import { Button } from "../button";
+import { HintPanel } from "../hint-panel";
 
 /**
  * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
@@ -90,7 +91,7 @@ export class BattleScene extends Phaser.Scene {
   private campText!: Phaser.GameObjects.Text;
   private intelText!: Phaser.GameObjects.Text;
   private orderText!: Phaser.GameObjects.Text;
-  private hintText!: Phaser.GameObjects.Text;
+  private hintPanel!: HintPanel;
   private lastHint = "";
   private primary!: Button;
   private actionButtons: Phaser.GameObjects.GameObject[] = [];
@@ -137,7 +138,7 @@ export class BattleScene extends Phaser.Scene {
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: "#d6c98a", fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     this.orderText = this.add.text(12, 12, "", { color: "#cdd7ee", fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 104, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 700 } }).setOrigin(0.5).setDepth(10);
+    this.hintPanel = new HintPanel(this);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
     this.primary.setDepth(12);
@@ -841,7 +842,7 @@ export class BattleScene extends Phaser.Scene {
 
   private setHint(text: string): void {
     this.lastHint = text;
-    this.hintText.setText(text);
+    this.hintPanel.setResting(text);
   }
 
   private highlightTile(coord: GridCoord | null): void {
@@ -870,7 +871,7 @@ export class BattleScene extends Phaser.Scene {
       fill,
       stroke,
       onClick,
-      hint: { bar: this.hintText, description, idle: () => this.lastHint },
+      hint: { bar: this.hintPanel, description, idle: () => this.lastHint },
     });
     this.add.existing(btn).setDepth(12);
     return btn;

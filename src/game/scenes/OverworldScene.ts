@@ -44,6 +44,7 @@ import {
 } from "../../core";
 import { fitText } from "../ui";
 import { Button } from "../button";
+import { HintPanel } from "../hint-panel";
 
 /** Data handed between the overworld and a combat node's BattleScene. */
 export interface RunHandoff {
@@ -91,7 +92,7 @@ export class OverworldScene extends Phaser.Scene {
   private titleText!: Phaser.GameObjects.Text;
   private campText!: Phaser.GameObjects.Text;
   private previewText!: Phaser.GameObjects.Text;
-  private hintText!: Phaser.GameObjects.Text;
+  private hintPanel!: HintPanel;
 
   constructor() {
     super("OverworldScene");
@@ -120,7 +121,7 @@ export class OverworldScene extends Phaser.Scene {
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     this.previewText = this.add.text(this.scale.width / 2, this.scale.height - 96, "", { color: "#d6c98a", fontSize: FONT.body, align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 64, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
+    this.hintPanel = new HintPanel(this);
 
     this.refreshCampText();
 
@@ -520,7 +521,7 @@ export class OverworldScene extends Phaser.Scene {
       bg.setInteractive({ useHandCursor: true });
       bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     }
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => this.hintText.setText(description));
+    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => this.hintPanel.setText(description));
     this.campObjects.push(bg, label);
   }
 
@@ -768,7 +769,7 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private setHint(text: string): void {
-    this.hintText.setText(text);
+    this.hintPanel.setResting(text);
   }
 
   private showOverlay(title: string, body: string, good: boolean, w = 480, h = 200, onContinue?: () => void): void {
