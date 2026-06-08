@@ -244,8 +244,10 @@ export class DemoScene extends Phaser.Scene {
       this.setPrimary("To the Chokepoint →");
     };
     this.layoutButtons([
-      { text: choiceMeta?.spareLabel ?? "Spare", description: "Spare the deserter.", onClick: () => apply("spare") },
-      { text: choiceMeta?.pressLabel ?? "Press", description: "Press him for coin.", onClick: () => apply("press") },
+      // Terse labels; the consequence each choice carries shows on hover (the
+      // authored outcome summary) so it doesn't have to cram into the button.
+      { text: choiceMeta?.spareLabel ?? "Spare", description: choiceMeta?.spare.summary ?? "Spare the deserter.", onClick: () => apply("spare") },
+      { text: choiceMeta?.pressLabel ?? "Press", description: choiceMeta?.press.summary ?? "Press him for coin.", onClick: () => apply("press") },
     ]);
     this.setPrimary("", false);
   }

@@ -159,8 +159,10 @@ export const THE_HOLLOW_MILL: AuthoredQuest = {
       xp: 100, // tuned to take the party from job-L1 to L2 → 2nd actives unlock
       choice: {
         prompt: "A wounded bandit deserter begs for mercy.",
-        spareLabel: "Spare (intel: the ambush + a snare-trapper ahead)",
-        pressLabel: "Press (take his gold; you'll have to scout)",
+        // Keep the button labels terse — the tradeoff each implies rides in the
+        // outcome `summary`, which the UI surfaces as the hover hint.
+        spareLabel: "Spare him",
+        pressLabel: "Press for coin",
         spare: {
           summary: "He warns of a hidden ambush and a snare-trapper — buy antidotes.",
           items: [{ id: "antidote", count: 1 }],
