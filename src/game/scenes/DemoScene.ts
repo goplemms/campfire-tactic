@@ -31,6 +31,7 @@ import {
 } from "../../core";
 import { Button, ButtonColumn } from "../button";
 import { HintPanel } from "../hint-panel";
+import { roleColor } from "../roles";
 
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
@@ -618,7 +619,9 @@ export class DemoScene extends Phaser.Scene {
     const color = unit.side === "player" ? 0xffcf6b : 0xe06b6b;
     const stroke = unit.side === "player" ? 0x6b4a1c : 0x6b1c1c;
     const cy = -TILE_HEIGHT / 2;
-    const body = this.add.circle(0, cy, 12, color).setStrokeStyle(2, stroke);
+    // Side-coloured fill (friend/foe), role-coloured ring (class) — so the board
+    // reads at a glance: "my gold token with the cyan ring is the medic".
+    const body = this.add.circle(0, cy, 12, color).setStrokeStyle(3, roleColor(unit, stroke));
     // Identity lives *inside* the token (initials), so the board reads at a glance
     // without a floating label over every unit.
     const initials = this.add.text(0, cy, initialsOf(unit.name), { color: "#1b1f2a", fontSize: FONT.micro, fontStyle: "bold" }).setOrigin(0.5);
