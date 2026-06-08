@@ -120,7 +120,10 @@ export interface ShopOffer {
 export function shopStock(seed: string | number, node: MapNode): ShopOffer[] {
   const rng = streamFor(seed, `event:${node.id}:shop`);
   const price = merchantPrice(node.kind);
-  const ids = rng.shuffle(Object.keys(MATERIALS)).slice(0, NODE_EVENTS.shopStockSize);
+  // Medical herbs (D40) are authored-quest provisioning, not overworld shop
+  // stock — excluded so the seeded shop selection stays stable.
+  const stockable = Object.keys(MATERIALS).filter((id) => !MATERIALS[id].medical);
+  const ids = rng.shuffle(stockable).slice(0, NODE_EVENTS.shopStockSize);
   return ids.map((id) => ({ materialId: id, name: MATERIALS[id].name, price }));
 }
 

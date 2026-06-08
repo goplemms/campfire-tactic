@@ -39,3 +39,5 @@ export * from "./economy-actions";
 export * from "./theft";
 export * from "./recruitment";
 export * from "./node-events";
+export * from "./authored";
+export * from "./demo-quest";

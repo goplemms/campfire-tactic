@@ -325,7 +325,7 @@ exercise in the browser.
   node types / preview) and [`decisions.md`](decisions.md) (D23 the named "next batch", D4
   data + resolver, D30/D33/D34 reuse).
 
-### M12 — Combat depth, the class slice & the demo-quest proof — *design finalized 2026-06-07 (D36–D44); ready to build*
+### M12 — Combat depth, the class slice & the demo-quest proof — *done (in-browser gate confirmed 2026-06-08; D36–D44; 325 tests green)*
 
 - *Adjustment (not a pivot): the north star is unchanged; M1–M11 built the systems wide
   but content-thin. M12 is the first slice aimed squarely at **fun** — a small class roster

@@ -42,6 +42,10 @@ export interface EnemyTemplate {
    * before it escapes drops the loot; escaped keeps it. Data, not a branch.
    */
   thief?: boolean;
+  /** Ranged reach (D40): a bowman attacks from afar without closing. Default 1. */
+  attackRange?: number;
+  /** Job id granting the archetype an ability (e.g. the snare-trapper's Snare). */
+  jobId?: string;
 }
 
 /** The enemy roster table (D4 ethos: enemies are data). */
@@ -54,6 +58,27 @@ export const ENEMY_TEMPLATES: readonly EnemyTemplate[] = [
   // mid-battle purse-skim vector ({@link "./theft"}); the Banker's protection blunts it.
   { id: "thief", name: "Thief", speed: 15, maxHp: 14, attack: 5, defense: 1, moveRange: 6, sightRadius: 6, awareness: 4, weight: 2, thief: true },
 ];
+
+/**
+ * The **bandit archetypes** the demo quest needs (D42/D44) — kept out of the
+ * procedural pool above (weight not in `ENEMY_TEMPLATES`); authored encounters
+ * place them by id. Thug (melee) · Bowman (ranged, kites) · Snare-Trapper
+ * (the Immobilize debuffer — enemy ability use) · Sapper (cuts the bridge) ·
+ * Captain (the tough mini-boss brawler).
+ */
+export const BANDIT_TEMPLATES: Record<string, EnemyTemplate> = {
+  "bandit-thug": { id: "bandit-thug", name: "Bandit Thug", speed: 9, maxHp: 22, attack: 8, defense: 2, moveRange: 4, sightRadius: 5, awareness: 2, weight: 0 },
+  "bandit-bowman": { id: "bandit-bowman", name: "Bandit Bowman", speed: 11, maxHp: 16, attack: 7, defense: 1, moveRange: 4, sightRadius: 6, awareness: 3, weight: 0, attackRange: 3 },
+  "bandit-cutthroat": { id: "bandit-cutthroat", name: "Bandit Cutthroat", speed: 13, maxHp: 18, attack: 9, defense: 1, moveRange: 5, sightRadius: 6, awareness: 3, weight: 0 },
+  "snare-trapper": { id: "snare-trapper", name: "Snare-Trapper", speed: 10, maxHp: 18, attack: 5, defense: 1, moveRange: 4, sightRadius: 6, awareness: 4, weight: 0, jobId: "snare-trapper" },
+  sapper: { id: "sapper", name: "Sapper", speed: 10, maxHp: 20, attack: 6, defense: 1, moveRange: 4, sightRadius: 5, awareness: 2, weight: 0 },
+  "bandit-captain": { id: "bandit-captain", name: "Bandit Captain", speed: 11, maxHp: 48, attack: 12, defense: 4, moveRange: 4, sightRadius: 5, awareness: 3, weight: 0 },
+};
+
+/** Look up a bandit (or procedural) template by id. */
+export function getEnemyTemplate(id: string): EnemyTemplate | undefined {
+  return BANDIT_TEMPLATES[id] ?? ENEMY_TEMPLATES.find((t) => t.id === id);
+}
 
 /** A material drop (an id + how many). */
 export interface MaterialDrop {
@@ -173,6 +198,8 @@ export function generateEncounter(rng: Rng, index: number): EncounterDef {
       sightRadius: tpl.sightRadius,
       awareness: tpl.awareness,
       thief: tpl.thief,
+      attackRange: tpl.attackRange,
+      jobId: tpl.jobId,
     });
   }
 

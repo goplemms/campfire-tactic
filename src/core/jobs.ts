@@ -11,9 +11,18 @@
  * Pure logic: no Phaser, no DOM.
  */
 
-import type { Unit } from "./units";
+import type { Unit, UnitStats } from "./units";
 import type { Phase, SkillDef } from "./skills";
 import type { PhaseSkillRegistry } from "./phases";
+import { PASSIVE, FLANK } from "./combat";
+import { guarded, exposed, swift, immobilized } from "./status";
+
+/**
+ * Per-stat growth weights (D39): a job level-up banks **+1 to every main stat**
+ * (the universal floor) **plus** these job-weighted bonuses. Keyed by stat so a
+ * future Seer's magic weighting slots in with no engine change.
+ */
+export type GrowthTable = Partial<Record<keyof UnitStats, number>>;
 
 /** A job definition — a named, described set of skills. */
 export interface JobDef {
@@ -21,6 +30,18 @@ export interface JobDef {
   name: string;
   description: string;
   skills: SkillDef[];
+  /**
+   * Passive parameters this job stamps onto its bearer (D40), read by combat
+   * resolution. Keyed by {@link "./combat".PASSIVE}. The identity anchor.
+   */
+  passives?: Record<string, number>;
+  /**
+   * The baseline stat frame the **primary** class sets (D39) — the frame growth
+   * accrues onto. Used by the demo roster + leveling.
+   */
+  baseline?: UnitStats;
+  /** Per-job-level stat growth weights (D39); the +1-all floor is universal. */
+  growth?: GrowthTable;
   /**
    * Rest Points this role banks per night (D9 recovery) — data, so adding a
    * healer is adding a number. Support roles (Chef, Medic, …) contribute; pure
@@ -162,12 +183,216 @@ export const MERCHANT: JobDef = {
   ],
 };
 
+// --- The M12 combat-depth roster (D40) — 2 active + 1 passive each ----------
+//
+// The passive is each class's identity anchor (stamped onto the bearer by
+// stampPassives + read by combat resolution); the actives are the verbs. The
+// **2nd active unlocks at job level 2** (unlockLevel: 2) — the rest-beat payoff.
+// Stats live in `baseline`; `growth` is the per-level stat weighting (D39).
+
+/** Cooldowns/charges for the kits (CT), all tunable data. */
+export const KIT = {
+  /** Mend's charge gauge speed (lower = longer charge). */
+  mendCharge: 34,
+  /** Heal's cooldown so it can't repeat every turn. */
+  healCooldown: 180,
+  /** Shove displacement in tiles. */
+  shoveTiles: 1,
+} as const;
+
+/** The **Heavy Knight** — space-control bruiser; the tarpit anchor (C via tempo). */
+export const HEAVY_KNIGHT: JobDef = {
+  id: "heavy-knight",
+  name: "Heavy Knight",
+  description: "Space-control bruiser: warps the geometry, taxes proximity.",
+  passives: { [PASSIVE.tarpit]: 1 },
+  baseline: { speed: 12, maxHp: 34, attack: 11, defense: 4, moveRange: 4, sightRadius: 4, attackRange: 1 },
+  growth: { maxHp: 3, defense: 1 },
+  skills: [
+    {
+      id: "cleave",
+      name: "Cleave",
+      description: "Strike every foe in a chosen direction (a 90° melee arc).",
+      phase: "battle",
+      target: "enemy",
+      range: 1,
+      spend: "act",
+      unlockLevel: 1,
+      effect: { kind: "cleave", bonusAttack: 0, reach: 3 },
+    },
+    {
+      id: "shove",
+      name: "Shove",
+      description: "Push an adjacent foe 1 tile (into blockers/traps); manufactures isolation.",
+      phase: "battle",
+      target: "enemy",
+      range: 1,
+      spend: "act",
+      unlockLevel: 2,
+      effect: { kind: "forced-move", tiles: KIT.shoveTiles, bonusAttack: 0 },
+    },
+  ],
+};
+
+/** The **Hunter** — ranged prey-hunter; punishes the afflicted (Deadeye). */
+export const HUNTER: JobDef = {
+  id: "hunter",
+  name: "Hunter",
+  description: "Ranged prey-hunter: keep spacing, lock prey, ramp it down.",
+  passives: { [PASSIVE.deadeye]: 4 },
+  baseline: { speed: 10, maxHp: 20, attack: 9, defense: 1, moveRange: 4, sightRadius: 6, attackRange: 3 },
+  growth: { attack: 2, speed: 1 },
+  skills: [
+    {
+      id: "reposition",
+      name: "Reposition",
+      description: "Dart extra tiles to kite or hold spacing (keeps Mark).",
+      phase: "battle",
+      target: "self",
+      range: 0,
+      spend: "move",
+      unlockLevel: 1,
+      effect: { kind: "status", status: swift(1, 2) },
+    },
+    {
+      id: "mark-prey",
+      name: "Mark Prey",
+      description: "Lock onto a foe; consecutive hits on it ramp damage (a channel).",
+      phase: "battle",
+      target: "enemy",
+      range: 3,
+      spend: "act",
+      unlockLevel: 2,
+      effect: { kind: "channel" },
+    },
+  ],
+};
+
+/** The **Scout** — playmaker / flank engine; manufactures isolation + marks the kill. */
+export const SCOUT_JOB: JobDef = {
+  id: "scout",
+  name: "Scout",
+  description: "Playmaker: manufacture isolation, mark the kill, let the team eat.",
+  passives: { [PASSIVE.flankSolo]: 1, [PASSIVE.flankBonus]: FLANK.bonus + 3 },
+  baseline: { speed: 14, maxHp: 24, attack: 9, defense: 2, moveRange: 5, sightRadius: 6, attackRange: 1 },
+  growth: { speed: 2, moveRange: 1 },
+  skills: [
+    {
+      id: "dash",
+      name: "Dash",
+      description: "Reposition to reach a flank tile or dive a line (+move this turn).",
+      phase: "battle",
+      target: "self",
+      range: 0,
+      spend: "move",
+      unlockLevel: 1,
+      effect: { kind: "status", status: swift(1, 3) },
+    },
+    {
+      id: "expose",
+      name: "Expose",
+      description: "A melee strike that marks: damage AND Exposed (foe takes +damage).",
+      phase: "battle",
+      target: "enemy",
+      range: 1,
+      spend: "act",
+      unlockLevel: 2,
+      effect: {
+        kind: "damage",
+        bonusAttack: 2,
+        onHit: { ...exposed(2) },
+      },
+    },
+  ],
+};
+
+/** The **Medic** — sustain backbone & clock-manager; its game is timing. */
+export const MEDIC: JobDef = {
+  id: "medic",
+  name: "Medic",
+  description: "Sustain backbone: heal harder the more wounded, save with a charge.",
+  passives: { [PASSIVE.triage]: 0.5 },
+  baseline: { speed: 9, maxHp: 20, attack: 4, defense: 2, moveRange: 3, sightRadius: 4, attackRange: 1 },
+  growth: { maxHp: 2 },
+  restPoints: 2,
+  skills: [
+    {
+      id: "heal",
+      name: "Heal",
+      description: "Consume a herb: heal + a rider (salve/+heal · stimulant/+speed · antidote/cleanse).",
+      phase: "battle",
+      target: "ally",
+      range: 1,
+      spend: "act",
+      unlockLevel: 1,
+      cost: { cooldown: KIT.healCooldown },
+      effect: { kind: "med-heal" },
+    },
+    {
+      id: "mend",
+      name: "Mend",
+      description: "A committed timing-heal that scales with level (charged).",
+      phase: "battle",
+      target: "ally",
+      range: 2,
+      spend: "act",
+      unlockLevel: 2,
+      cost: { charge: KIT.mendCharge },
+      effect: { kind: "heal", amount: 18 },
+    },
+  ],
+};
+
+/**
+ * The **Snare-Trapper** (D42 enemy ability use): a bandit debuffer whose Snare
+ * Immobilizes a foe at range — giving the Medic's antidote-cleanse and the
+ * Hunter's Deadeye something to act on in-slice.
+ */
+export const SNARE_TRAPPER: JobDef = {
+  id: "snare-trapper",
+  name: "Snare-Trapper",
+  description: "Bandit trapper: roots the unwary with thrown snares.",
+  skills: [
+    {
+      id: "snare",
+      name: "Snare",
+      description: "Immobilize a foe up to 2 tiles away.",
+      phase: "battle",
+      target: "enemy",
+      range: 2,
+      spend: "act",
+      effect: { kind: "status", status: immobilized(2) },
+    },
+  ],
+};
+
+/**
+ * The **universal Defend** action (D41): every unit can brace (instant Act →
+ * self-Guarded until its next turn). Re-homes the Guarded status (earned, not
+ * granted) and is the Chef's field verb. Not on any job — surfaced for all.
+ */
+export const DEFEND: SkillDef = {
+  id: "defend",
+  name: "Defend",
+  description: "Brace: reduce incoming damage until your next turn.",
+  phase: "battle",
+  target: "self",
+  range: 0,
+  spend: "act",
+  effect: { kind: "status", status: guarded(1) },
+};
+
 /** The job registry — the single source jobs are loaded from. */
 export const JOBS: Record<string, JobDef> = {
   [SOLDIER.id]: SOLDIER,
   [SURVIVALIST.id]: SURVIVALIST,
   [CHEF.id]: CHEF,
   [MERCHANT.id]: MERCHANT,
+  [HEAVY_KNIGHT.id]: HEAVY_KNIGHT,
+  [HUNTER.id]: HUNTER,
+  [SCOUT_JOB.id]: SCOUT_JOB,
+  [MEDIC.id]: MEDIC,
+  [SNARE_TRAPPER.id]: SNARE_TRAPPER,
 };
 
 /** Look up a job by id. */
@@ -175,9 +400,24 @@ export function getJob(id: string | undefined): JobDef | undefined {
   return id === undefined ? undefined : JOBS[id];
 }
 
-/** True if a unit can take the field (jobless or a combat job, not camp-only). */
-export function isCombatant(unit: Unit): boolean {
-  return !getJob(unit.jobId)?.noncombat;
+/**
+ * True if a unit can take the field. The combat/non-combat split is **dissolved**
+ * (D38): *any* job can field (the Chef Defends as a body; the Merchant can swing).
+ * Retained as a predicate (always true for a live roster member) so callers read
+ * intent; the old `noncombat` flag now only informs camp/Upkeep/RP, not fielding.
+ */
+export function isCombatant(_unit: Unit): boolean {
+  return true;
+}
+
+/**
+ * Stamp a unit's job passives (D40) onto `unit.passives` so combat resolution
+ * reads them (the Scout's solo-flank, the Hunter's Deadeye, the Medic's Triage,
+ * the Heavy Knight's tarpit). Idempotent; call at battle setup.
+ */
+export function stampPassives(unit: Unit): void {
+  const passives = getJob(unit.jobId)?.passives;
+  if (passives) unit.passives = { ...passives };
 }
 
 /**
@@ -199,6 +439,7 @@ export function registerParty(
   registry: PhaseSkillRegistry,
 ): void {
   for (const unit of units) {
+    stampPassives(unit);
     for (const skill of unitSkills(unit)) {
       registry.register(unit, skill);
     }

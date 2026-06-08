@@ -13,6 +13,12 @@ import type { StatusInstance } from "./status";
 /** Which side a unit fights for. */
 export type Side = "player" | "enemy";
 
+/** Per-job progression (D39): a job level + XP toward the next, per unit. */
+export interface JobLevel {
+  level: number;
+  xp: number;
+}
+
 /** The minimal combat stat block (M3). All numbers are tuning values. */
 export interface UnitStats {
   /** CT gauge fill per clock tick — governs turn frequency (D5). */
@@ -27,6 +33,12 @@ export interface UnitStats {
   moveRange: number;
   /** Vision radius for the fog-of-war seam (D18). */
   sightRadius: number;
+  /**
+   * Attack reach in tiles (Manhattan), D40. Defaults to 1 (melee). A ranged unit
+   * (the Hunter, an enemy bowman) sets it higher and attacks without closing;
+   * **flanking is melee-only** so a ranged attacker never earns the flank bonus.
+   */
+  attackRange?: number;
 }
 /** The authored description of a unit — the data a designer writes. */
 export interface UnitSpec extends UnitStats {
@@ -39,6 +51,21 @@ export interface UnitSpec extends UnitStats {
   hp?: number;
   /** Optional job id (see {@link "./jobs"}); grants the unit its skills. */
   jobId?: string;
+  /**
+   * The **primary** job designation (D38); defaults to `jobId`. Sets the baseline
+   * frame, XP rate, loadout, and class-gated content. Any job can be primary —
+   * the combat/non-combat split is dissolved.
+   */
+  primaryJob?: string;
+  /** Jobs this unit **holds** (D38), drawing skills from all; defaults to `[jobId]`. */
+  heldJobs?: string[];
+  /** Per-job levels (D39); defaults to empty (created on first XP grant). */
+  jobLevels?: Record<string, JobLevel>;
+  /**
+   * Secondary loadout slots (D38): the primary's full kit **plus** this many
+   * borrowed actives from other held jobs. Defaults to 1 (a tunable boon).
+   */
+  loadoutSlots?: number;
   /** Deployment safety stat (D7/D11); defaults to 0. Higher = preps deeper safely. */
   awareness?: number;
   /**
@@ -78,6 +105,12 @@ export interface UnitSpec extends UnitStats {
    * before it escapes drops the loot, escaped keeps it ({@link "./theft"}).
    */
   thief?: boolean;
+  /**
+   * **Standing order** (D41) — a reserved auto-action (e.g. `"defend"`) a unit
+   * carries until the player takes manual control. The first slice ships the
+   * field + the Defend action; the auto-execution turn-loop is a later pass.
+   */
+  standingOrder?: string;
 }
 
 /**
@@ -89,8 +122,18 @@ export interface Unit extends UnitStats {
   readonly id: string;
   readonly side: Side;
   readonly name: string;
+  /** Attack reach in tiles (D40); always set on a live unit (1 = melee). */
+  attackRange: number;
   /** The unit's job, if any — the data that grants its skills. */
   readonly jobId?: string;
+  /** Primary-job designation (D38); defaults to `jobId`. */
+  primaryJob?: string;
+  /** Jobs this unit holds (D38) — skills are drawn from all of them. */
+  heldJobs: string[];
+  /** Per-job levels (D39); grows via job XP, banking permanent stat gains. */
+  jobLevels: Record<string, JobLevel>;
+  /** Secondary loadout slots (D38): borrowed actives beyond the primary's kit. */
+  loadoutSlots: number;
   /** Current tile. Replaced wholesale on a move (never mutated in place). */
   pos: GridCoord;
   hp: number;
@@ -116,6 +159,10 @@ export interface Unit extends UnitStats {
   authored: boolean;
   /** Thief archetype (D30): skims the purse mid-battle ({@link "./theft"}). */
   thief: boolean;
+  /** Reserved standing order (D41), e.g. `"defend"`; undefined = manual control. */
+  standingOrder?: string;
+  /** Authored ambush body hidden until scouted (D44); a render/fog flag. */
+  hidden?: boolean;
   /**
    * Captured (D7): bound on the map, doesn't take turns, excluded from the
    * initiative seed, but still "alive" — a rescuable sub-objective.
@@ -125,6 +172,19 @@ export interface Unit extends UnitStats {
   statuses: StatusInstance[];
   /** Generic per-unit counters, e.g. a capture meter (D12). */
   counters: Record<string, number>;
+  /**
+   * Per-skill cooldowns in CT (D37 ability economy): skillId → remaining CT,
+   * decremented each clock tick by the unit's effective speed (so "~200 CT" ≈ two
+   * of the unit's turns). A skill is on cooldown while its entry is > 0.
+   */
+  cooldowns: Record<string, number>;
+  /**
+   * Passive parameters a unit's job grants (D40), stamped at roster setup
+   * ({@link "./jobs".stampPassives}) and read by combat resolution — the Scout's
+   * solo-flank, the Hunter's Deadeye, the Medic's Triage. Keyed by
+   * {@link "./combat".PASSIVE}. Empty for a unit with no passive.
+   */
+  passives: Record<string, number>;
 }
 
 /** Inflate an authored {@link UnitSpec} into a live {@link Unit}. */
@@ -134,6 +194,10 @@ export function createUnit(spec: UnitSpec): Unit {
     side: spec.side,
     name: spec.name ?? spec.id,
     jobId: spec.jobId,
+    primaryJob: spec.primaryJob ?? spec.jobId,
+    heldJobs: spec.heldJobs ?? (spec.jobId ? [spec.jobId] : []),
+    jobLevels: spec.jobLevels ?? {},
+    loadoutSlots: spec.loadoutSlots ?? 1,
     pos: { col: spec.pos.col, row: spec.pos.row },
     hp: spec.hp ?? spec.maxHp,
     maxHp: spec.maxHp,
@@ -147,14 +211,19 @@ export function createUnit(spec: UnitSpec): Unit {
     isLord: spec.isLord ?? false,
     authored: spec.authored ?? false,
     thief: spec.thief ?? false,
+    standingOrder: spec.standingOrder,
+    hidden: false,
     captured: false,
     speed: spec.speed,
     attack: spec.attack,
     defense: spec.defense,
     moveRange: spec.moveRange,
     sightRadius: spec.sightRadius,
+    attackRange: spec.attackRange ?? 1,
     statuses: [],
     counters: {},
+    cooldowns: {},
+    passives: {},
   };
 }
 

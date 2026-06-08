@@ -14,14 +14,26 @@
 import type { Unit, Side } from "./units";
 import type { GridCoord } from "./iso";
 import type { TileGrid } from "./grid";
+import type { Inventory } from "./inventory";
 import { EventBus } from "./events";
-import { CTClock, type TurnSpend } from "./clock";
+import { CTClock, type TurnSpend, onSkillCooldown, armSkillCooldown } from "./clock";
 import { EntityRegistry } from "./entities";
-import { resolveAttack, battleOutcome, type BattleOutcome } from "./combat";
+import {
+  resolveAttack,
+  battleOutcome,
+  refreshAuras,
+  type BattleOutcome,
+} from "./combat";
 import { tickStatuses } from "./status";
 import { computeVisibleTiles } from "./vision";
 import { planEnemyTurn, type AIPlan } from "./ai";
-import { resolveSkill, type SkillDef, type SkillOutcome } from "./skills";
+import { stampPassives } from "./jobs";
+import {
+  resolveSkill,
+  resolveMedHeal,
+  type SkillDef,
+  type SkillOutcome,
+} from "./skills";
 
 export class Battle {
   readonly grid: TileGrid;
@@ -36,6 +48,9 @@ export class Battle {
     this.bus = new EventBus();
     this.clock = new CTClock(units, this.bus);
     this.entities = new EntityRegistry(this.bus);
+    // Stamp job passives + arm the tarpit aura from the starting formation (D40).
+    for (const u of units) stampPassives(u);
+    refreshAuras(units);
   }
 
   /**
@@ -69,22 +84,126 @@ export class Battle {
       unit.pos = { col: tile.col, row: tile.row };
       this.bus.emit("unitEnterTile", { unit, tile, forced });
     }
+    // Positions changed → recompute the Heavy Knight's tarpit ring (D40).
+    refreshAuras(this.units);
   }
 
-  /** Resolve a basic attack, firing damage/defeat events. Returns damage dealt. */
+  /**
+   * Resolve a basic attack, firing damage/defeat events. Passes the full roster
+   * so **flanking** (D36) applies. Returns damage dealt.
+   */
   attack(attacker: Unit, target: Unit): number {
-    return resolveAttack(attacker, target, this.bus);
+    return resolveAttack(attacker, target, this.bus, attacker.attack, this.units);
+  }
+
+  /** True if `caster` may use `skill` right now (not cooling down, D37). */
+  canUseSkill(caster: Unit, skill: SkillDef): boolean {
+    return !onSkillCooldown(caster, skill.id);
   }
 
   /**
    * Resolve a job skill against a target (firing its bus events) and end the
    * caster's turn, spending CT per the skill's cost. The single entry the render
-   * layer uses for the skill buttons.
+   * layer uses for the skill buttons. Honors the **ability economy** (D37): a
+   * **charged** skill commits now and resolves later on the clock (caster-death
+   * fizzles it); a skill with a **cooldown** arms it; both still spend the Act.
    */
   useSkill(caster: Unit, skill: SkillDef, target: Unit): SkillOutcome {
-    const outcome = resolveSkill(skill, caster, target, this.bus);
+    if (!this.canUseSkill(caster, skill)) return {};
+    let outcome: SkillOutcome;
+    if (skill.effect.kind === "forced-move") {
+      outcome = this.resolveShove(caster, target, skill.effect.tiles, skill.effect.bonusAttack ?? 0);
+      this.endTurn(caster, { acted: skill.spend === "act", moved: skill.spend === "move" });
+      return outcome;
+    }
+    if (skill.cost?.charge) {
+      // Commit to the timeline; the effect lands when its gauge fills.
+      this.clock.schedule({
+        id: `charge:${caster.id}:${skill.id}:${this.clock.time}`,
+        speed: skill.cost.charge,
+        caster,
+        run: () => {
+          if (target.alive) resolveSkill(skill, caster, target, this.bus, this.units);
+        },
+      });
+      outcome = { charging: true };
+    } else {
+      outcome = resolveSkill(skill, caster, target, this.bus, this.units);
+    }
+    if (skill.cost?.cooldown) armSkillCooldown(caster, skill.id, skill.cost.cooldown);
     this.endTurn(caster, { acted: skill.spend === "act", moved: skill.spend === "move" });
     return outcome;
+  }
+
+  /**
+   * Push `target` away from `caster` (D19 forced movement, the Knight's Shove):
+   * step it `tiles` tiles along the orthogonal away-vector, **stopping at a
+   * blocker** (a wall or an occupied tile); forced entry onto an entity tile
+   * fires it (via `moveUnit`'s `forced` flag). An optional `bonusAttack` deals a
+   * shove hit. Returns how far it actually moved + any damage.
+   */
+  resolveShove(caster: Unit, target: Unit, tiles: number, bonusAttack = 0): SkillOutcome {
+    const dc = Math.sign(target.pos.col - caster.pos.col);
+    const dr = Math.sign(target.pos.row - caster.pos.row);
+    let moved = 0;
+    for (let i = 0; i < tiles; i++) {
+      const next = { col: target.pos.col + dc, row: target.pos.row + dr };
+      if (!this.grid.isWalkable(next)) break; // wall / off-map blocker
+      if (this.units.some((u) => u.alive && u !== target && u.pos.col === next.col && u.pos.row === next.row)) {
+        break; // another body blocks the push
+      }
+      this.moveUnit(target, [next], true);
+      moved += 1;
+    }
+    const out: SkillOutcome = {};
+    if (bonusAttack !== 0 && target.alive) {
+      out.damage = resolveAttack(caster, target, this.bus, caster.attack + bonusAttack, this.units);
+    }
+    void moved;
+    return out;
+  }
+
+  /**
+   * The Heavy Knight's **Cleave** (D40 directional AoE): hit every foe in the
+   * three-tile 90° arc facing `dir` (the orthogonal tile + its two flanking
+   * diagonals). `dir` is a unit step vector. Flanking applies per hit. Ends the
+   * caster's turn. Returns the foes hit + total damage.
+   */
+  cleave(caster: Unit, skill: SkillDef, dir: GridCoord): { hits: number; damage: number } {
+    if (!this.canUseSkill(caster, skill)) return { hits: 0, damage: 0 };
+    const bonus = skill.effect.kind === "cleave" ? skill.effect.bonusAttack : 0;
+    const c = caster.pos;
+    const arc: GridCoord[] =
+      dir.col !== 0
+        ? [{ col: c.col + dir.col, row: c.row }, { col: c.col + dir.col, row: c.row - 1 }, { col: c.col + dir.col, row: c.row + 1 }]
+        : [{ col: c.col, row: c.row + dir.row }, { col: c.col - 1, row: c.row + dir.row }, { col: c.col + 1, row: c.row + dir.row }];
+    const key = (g: GridCoord) => `${g.col},${g.row}`;
+    const arcKeys = new Set(arc.map(key));
+    let hits = 0;
+    let damage = 0;
+    for (const u of this.units) {
+      if (u.alive && u.side !== caster.side && arcKeys.has(key(u.pos))) {
+        damage += resolveAttack(caster, u, this.bus, caster.attack + bonus, this.units);
+        hits += 1;
+      }
+    }
+    this.endTurn(caster, { acted: true });
+    return { hits, damage };
+  }
+
+  /**
+   * The Medic's **Heal** (D40 combat↔logistics bridge): consume `herbId` from
+   * the shared stash and heal `target` with the herb's rider (salve/stimulant/
+   * antidote). Arms the Heal cooldown and ends the turn. A no-op (no turn spent)
+   * if cooling down or the herb isn't carried.
+   */
+  useHeal(caster: Unit, skill: SkillDef, target: Unit, herbId: string, inv: Inventory): SkillOutcome {
+    if (!this.canUseSkill(caster, skill)) return {};
+    const out = resolveMedHeal(caster, target, herbId, inv, this.bus);
+    if (out.healed === undefined) return out; // herb not carried — no commit
+    if (skill.cost?.cooldown) armSkillCooldown(caster, skill.id, skill.cost.cooldown);
+    this.endTurn(caster, { acted: skill.spend === "act", moved: skill.spend === "move" });
+    return out;
   }
 
   /** End a unit's turn: fire `turnEnd` and spend its CT (act costs more). */
@@ -99,8 +218,15 @@ export class Battle {
    * to animate.
    */
   runEnemyTurn(unit: Unit): AIPlan {
-    const plan = planEnemyTurn(unit, this.units, this.grid);
+    const plan = planEnemyTurn(unit, this.units, this.grid, {
+      isCharging: (u) => this.clock.isCharging(u),
+    });
     if (plan.path.length > 0) this.moveUnit(unit, plan.path);
+    if (plan.ability && plan.target?.alive) {
+      // A debuff ability (the snare) — useSkill ends the turn itself.
+      this.useSkill(unit, plan.ability, plan.target);
+      return plan;
+    }
     if (plan.target && plan.target.alive) this.attack(unit, plan.target);
     this.endTurn(unit, {
       moved: plan.path.length > 0,
