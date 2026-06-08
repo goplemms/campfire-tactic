@@ -43,12 +43,7 @@ import {
   type Guild,
 } from "../../core";
 import { fitText } from "../ui";
-
-/** A small text button with a hover highlight. */
-interface TextButton {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
+import { Button } from "../button";
 
 /** Data handed between the overworld and a combat node's BattleScene. */
 export interface RunHandoff {
@@ -379,7 +374,7 @@ export class OverworldScene extends Phaser.Scene {
         ? "Commit — Approach the Event"
         : "Commit — Make Camp (Rest)";
     const commit = this.makeTextButton(cx, contentBottom + 26, 240, 34, commitLabel, 0x2f6b46, 0x57b07a, () => this.commit());
-    this.campObjects.push(commit.bg, commit.label);
+    this.campObjects.push(commit);
 
     // Backdrop sized to the actual content (added last; its low depth keeps it behind).
     const panelTop = top - 22;
@@ -645,7 +640,7 @@ export class OverworldScene extends Phaser.Scene {
         this.onEventChoice(choice);
       });
       if (choice.detail) btn.bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => this.setHint(choice.detail!));
-      this.overlay.push(btn.bg, btn.label);
+      this.overlay.push(btn);
       y += 40;
     }
 
@@ -792,17 +787,13 @@ export class OverworldScene extends Phaser.Scene {
         this.overlay = [];
         onContinue();
       });
-      this.overlay.push(btn.bg, btn.label);
+      this.overlay.push(btn);
     }
   }
 
-  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void): TextButton {
-    const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(22);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.body }).setOrigin(0.5).setDepth(23);
-    fitText(label, w - 10);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color));
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => bg.setFillStyle(fill));
-    return { bg, label };
+  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void): Button {
+    const btn = new Button(this, x, y, { text, w, h, fill, stroke, onClick });
+    this.add.existing(btn).setDepth(22);
+    return btn;
   }
 }

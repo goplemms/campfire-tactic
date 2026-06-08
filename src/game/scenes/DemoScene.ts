@@ -29,13 +29,8 @@ import {
   type StagedEncounter,
   type EncounterResult,
 } from "../../core";
-import { fitText } from "../ui";
+import { Button, ButtonColumn } from "../button";
 
-/** A small text button. */
-interface TextButton {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
 function initialsOf(name: string): string {
@@ -105,10 +100,9 @@ export class DemoScene extends Phaser.Scene {
   private timerText!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
   private lastHint = "";
-  private primary!: TextButton;
-  private buttons: Phaser.GameObjects.GameObject[] = [];
-  /** Click handlers for the current action-row buttons (number-key hotkeys 1–9). */
-  private buttonActions: (() => void)[] = [];
+  private primary!: Button;
+  /** The current right-hand command panel (kit abilities / provision / choices), if any. */
+  private commandPanel?: ButtonColumn;
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
   // Battle interaction.
@@ -143,7 +137,8 @@ export class DemoScene extends Phaser.Scene {
       .setStrokeStyle(1.5, 0x7a5a10)
       .setDepth(2)
       .setVisible(false);
-    this.primary = this.makeButton(this.scale.width / 2, this.scale.height - 26, 220, 32, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
+    this.primary = new Button(this, this.scale.width / 2, this.scale.height - 26, { text: "", w: 220, h: 32, fill: 0x2f6b46, stroke: 0x57b07a, onClick: () => this.onPrimary() });
+    this.add.existing(this.primary).setDepth(12);
     this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: FONT.caption }).setOrigin(1, 1).setDepth(10);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.setupKeyboard();
@@ -158,12 +153,13 @@ export class DemoScene extends Phaser.Scene {
     kb.addCapture("SPACE,ENTER,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,NINE");
     kb.on("keydown", (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "Enter") {
-        if (this.primary.bg.visible) this.onPrimary();
+        if (this.primary.visible) this.onPrimary();
         return;
       }
       const n = Number(e.key);
-      if (Number.isInteger(n) && n >= 1 && n <= this.buttonActions.length) {
-        this.buttonActions[n - 1]();
+      const actions = this.commandPanel?.actions ?? [];
+      if (Number.isInteger(n) && n >= 1 && n <= actions.length) {
+        actions[n - 1]();
       }
     });
   }
@@ -897,82 +893,34 @@ export class DemoScene extends Phaser.Scene {
 
   // --- UI primitives ---------------------------------------------------------
 
-  private makeButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
-    const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.label }).setOrigin(0.5).setDepth(13);
-    fitText(label, w - 10);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color);
-      if (description) this.hintText.setText(description);
-    });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      bg.setFillStyle(fill);
-      if (description) this.hintText.setText(this.lastHint);
-    });
-    return { bg, label };
-  }
-
   private setPrimary(text: string, visible = true): void {
-    this.primary.label.setText(text);
-    fitText(this.primary.label, this.primary.bg.width - 10);
-    this.primary.bg.setVisible(visible);
-    this.primary.label.setVisible(visible);
+    this.primary.setLabel(text).setVisible(visible);
   }
 
   private clearButtons(): void {
-    for (const o of this.buttons) o.destroy();
-    this.buttons = [];
-    this.buttonActions = [];
-  }
-
-  private layoutButtons(specs: { text: string; description?: string; onClick: () => void }[]): void {
-    this.clearButtons();
-    if (specs.length === 0) return;
-    // A vertical command panel down the right edge (FFT-style): new abilities
-    // extend the column *downward* instead of widening a horizontal row toward
-    // the screen edges. The stack is centered vertically so it reads the same
-    // with two buttons or eight.
-    const h = 26;
-    const step = 32;
-    const padX = 8;
-    const padY = 8;
-    // The hotkey-prefixed labels we're about to draw, and the panel width that
-    // fits the longest of them at full size: grow to fit, but never past the
-    // reserved band (`panelMaxW`) so the panel can't creep over the board. Below
-    // that ceiling, `fitText` is only a hair-of-overflow backstop.
-    const labels = specs.map((spec, i) => (i < 9 ? `${i + 1}. ${spec.text}` : spec.text));
-    const widest = Math.max(...labels.map((t) => this.measureLabelWidth(t)));
-    const panelW = Math.min(this.panelMaxW, Math.max(this.panelMinW, Math.ceil(widest) + 18));
-    const cx = this.scale.width - 12 - panelW / 2;
-    const centerY = this.scale.height / 2 - 20;
-    const startY = centerY - ((specs.length - 1) * step) / 2;
-    // A faint backing so the column reads as one grouped panel.
-    const bgH = (specs.length - 1) * step + h + padY * 2;
-    const bg = this.add
-      .rectangle(cx, centerY, panelW + padX * 2, bgH, 0x141925, 0.6)
-      .setStrokeStyle(1, 0x3d4b6e)
-      .setDepth(11);
-    this.buttons.push(bg);
-    specs.forEach((spec, i) => {
-      // The number-key hotkey (1–9) is baked into the label (see `labels`) and
-      // recorded for keys.
-      const btn = this.makeButton(cx, startY + i * step, panelW, h, labels[i], 0x394063, 0x6f7bb0, spec.onClick, spec.description);
-      this.buttons.push(btn.bg, btn.label);
-      this.buttonActions.push(spec.onClick);
-    });
+    this.commandPanel?.destroy();
+    this.commandPanel = undefined;
   }
 
   /**
-   * Natural pixel width of a button label at the panel's font size, used to size
-   * the command panel to its content. Measures with a throwaway Text (Phaser bakes
-   * font metrics per object) and disposes it immediately.
+   * Build (or rebuild) the right-hand command panel. A {@link ButtonColumn} sizes
+   * itself to its widest label — growing leftward into the gap beside the board,
+   * never past the reserved `panelMaxW` band — so labels render at full size
+   * instead of being shrunk to fit. The number-key hotkeys (1–9) ride on the
+   * labels and are exposed via the panel's `actions`.
    */
-  private measureLabelWidth(text: string): number {
-    const probe = this.add.text(0, 0, text, { fontSize: FONT.label }).setVisible(false);
-    const w = probe.width;
-    probe.destroy();
-    return w;
+  private layoutButtons(specs: { text: string; description?: string; onClick: () => void }[]): void {
+    this.clearButtons();
+    if (specs.length === 0) return;
+    this.commandPanel = new ButtonColumn(this, {
+      specs,
+      rightEdge: this.scale.width - 12,
+      centerY: this.scale.height / 2 - 20,
+      minW: this.panelMinW,
+      maxW: this.panelMaxW,
+      hintBar: this.hintText,
+      idleHint: () => this.lastHint,
+    });
   }
 
   private setHint(text: string): void {

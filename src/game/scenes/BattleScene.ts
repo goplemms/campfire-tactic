@@ -49,13 +49,7 @@ import {
   type TheftAttempt,
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
-import { fitText } from "../ui";
-
-/** A small text button with a hover highlight. */
-interface TextButton {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
+import { Button } from "../button";
 
 /**
  * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
@@ -98,7 +92,7 @@ export class BattleScene extends Phaser.Scene {
   private orderText!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
   private lastHint = "";
-  private primary!: TextButton;
+  private primary!: Button;
   private actionButtons: Phaser.GameObjects.GameObject[] = [];
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
@@ -146,6 +140,7 @@ export class BattleScene extends Phaser.Scene {
     this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 104, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 700 } }).setOrigin(0.5).setDepth(10);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
+    this.primary.setDepth(12);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
 
     this.startCombatNode();
@@ -867,27 +862,22 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Buttons ---------------------------------------------------------------
 
-  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
-    const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.body }).setOrigin(0.5).setDepth(13);
-    fitText(label, w - 10);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color);
-      if (description) this.hintText.setText(description);
+  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): Button {
+    const btn = new Button(this, x, y, {
+      text,
+      w,
+      h,
+      fill,
+      stroke,
+      onClick,
+      hint: { bar: this.hintText, description, idle: () => this.lastHint },
     });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      bg.setFillStyle(fill);
-      if (description) this.hintText.setText(this.lastHint);
-    });
-    return { bg, label };
+    this.add.existing(btn).setDepth(12);
+    return btn;
   }
 
   private setPrimary(text: string, visible = true): void {
-    this.primary.label.setText(text);
-    fitText(this.primary.label, this.primary.bg.width - 10);
-    this.primary.bg.setVisible(visible);
-    this.primary.label.setVisible(visible);
+    this.primary.setLabel(text).setVisible(visible);
   }
 
   private clearActionButtons(): void {
@@ -902,8 +892,7 @@ export class BattleScene extends Phaser.Scene {
     const gap = Math.min(150, 720 / specs.length);
     const startX = this.scale.width / 2 - ((specs.length - 1) * gap) / 2;
     specs.forEach((spec, i) => {
-      const btn = this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
-      this.actionButtons.push(btn.bg, btn.label);
+      this.actionButtons.push(this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description));
     });
   }
 
