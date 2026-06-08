@@ -50,6 +50,8 @@ export class DemoScene extends Phaser.Scene {
 
   private originX = 0;
   private originY = 0;
+  /** Width of the right-hand vertical command panel — the board reserves this band. */
+  private readonly panelW = 150;
   private gridGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
   /** Move-range / attack / valid-target preview, painted on the player's turn. */
@@ -102,7 +104,9 @@ export class DemoScene extends Phaser.Scene {
     this.subText = this.add.text(this.scale.width / 2, 38, "", { color: "#cdd7ee", fontSize: "12px" }).setOrigin(0.5).setDepth(10);
     this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: "11px", lineSpacing: 3 }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: "12px", align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
+    // Centered in the area left of the right-hand command panel so long hints
+    // (and the per-button descriptions shown on hover) never run under it.
+    this.hintText = this.add.text((this.scale.width - 170) / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: "12px", align: "center", wordWrap: { width: 540 } }).setOrigin(0.5).setDepth(10);
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
@@ -513,7 +517,9 @@ export class DemoScene extends Phaser.Scene {
   private rebuildBoard(): void {
     this.clearBoard();
     const grid = this.battle.grid;
-    this.originX = this.scale.width / 2;
+    // Center the board in the band *left* of the right-hand command panel so its
+    // far-right tiles never hide behind the action buttons.
+    this.originX = (this.scale.width - this.panelW - 24) / 2;
     this.originY = this.scale.height / 2 - (grid.rows * TILE_HEIGHT) / 2 + 10;
     this.drawGrid();
     for (const unit of this.battle.units) this.spawnUnit(unit);
@@ -810,13 +816,29 @@ export class DemoScene extends Phaser.Scene {
   private layoutButtons(specs: { text: string; description?: string; onClick: () => void }[]): void {
     this.clearButtons();
     if (specs.length === 0) return;
-    const y = this.scale.height - 64;
-    const gap = Math.min(160, 760 / specs.length);
-    const startX = this.scale.width / 2 - ((specs.length - 1) * gap) / 2;
+    // A vertical command panel down the right edge (FFT-style): new abilities
+    // extend the column *downward* instead of widening a horizontal row toward
+    // the screen edges. The stack is centered vertically so it reads the same
+    // with two buttons or eight.
+    const panelW = this.panelW;
+    const h = 26;
+    const step = 32;
+    const padX = 8;
+    const padY = 8;
+    const cx = this.scale.width - 12 - panelW / 2;
+    const centerY = this.scale.height / 2 - 20;
+    const startY = centerY - ((specs.length - 1) * step) / 2;
+    // A faint backing so the column reads as one grouped panel.
+    const bgH = (specs.length - 1) * step + h + padY * 2;
+    const bg = this.add
+      .rectangle(cx, centerY, panelW + padX * 2, bgH, 0x141925, 0.6)
+      .setStrokeStyle(1, 0x3d4b6e)
+      .setDepth(11);
+    this.buttons.push(bg);
     specs.forEach((spec, i) => {
       // The number-key hotkey (1–9) is shown on the label and recorded for keys.
       const label = i < 9 ? `${i + 1}. ${spec.text}` : spec.text;
-      const btn = this.makeButton(startX + i * gap, y, gap - 10, 28, label, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
+      const btn = this.makeButton(cx, startY + i * step, panelW, h, label, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
       this.buttons.push(btn.bg, btn.label);
       this.buttonActions.push(spec.onClick);
     });
