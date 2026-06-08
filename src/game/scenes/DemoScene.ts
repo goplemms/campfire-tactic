@@ -58,8 +58,16 @@ export class DemoScene extends Phaser.Scene {
 
   private originX = 0;
   private originY = 0;
-  /** Width of the right-hand vertical command panel — the board reserves this band. */
-  private readonly panelW = 150;
+  /**
+   * The right-hand vertical command panel sizes itself to its labels: short sets
+   * (Dash / Defend) stay snug at {@link panelMinW}, while a long label (a kit name
+   * plus a `[cd N]` tag, `+ stimulant (have 0)`) grows the panel *leftward* into
+   * the empty gap beside the board rather than shrinking the text to fit. The
+   * board always reserves the {@link panelMaxW} band on the right, so even a
+   * fully-grown panel never hides a far-right tile.
+   */
+  private readonly panelMinW = 150;
+  private readonly panelMaxW = 196;
   private gridGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
   /** Move-range / attack / valid-target preview, painted on the player's turn. */
@@ -544,7 +552,7 @@ export class DemoScene extends Phaser.Scene {
     const grid = this.battle.grid;
     // Center the board in the band *left* of the right-hand command panel so its
     // far-right tiles never hide behind the action buttons.
-    this.originX = (this.scale.width - this.panelW - 24) / 2;
+    this.originX = (this.scale.width - this.panelMaxW - 24) / 2;
     this.originY = this.scale.height / 2 - (grid.rows * TILE_HEIGHT) / 2 + 10;
     this.drawGrid();
     for (const unit of this.battle.units) this.spawnUnit(unit);
@@ -925,11 +933,17 @@ export class DemoScene extends Phaser.Scene {
     // extend the column *downward* instead of widening a horizontal row toward
     // the screen edges. The stack is centered vertically so it reads the same
     // with two buttons or eight.
-    const panelW = this.panelW;
     const h = 26;
     const step = 32;
     const padX = 8;
     const padY = 8;
+    // The hotkey-prefixed labels we're about to draw, and the panel width that
+    // fits the longest of them at full size: grow to fit, but never past the
+    // reserved band (`panelMaxW`) so the panel can't creep over the board. Below
+    // that ceiling, `fitText` is only a hair-of-overflow backstop.
+    const labels = specs.map((spec, i) => (i < 9 ? `${i + 1}. ${spec.text}` : spec.text));
+    const widest = Math.max(...labels.map((t) => this.measureLabelWidth(t)));
+    const panelW = Math.min(this.panelMaxW, Math.max(this.panelMinW, Math.ceil(widest) + 18));
     const cx = this.scale.width - 12 - panelW / 2;
     const centerY = this.scale.height / 2 - 20;
     const startY = centerY - ((specs.length - 1) * step) / 2;
@@ -941,12 +955,24 @@ export class DemoScene extends Phaser.Scene {
       .setDepth(11);
     this.buttons.push(bg);
     specs.forEach((spec, i) => {
-      // The number-key hotkey (1–9) is shown on the label and recorded for keys.
-      const label = i < 9 ? `${i + 1}. ${spec.text}` : spec.text;
-      const btn = this.makeButton(cx, startY + i * step, panelW, h, label, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
+      // The number-key hotkey (1–9) is baked into the label (see `labels`) and
+      // recorded for keys.
+      const btn = this.makeButton(cx, startY + i * step, panelW, h, labels[i], 0x394063, 0x6f7bb0, spec.onClick, spec.description);
       this.buttons.push(btn.bg, btn.label);
       this.buttonActions.push(spec.onClick);
     });
+  }
+
+  /**
+   * Natural pixel width of a button label at the panel's font size, used to size
+   * the command panel to its content. Measures with a throwaway Text (Phaser bakes
+   * font metrics per object) and disposes it immediately.
+   */
+  private measureLabelWidth(text: string): number {
+    const probe = this.add.text(0, 0, text, { fontSize: FONT.label }).setVisible(false);
+    const w = probe.width;
+    probe.destroy();
+    return w;
   }
 
   private setHint(text: string): void {
