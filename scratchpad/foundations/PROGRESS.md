@@ -18,18 +18,19 @@ Resume/survival file. If context is lost, this page alone should let work resume
 | M9 — The guild & caravan tier (run.ts → a Guild of N runs) | testable (code complete 2026-06-06; awaiting in-browser gate) |
 | M10 — The gold economy & recruitment (two pools get verbs + a refreshing roster) | testable (code complete 2026-06-07; awaiting in-browser gate) |
 | M11 — The event-node batch (shops · recruiters · story events) | done (in-browser gate confirmed 2026-06-07; merged PR #12) |
-| M12 — Combat depth, the class slice & the demo-quest proof | testable (core+render code complete 2026-06-07; 325 tests green; awaiting in-browser gate) |
+| M12 — Combat depth, the class slice & the demo-quest proof | done (in-browser gate confirmed 2026-06-08; 325 tests green) |
 
 States: `todo` → `in-progress` → `testable` → `done`
 (`testable` = code complete, awaiting user-testable gate confirmation.)
 
 ## Current block
 
-- **Milestone:** **M12 — Combat depth, the class slice & the demo-quest proof.**
-  **CODE COMPLETE 2026-06-07 (core + render); TESTABLE — awaiting the in-browser gate.**
+- **Milestone:** **M12 — Combat depth, the class slice & the demo-quest proof. DONE**
+  **(in-browser gate confirmed 2026-06-08 — *The Hollow Mill* plays through end to end).**
   Built in the build-prompt's six phases on branch `claude/testability-gaps-eval-YO0Kv`.
   `npm test` **325/325 green** (269 prior + 56 new), `npm run build` clean, `core/` free
-  of Phaser/DOM **and** `Math.random`.
+  of Phaser/DOM **and** `Math.random`. Keyboard control (Space = advance · 1–9 = abilities)
+  added for fast playtesting. **This is the accepted solution-iteration checkpoint.**
   - **Phase 1 — combat-depth substrate** (`combat.ts`/`status.ts`/`clock.ts`/`skills.ts`/
     `units.ts`): **flanking** (D36 — melee-only support/pincer, `computeFlankBonus`,
     `adjacentBodies`); **statuses with teeth** (D41 — Slowed/Exposed/Hastened/Guarded + a
@@ -61,12 +62,17 @@ States: `todo` → `in-progress` → `testable` → `done`
     data-driven kit buttons (charge/cooldown readouts), **status visual trackers** (the
     `STATUS_VISUALS` registry), Defend, the **bridge-cut timer**, rest/level-up surfacing +
     the deserter choice, and graded-failure results.
-  - **NEXT (the only remaining step):** confirm the **M12 in-browser gate** — `npm run dev`
-    → click **▶ Demo: The Hollow Mill** → play it end to end (provision → flank in E1 →
-    rest level-up + deserter choice → tarpit/cleanse/combo + scout in E2 → race the bridge
-    timer / beat the Captain *or* fail-and-retreat in E3). Then flip M12 → **done** + the
-    plan.md row; (on go-ahead) open the PR. *(Headless `npm test` covers all the rules; only
-    the visual/interaction confirmation is outstanding — the agent can't run a browser.)*
+  - **Gate confirmed (2026-06-08):** `npm run dev` → **▶ Demo: The Hollow Mill** plays
+    through end to end (provision → flank in E1 → rest level-up + deserter choice →
+    tarpit/cleanse/combo + scout in E2 → race the bridge timer / beat the Captain *or*
+    fail-and-retreat in E3). Accepted as a **solution-iteration checkpoint**.
+  - **NEXT:** (on go-ahead) open the PR. Then the next iteration pass — candidate threads:
+    a **numbers/balance pass** (every magnitude is already a named constant/table —
+    flank +4, status tunings, kit cooldowns/charges, growth weights, AI weights, the
+    bridge-cut speed); **keyboard targeting** (Tab-cycle enemies) if wanted; wiring the
+    four kits into the **main run/guild flow** (today they're demo-only); deeper **fog/
+    ambush** (scout-reveal is a thin render seam); and the still-open run-frame queue
+    (terminal-ending design, save system + lord game-over, D27).
 
 <details><summary>M11 — The event-node batch — DONE (merged PR #12, 2026-06-07)</summary>
 
@@ -698,12 +704,13 @@ States: `todo` → `in-progress` → `testable` → `done`
 
 </details>
 
-- **Next step:** **M11 is done** (in-browser gate confirmed; merged PR #12) — the queued
-  **event-node batch** (D23's "next batch") is built. The **M9/M10** hall-flow + economy
-  gates remain pending in-browser confirmation (both code-complete/testable). The remaining
-  run-frame queue is open: the **terminal-ending design** and the **save system + lord
-  game-over** (D27). (M8 accepted as the overworld-mechanics prototype; its number/behavior
-  tuning is a tracked non-blocking follow-up.)
+- **Next step:** **M12 is done** (in-browser gate confirmed 2026-06-08 — the four-class
+  combat slice + *The Hollow Mill* demo quest play through end to end; accepted as a
+  solution-iteration checkpoint). On go-ahead, open the PR. The next iteration pass is open
+  (balance numbers / kits into the run flow / fog depth — see the M12 block above). Earlier:
+  **M11 done** (merged PR #12); the **M9/M10** hall-flow + economy gates remain pending
+  in-browser confirmation (code-complete/testable); the run-frame queue still holds the
+  **terminal-ending design** and the **save system + lord game-over** (D27).
 - **Blockers:** none.
 
 <details><summary>Stale footer (M2-era notes, kept for history)</summary>
