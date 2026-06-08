@@ -3,10 +3,21 @@ import { FONT } from "./theme";
 
 const Events = Phaser.Input.Events;
 
+export interface HintPanelOptions {
+  /** Static command instructions for the body (empty → header reads just "Tips"). */
+  keys?: string;
+  /** Corner to dock against. "top" expands downward; "bottom" expands upward. */
+  anchor?: "top" | "bottom";
+  /** Top y for a top-anchored card (default 10). Ignored for bottom anchor. */
+  top?: number;
+  /** Start pinned open — for screens whose hint is feedback you want visible. */
+  startPinned?: boolean;
+}
+
 /**
- * A collapsible top-right info card that gives tips and command instructions one
- * consistent home. It stays out of the way as a small chip and reveals its body
- * two ways, no setting to manage:
+ * A collapsible info card that gives tips / command instructions one consistent
+ * home. It docks in a screen corner and reveals its body two ways, no setting to
+ * manage:
  *
  *   • **hover-peek** — pointing at the card expands it; moving away collapses it
  *     after a short grace delay. A contextual tip arriving (a button hover) also
@@ -16,9 +27,10 @@ const Events = Phaser.Input.Events;
  *
  * Collapsed it shrinks to just its header chip (right-anchored), so it clears even
  * a long centered scene title; it only grows to full width when expanded — an
- * opaque interaction state that's fine to overlap the title behind it.
+ * opaque interaction state that's fine to overlap whatever's behind it. It can dock
+ * top (expanding down) or bottom (expanding up) so each scene hosts it wherever its
+ * layout has room.
  *
- * The body holds the live contextual tip and (optionally) the static keybindings.
  * It satisfies the buttons' `{ setText }` hint sink, so it drops into the existing
  * Button / ButtonColumn wiring: on-hover passes a tip (peeks open), on-out restores
  * the resting hint (collapses if unpinned).
@@ -32,6 +44,7 @@ export class HintPanel extends Phaser.GameObjects.Container {
   private readonly keysText: Phaser.GameObjects.Text;
   private readonly baseLabel: string;
   private readonly hasKeys: boolean;
+  private readonly bottom: boolean;
 
   private static readonly W = 244;
   private static readonly HEADER_H = 24;
@@ -43,41 +56,40 @@ export class HintPanel extends Phaser.GameObjects.Container {
   private isOpen = false;
   private collapseTimer?: Phaser.Time.TimerEvent;
 
-  /**
-   * @param keys the static command instructions for the body (e.g.
-   *             "Space / Enter = advance · 1–9 = abilities"). Empty for
-   *             mouse-only scenes — the card then reads just "Tips".
-   * @param top  the card's top y (default 10).
-   */
-  constructor(scene: Phaser.Scene, keys = "", top = 10) {
+  constructor(scene: Phaser.Scene, opts: HintPanelOptions = {}) {
     const W = HintPanel.W;
-    const hH = HintPanel.HEADER_H;
-    // Right-anchored: the card's right edge sits 10px from the screen edge; it
-    // grows leftward within this W-wide span (collapsed it occupies only the right
-    // slice of it).
-    super(scene, scene.scale.width - 10 - W, top);
+    const keys = opts.keys ?? "";
+    const bottom = opts.anchor === "bottom";
+    // Right-anchored: the card's right edge sits 10px from the screen edge; it grows
+    // leftward within this W-wide span. A bottom anchor docks its bottom edge near
+    // the screen bottom and grows upward.
+    super(scene, scene.scale.width - 10 - W, bottom ? scene.scale.height - 8 : opts.top ?? 10);
+    this.bottom = bottom;
     this.hasKeys = keys.length > 0;
     this.baseLabel = this.hasKeys ? "Tips & Keys" : "Tips";
 
-    this.bodyBg = scene.add.rectangle(0, hH, W, 10, 0x161b29, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
-    this.tipText = scene.add.text(10, hH + 9, "", { color: "#aebbd6", fontSize: FONT.caption, align: "left", lineSpacing: 3, wordWrap: { width: W - 20 } }).setOrigin(0, 0);
+    this.bodyBg = scene.add.rectangle(0, 0, W, 10, 0x161b29, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
+    this.tipText = scene.add.text(10, 0, "", { color: "#aebbd6", fontSize: FONT.caption, align: "left", lineSpacing: 3, wordWrap: { width: W - 20 } }).setOrigin(0, 0);
     this.keysText = scene.add.text(10, 0, keys, { color: "#6f7c98", fontSize: FONT.micro, wordWrap: { width: W - 20 } }).setOrigin(0, 0);
-    this.headerBg = scene.add.rectangle(0, 0, W, hH, 0x232b40, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
-    this.headerLabel = scene.add.text(0, hH / 2, this.baseLabel, { color: "#cdd9f2", fontSize: FONT.caption }).setOrigin(0, 0.5);
-    this.chevron = scene.add.text(0, hH / 2, "▸", { color: "#8fa0c8", fontSize: FONT.caption }).setOrigin(1, 0.5);
+    this.headerBg = scene.add.rectangle(0, 0, W, HintPanel.HEADER_H, 0x232b40, 0.96).setStrokeStyle(1, 0x44557e).setOrigin(0, 0);
+    this.headerLabel = scene.add.text(0, 0, this.baseLabel, { color: "#cdd9f2", fontSize: FONT.caption }).setOrigin(0, 0.5);
+    this.chevron = scene.add.text(0, 0, "▸", { color: "#8fa0c8", fontSize: FONT.caption }).setOrigin(1, 0.5);
 
     this.add([this.bodyBg, this.tipText, this.keysText, this.headerBg, this.headerLabel, this.chevron]);
     this.setDepth(15);
     scene.add.existing(this);
 
-    // Hover + pin live on both bars so moving header→body doesn't drop the hover.
+    // Hover + pin live on both bars so moving header↔body doesn't drop the hover.
     for (const r of [this.headerBg, this.bodyBg]) {
       r.setInteractive({ useHandCursor: true });
       r.on(Events.GAMEOBJECT_POINTER_OVER, () => this.onOver());
       r.on(Events.GAMEOBJECT_POINTER_OUT, () => this.onOut());
       r.on(Events.GAMEOBJECT_POINTER_DOWN, () => this.togglePin());
     }
-    this.apply(false);
+
+    this.pinned = opts.startPinned ?? false;
+    if (this.pinned) this.headerLabel.setText(`${this.baseLabel} · pinned`);
+    this.apply(this.pinned);
   }
 
   /** The resting hint (set by the scene's setHint). Shown when no transient tip is up. */
@@ -145,7 +157,7 @@ export class HintPanel extends Phaser.GameObjects.Container {
   /** Lay out for the open/closed state: full width open, a right-anchored chip closed. */
   private apply(expanded: boolean): void {
     this.isOpen = expanded;
-    this.chevron.setText(expanded ? "▾" : "▸");
+    this.chevron.setText(expanded ? "▾" : this.bottom ? "▴" : "▸");
     this.headerBg.setStrokeStyle(1, this.pinned ? 0x7f9bd6 : 0x44557e);
 
     const W = HintPanel.W;
@@ -153,22 +165,23 @@ export class HintPanel extends Phaser.GameObjects.Container {
     // Collapsed: shrink the header to fit its label and pin it to the right edge.
     const wc = expanded ? W : Math.min(W, Math.ceil(this.headerLabel.width) + 30);
     const hx = W - wc;
-    this.headerBg.setSize(wc, hH).setPosition(hx, 0);
-    this.headerLabel.setPosition(hx + 8, hH / 2);
-    this.chevron.setPosition(W - 7, hH / 2);
+    // The header is the docked strip; the body grows away from the anchored edge —
+    // below the header for a top anchor, above it for a bottom anchor.
+    const bodyH = 9 + this.tipText.height + (this.hasKeys ? 7 + this.keysText.height : 0) + 8;
+    const headerY = this.bottom ? -hH : 0;
+    const bodyTop = this.bottom ? -hH - bodyH : hH;
+
+    this.headerBg.setSize(wc, hH).setPosition(hx, headerY);
+    this.headerLabel.setPosition(hx + 8, headerY + hH / 2);
+    this.chevron.setPosition(W - 7, headerY + hH / 2);
 
     this.bodyBg.setVisible(expanded);
     this.tipText.setVisible(expanded);
     this.keysText.setVisible(expanded && this.hasKeys);
     if (!expanded) return;
 
-    // Stack the (optional) keys line under the variable-height tip, then fit the backing.
-    this.tipText.setY(hH + 9);
-    let bottom = this.tipText.y + this.tipText.height;
-    if (this.hasKeys) {
-      this.keysText.setY(bottom + 7);
-      bottom = this.keysText.y + this.keysText.height;
-    }
-    this.bodyBg.setSize(W, bottom + 8 - hH).setPosition(0, hH);
+    this.bodyBg.setSize(W, bodyH).setPosition(0, bodyTop);
+    this.tipText.setPosition(10, bodyTop + 9);
+    if (this.hasKeys) this.keysText.setPosition(10, this.tipText.y + this.tipText.height + 7);
   }
 }

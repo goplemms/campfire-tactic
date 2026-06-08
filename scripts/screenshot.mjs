@@ -81,6 +81,8 @@ const STEPS = [
   { name: "09-encounter3", minMs: 300, eval: stageEncounter(4, false) }, // the Captain's Holdout (bridge-cut)
   // --- Terminal: a full auto-played run, then the end screen ------------------
   { name: "10-end", minMs: 300, eval: autoPlayToEnd() },
+  // --- The guild hall (boots on the base URL, no #demo) -----------------------
+  { name: "11-guild", goto: "", minMs: 500 },
 ];
 
 // Each helper returns a *plain function* puppeteer serializes and runs in the page
@@ -132,7 +134,8 @@ async function waitForSettled(page, minMs = 250, timeoutMs = 8000) {
   while (Date.now() - start < timeoutMs) {
     const settled = await page.evaluate(() => {
       const scene = window.game?.scene?.getScene?.("DemoScene");
-      return !scene || typeof scene.isSettled !== "function" ? true : scene.isSettled();
+      if (!scene || typeof scene.isSettled !== "function") return true;
+      try { return scene.isSettled(); } catch { return true; } // inactive scene (e.g. on the Guild page)
     });
     if (settled) return;
     await sleep(80);
@@ -209,9 +212,18 @@ async function main() {
     // chevron bob) — set before any page script runs.
     await page.evaluateOnNewDocument(() => { window.__SHOT__ = true; });
     await page.goto(`${url}#demo`, { waitUntil: "networkidle0", timeout: 30000 });
-    const canvas = await page.waitForSelector("canvas", { timeout: 15000 });
+    let canvas = await page.waitForSelector("canvas", { timeout: 15000 });
 
     for (const step of STEPS) {
+      // A `goto` re-navigates to another scene (e.g. "" boots the Guild hall on the
+      // base URL); the canvas element is recreated, so re-acquire it.
+      if (step.goto !== undefined) {
+        // "load" (not networkidle0) — the dev server's HMR socket keeps the page
+        // from ever going network-idle on a re-navigation. The settle gate below
+        // still makes the frame deterministic.
+        await page.goto(step.goto ? `${url}#${step.goto}` : url, { waitUntil: "load", timeout: 30000 });
+        canvas = await page.waitForSelector("canvas", { timeout: 15000 });
+      }
       if (step.eval) await page.evaluate(step.eval);
       for (const key of step.keys ?? []) await page.keyboard.press(key);
       // Position the cursor (canvas coords → page coords via the canvas box).

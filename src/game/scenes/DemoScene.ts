@@ -129,7 +129,7 @@ export class DemoScene extends Phaser.Scene {
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     // A collapsible top-right card consolidates contextual tips and the command
     // keys in one consistent place (hover to peek, click to pin).
-    this.hintPanel = new HintPanel(this, "Space / Enter = advance · 1–9 = abilities");
+    this.hintPanel = new HintPanel(this, { keys: "Space / Enter = advance · 1–9 = abilities" });
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
