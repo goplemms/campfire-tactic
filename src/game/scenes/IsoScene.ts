@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT } from "../theme";
 import {
   gridToScreen,
   screenToGrid,
@@ -59,7 +60,7 @@ export class IsoScene extends Phaser.Scene {
         this.scale.width / 2,
         this.scale.height - 24,
         "Click a tile — the unit walks there, routing around walls.",
-        { color: "#9fb0d0", fontSize: "14px" },
+        { color: "#9fb0d0", fontSize: FONT.body },
       )
       .setOrigin(0.5);
   }

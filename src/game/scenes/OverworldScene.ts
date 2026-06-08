@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT } from "../theme";
 import {
   RunLoop,
   previewNode,
@@ -121,10 +122,10 @@ export class OverworldScene extends Phaser.Scene {
       return;
     }
 
-    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
-    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
-    this.previewText = this.add.text(this.scale.width / 2, this.scale.height - 96, "", { color: "#d6c98a", fontSize: "13px", align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 64, "", { color: "#9fb0d0", fontSize: "13px", align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
+    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
+    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
+    this.previewText = this.add.text(this.scale.width / 2, this.scale.height - 96, "", { color: "#d6c98a", fontSize: FONT.body, align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
+    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 64, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 720 } }).setOrigin(0.5).setDepth(10);
 
     this.refreshCampText();
 
@@ -224,11 +225,11 @@ export class OverworldScene extends Phaser.Scene {
 
     // Kind glyph (event nodes carry a per-event glyph, M11).
     const glyph = node.kind === "rest" ? "❄" : event ? event.glyph : isFinal ? "★" : "⚔";
-    const label = this.add.text(pos.x, pos.y, glyph, { color: "#11141b", fontSize: isFinal ? "16px" : "13px" }).setOrigin(0.5).setDepth(2);
+    const label = this.add.text(pos.x, pos.y, glyph, { color: "#11141b", fontSize: isFinal ? FONT.heading : FONT.body }).setOrigin(0.5).setDepth(2);
     this.nodeObjects.push(label);
 
     if (state.visited) {
-      const tick = this.add.text(pos.x + radius - 2, pos.y - radius + 2, "✓", { color: "#9ff0bf", fontSize: "12px" }).setOrigin(0.5).setDepth(2);
+      const tick = this.add.text(pos.x + radius - 2, pos.y - radius + 2, "✓", { color: "#9ff0bf", fontSize: FONT.label }).setOrigin(0.5).setDepth(2);
       this.nodeObjects.push(tick);
     }
 
@@ -304,7 +305,7 @@ export class OverworldScene extends Phaser.Scene {
 
     // --- Overworld actions (the new economy, D35) ---
     this.campObjects.push(
-      this.add.text(colX - 10, top - 6, "Overworld Actions", { color: "#9ff0bf", fontSize: "14px" }).setOrigin(0, 0.5).setDepth(11),
+      this.add.text(colX - 10, top - 6, "Overworld Actions", { color: "#9ff0bf", fontSize: FONT.body }).setOrigin(0, 0.5).setDepth(11),
     );
     let y = top + 22;
 
@@ -328,7 +329,7 @@ export class OverworldScene extends Phaser.Scene {
 
     // --- Camp / meta actions (the folded-in Meta phase + provisioning) ---
     this.campObjects.push(
-      this.add.text(colX - 10, y, "Camp", { color: "#d6c98a", fontSize: "14px" }).setOrigin(0, 0.5).setDepth(11),
+      this.add.text(colX - 10, y, "Camp", { color: "#d6c98a", fontSize: FONT.body }).setOrigin(0, 0.5).setDepth(11),
     );
     y += 22;
     for (const u of this.run.party) {
@@ -344,7 +345,7 @@ export class OverworldScene extends Phaser.Scene {
 
     // --- The gold economy verbs (M10, D30/D34): purse-scoped, never the treasury ---
     this.campObjects.push(
-      this.add.text(colX - 10, y, "Economy (Merchant / Banker / Noble)", { color: "#e0b552", fontSize: "14px" }).setOrigin(0, 0.5).setDepth(11),
+      this.add.text(colX - 10, y, "Economy (Merchant / Banker / Noble)", { color: "#e0b552", fontSize: FONT.body }).setOrigin(0, 0.5).setDepth(11),
     );
     y += 22;
     // Merchant ACCESS — buy supply into storage from the PURSE, node-tier price.
@@ -365,8 +366,8 @@ export class OverworldScene extends Phaser.Scene {
     // --- Fatigue meter (per-character, banded — à la the morale readout) ---
     const meterX = cx + 60;
     this.campObjects.push(
-      this.add.text(meterX, top - 6, "Fatigue", { color: "#cdd7ee", fontSize: "14px" }).setOrigin(0, 0.5).setDepth(11),
-      this.add.text(meterX, top + 18, this.fatigueMeter(), { color: "#cdd7ee", fontSize: "13px", lineSpacing: 6 }).setOrigin(0, 0).setDepth(11),
+      this.add.text(meterX, top - 6, "Fatigue", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0, 0.5).setDepth(11),
+      this.add.text(meterX, top + 18, this.fatigueMeter(), { color: "#cdd7ee", fontSize: FONT.body, lineSpacing: 6 }).setOrigin(0, 0).setDepth(11),
     );
     const meterBottom = top + 18 + this.run.party.filter((u) => u.alive).length * 21 + 8;
 
@@ -518,7 +519,7 @@ export class OverworldScene extends Phaser.Scene {
   private campButton(x: number, y: number, w: number, h: number, text: string, enabled: boolean, onClick: () => void, description: string): void {
     const fill = enabled ? 0x26314a : 0x1b2030;
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(1, enabled ? 0x4a5d86 : 0x2a3142).setOrigin(0, 0.5).setDepth(10);
-    const label = this.add.text(x + 8, y, text, { color: enabled ? "#dbe5fb" : "#6b7488", fontSize: "12px" }).setOrigin(0, 0.5).setDepth(11);
+    const label = this.add.text(x + 8, y, text, { color: enabled ? "#dbe5fb" : "#6b7488", fontSize: FONT.label }).setOrigin(0, 0.5).setDepth(11);
     fitText(label, w - 16);
     if (enabled) {
       bg.setInteractive({ useHandCursor: true });
@@ -630,8 +631,8 @@ export class OverworldScene extends Phaser.Scene {
     this.overlay = [];
     this.overlay.push(
       this.add.rectangle(cx, cy, w, h, 0x11141b, 0.96).setStrokeStyle(2, 0x6f86c0).setDepth(20),
-      this.add.text(cx, cy - h / 2 + 24, title, { color: "#cdd7ee", fontSize: "22px" }).setOrigin(0.5).setDepth(21),
-      this.add.text(cx, cy - h / 2 + 58, `${body}\nPurse ${this.run.camp.gold}g`, { color: "#aab6d6", fontSize: "13px", align: "center", lineSpacing: 4, wordWrap: { width: w - 60 } }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 24, title, { color: "#cdd7ee", fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 58, `${body}\nPurse ${this.run.camp.gold}g`, { color: "#aab6d6", fontSize: FONT.body, align: "center", lineSpacing: 4, wordWrap: { width: w - 60 } }).setOrigin(0.5).setDepth(21),
     );
 
     let y = cy - h / 2 + 110;
@@ -782,8 +783,8 @@ export class OverworldScene extends Phaser.Scene {
     const cy = this.scale.height / 2 - 20;
     this.overlay.push(
       this.add.rectangle(cx, cy, w, h, 0x11141b, 0.94).setStrokeStyle(2, good ? 0x57b07a : 0xb05757).setDepth(20),
-      this.add.text(cx, cy - h / 2 + 26, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: "24px" }).setOrigin(0.5).setDepth(21),
-      this.add.text(cx, cy + 6, body, { color: "#cdd7ee", fontSize: "13px", align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 26, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy + 6, body, { color: "#cdd7ee", fontSize: FONT.body, align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
     );
     if (onContinue) {
       const btn = this.makeTextButton(cx, cy + h / 2 - 20, 160, 30, "Continue", 0x2f6b46, 0x57b07a, () => {
@@ -797,7 +798,7 @@ export class OverworldScene extends Phaser.Scene {
 
   private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void): TextButton {
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(22);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: "13px" }).setOrigin(0.5).setDepth(23);
+    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.body }).setOrigin(0.5).setDepth(23);
     fitText(label, w - 10);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color));

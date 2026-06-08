@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT } from "../theme";
 import {
   createGuild,
   dispatch,
@@ -318,7 +319,7 @@ export class GuildScene extends Phaser.Scene {
         this.render();
       });
       this.ui.push(box);
-      this.ui.push(this.add.text(xx + 10, y + 32, lines, { color: "#dbe5fb", fontSize: "12px", lineSpacing: 4 }).setDepth(2));
+      this.ui.push(this.add.text(xx + 10, y + 32, lines, { color: "#dbe5fb", fontSize: FONT.label, lineSpacing: 4 }).setDepth(2));
 
       if (gr) {
         this.smallButton(xx + 150, y + 60, 76, "▶ Play", () => this.play(c.id), 24, 0x2f6b46, 0x57b07a);
@@ -349,8 +350,8 @@ export class GuildScene extends Phaser.Scene {
     const h = 40 + lines.length * 20;
     const cy = this.scale.height / 2 - 40;
     this.ui.push(this.add.rectangle(cx, cy, w, h, 0x11141b, 0.97).setStrokeStyle(2, wiped ? 0xb05757 : 0x57b07a).setDepth(30));
-    this.ui.push(this.add.text(cx, cy - h / 2 + 18, wiped ? "Caravan Lost" : "Caravan Home", { color: wiped ? "#f0a0a0" : "#9ff0bf", fontSize: "18px" }).setOrigin(0.5).setDepth(31));
-    this.ui.push(this.add.text(cx, cy + 6, lines.join("\n"), { color: "#cdd7ee", fontSize: "13px", align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(31));
+    this.ui.push(this.add.text(cx, cy - h / 2 + 18, wiped ? "Caravan Lost" : "Caravan Home", { color: wiped ? "#f0a0a0" : "#9ff0bf", fontSize: FONT.title }).setOrigin(0.5).setDepth(31));
+    this.ui.push(this.add.text(cx, cy + 6, lines.join("\n"), { color: "#cdd7ee", fontSize: FONT.body, align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(31));
     this.smallButton(cx - 50, cy + h / 2 - 4, 100, "Dismiss", () => {
       this.banner = undefined;
       this.render();
@@ -400,7 +401,7 @@ export class GuildScene extends Phaser.Scene {
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => bg.setFillStyle(selected ? 0x387051 : 0x26314a));
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => bg.setFillStyle(selected ? 0x2f5d44 : 0x1b2030));
     this.ui.push(bg);
-    const text = this.add.text(x + 8, y + 4, label, { color: "#dbe5fb", fontSize: "12px" }).setDepth(2);
+    const text = this.add.text(x + 8, y + 4, label, { color: "#dbe5fb", fontSize: FONT.label }).setDepth(2);
     fitText(text, w - 16);
     this.ui.push(text);
   }
@@ -412,7 +413,7 @@ export class GuildScene extends Phaser.Scene {
       bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     }
     this.ui.push(bg);
-    const text = this.add.text(x + w / 2, y + 15, label, { color: enabled ? "#eafff0" : "#6b7488", fontSize: "12px" }).setOrigin(0.5).setDepth(2);
+    const text = this.add.text(x + w / 2, y + 15, label, { color: enabled ? "#eafff0" : "#6b7488", fontSize: FONT.label }).setOrigin(0.5).setDepth(2);
     fitText(text, w - 12);
     this.ui.push(text);
   }
@@ -421,7 +422,7 @@ export class GuildScene extends Phaser.Scene {
     const bg = this.add.rectangle(x, y, w, h, fill, 1).setStrokeStyle(1, stroke).setOrigin(originX, 0.5).setDepth(2).setInteractive({ useHandCursor: true });
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     this.ui.push(bg);
-    const text = this.add.text(x + (originX === 0 ? w / 2 : 0), y, label, { color: "#eafff0", fontSize: "12px" }).setOrigin(0.5).setDepth(3);
+    const text = this.add.text(x + (originX === 0 ? w / 2 : 0), y, label, { color: "#eafff0", fontSize: FONT.label }).setOrigin(0.5).setDepth(3);
     fitText(text, w - 12);
     this.ui.push(text);
   }

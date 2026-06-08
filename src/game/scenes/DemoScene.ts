@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT } from "../theme";
 import {
   gridToScreen,
   screenToGrid,
@@ -115,15 +116,15 @@ export class DemoScene extends Phaser.Scene {
 
   create(): void {
     this.runner = new DemoRunner();
-    this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
-    this.subText = this.add.text(this.scale.width / 2, 38, "", { color: "#cdd7ee", fontSize: "12px" }).setOrigin(0.5).setDepth(10);
+    this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: "#e8eefc", fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
+    this.subText = this.add.text(this.scale.width / 2, 38, "", { color: "#cdd7ee", fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     // A faint backing groups the turn-order readout; sized to the text each refresh.
     this.orderBg = this.add.rectangle(4, 64, 10, 10, 0x141925, 0.55).setStrokeStyle(1, 0x3d4b6e).setOrigin(0, 0).setDepth(9).setVisible(false);
-    this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: "11px", lineSpacing: 3 }).setDepth(10);
-    this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
+    this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: FONT.caption, lineSpacing: 3 }).setDepth(10);
+    this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     // Centered in the area left of the right-hand command panel so long hints
     // (and the per-button descriptions shown on hover) never run under it.
-    this.hintText = this.add.text((this.scale.width - 170) / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: "12px", align: "center", wordWrap: { width: 540 } }).setOrigin(0.5).setDepth(10);
+    this.hintText = this.add.text((this.scale.width - 170) / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: FONT.label, align: "center", wordWrap: { width: 540 } }).setOrigin(0.5).setDepth(10);
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
@@ -133,7 +134,7 @@ export class DemoScene extends Phaser.Scene {
       .setDepth(2)
       .setVisible(false);
     this.primary = this.makeButton(this.scale.width / 2, this.scale.height - 26, 220, 32, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
-    this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: "11px" }).setOrigin(1, 1).setDepth(10);
+    this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: FONT.caption }).setOrigin(1, 1).setDepth(10);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.setupKeyboard();
     this.nextBeat();
@@ -603,13 +604,13 @@ export class DemoScene extends Phaser.Scene {
     const body = this.add.circle(0, cy, 12, color).setStrokeStyle(2, stroke);
     // Identity lives *inside* the token (initials), so the board reads at a glance
     // without a floating label over every unit.
-    const initials = this.add.text(0, cy, initialsOf(unit.name), { color: "#1b1f2a", fontSize: "9px", fontStyle: "bold" }).setOrigin(0.5);
+    const initials = this.add.text(0, cy, initialsOf(unit.name), { color: "#1b1f2a", fontSize: FONT.micro, fontStyle: "bold" }).setOrigin(0.5);
     // The full "Name  hp/max" plate is created hidden and only revealed for the
     // active or hovered unit (see refreshNameplate) — that's what keeps spawn
     // clusters from collapsing into a pile of overlapping text.
-    const label = this.add.text(0, cy - 36, unit.name, { color: "#e8eefc", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
-    const hp = this.add.text(0, cy - 24, "", { color: "#bfe8c0", fontSize: "10px" }).setOrigin(0.5).setVisible(false);
-    const badges = this.add.text(0, cy + 10, "", { color: "#ffe6a0", fontSize: "10px" }).setOrigin(0.5);
+    const label = this.add.text(0, cy - 36, unit.name, { color: "#e8eefc", fontSize: FONT.nameplate }).setOrigin(0.5).setVisible(false);
+    const hp = this.add.text(0, cy - 24, "", { color: "#bfe8c0", fontSize: FONT.nameplate }).setOrigin(0.5).setVisible(false);
+    const badges = this.add.text(0, cy + 10, "", { color: "#ffe6a0", fontSize: FONT.nameplate }).setOrigin(0.5);
     // An at-a-glance HP bar capping the token (sat just above it, not behind it,
     // so it actually reads); fill width + tint track the fraction.
     const hpBarW = 26;
@@ -710,7 +711,7 @@ export class DemoScene extends Phaser.Scene {
     rows.forEach((r, i) => {
       let t = this.orderLines[i];
       if (!t) {
-        t = this.add.text(x, 0, "", { fontSize: "11px" }).setDepth(10);
+        t = this.add.text(x, 0, "", { fontSize: FONT.caption }).setDepth(10);
         this.orderLines[i] = t;
       }
       t.setPosition(x, y0 + i * step).setText(r.text).setColor(r.color).setAlpha(r.alpha).setVisible(true);
@@ -832,7 +833,7 @@ export class DemoScene extends Phaser.Scene {
     if (!this.views.has(unit.id)) return;
     const { x, y } = this.tileToWorld(unit.pos);
     const t = this.add
-      .text(x, y - TILE_HEIGHT / 2 - 18 + dy, text, { color, fontSize: "13px", fontStyle: "bold" })
+      .text(x, y - TILE_HEIGHT / 2 - 18 + dy, text, { color, fontSize: FONT.body, fontStyle: "bold" })
       .setOrigin(0.5)
       .setDepth(30);
     this.floaters.add(t);
@@ -876,7 +877,7 @@ export class DemoScene extends Phaser.Scene {
 
   private makeButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: "12px" }).setOrigin(0.5).setDepth(13);
+    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.label }).setOrigin(0.5).setDepth(13);
     fitText(label, w - 10);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
@@ -950,8 +951,8 @@ export class DemoScene extends Phaser.Scene {
     const cy = this.scale.height / 2;
     this.overlay.push(
       this.add.rectangle(cx, cy, w, h, 0x11141b, 0.94).setStrokeStyle(2, good ? 0x57b07a : 0xb05757).setDepth(20),
-      this.add.text(cx, cy - h / 2 + 26, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: "22px" }).setOrigin(0.5).setDepth(21),
-      this.add.text(cx, cy + 12, body, { color: "#cdd7ee", fontSize: "12px", align: "center", lineSpacing: 4, wordWrap: { width: w - 40 } }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 26, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy + 12, body, { color: "#cdd7ee", fontSize: FONT.label, align: "center", lineSpacing: 4, wordWrap: { width: w - 40 } }).setOrigin(0.5).setDepth(21),
     );
   }
 }

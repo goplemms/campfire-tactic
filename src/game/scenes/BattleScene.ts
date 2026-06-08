@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT } from "../theme";
 import {
   gridToScreen,
   screenToGrid,
@@ -138,11 +139,11 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     // Persistent UI.
-    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: "18px" }).setOrigin(0.5).setDepth(10);
-    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: "13px" }).setOrigin(0.5).setDepth(10);
-    this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: "#d6c98a", fontSize: "12px" }).setOrigin(0.5).setDepth(10);
-    this.orderText = this.add.text(12, 12, "", { color: "#cdd7ee", fontSize: "12px", lineSpacing: 3 }).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 104, "", { color: "#9fb0d0", fontSize: "13px", align: "center", wordWrap: { width: 700 } }).setOrigin(0.5).setDepth(10);
+    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
+    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
+    this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: "#d6c98a", fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
+    this.orderText = this.add.text(12, 12, "", { color: "#cdd7ee", fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
+    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 104, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 700 } }).setOrigin(0.5).setDepth(10);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
@@ -346,7 +347,7 @@ export class BattleScene extends Phaser.Scene {
     }
     removeItem(this.run.inventory, "trap-kit", 1);
     const { x, y } = this.tileToWorld(tile);
-    const marker = this.add.text(x, y - TILE_HEIGHT / 2, "✸", { color: "#ff9d5c", fontSize: "20px" }).setOrigin(0.5).setDepth(0.8);
+    const marker = this.add.text(x, y - TILE_HEIGHT / 2, "✸", { color: "#ff9d5c", fontSize: FONT.display }).setOrigin(0.5).setDepth(0.8);
     this.boardObjects.push(marker);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
     this.refreshCampText();
@@ -726,8 +727,8 @@ export class BattleScene extends Phaser.Scene {
     const cy = this.scale.height / 2;
     this.overlay.push(
       this.add.rectangle(cx, cy, w, h, 0x11141b, 0.92).setStrokeStyle(2, good ? 0x57b07a : 0xb05757).setDepth(20),
-      this.add.text(cx, cy - h / 2 + 28, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: "26px" }).setOrigin(0.5).setDepth(21),
-      this.add.text(cx, cy + 14, body, { color: "#cdd7ee", fontSize: "13px", align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy - h / 2 + 28, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy + 14, body, { color: "#cdd7ee", fontSize: FONT.body, align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
     );
   }
 
@@ -776,8 +777,8 @@ export class BattleScene extends Phaser.Scene {
       const color = unit.side === "player" ? 0xffcf6b : 0xe06b6b;
       const stroke = unit.side === "player" ? 0x6b4a1c : 0x6b1c1c;
       const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(2, stroke);
-      const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: "#e8eefc", fontSize: "11px" }).setOrigin(0.5);
-      const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: "#bfe8c0", fontSize: "11px" }).setOrigin(0.5);
+      const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: "#e8eefc", fontSize: FONT.caption }).setOrigin(0.5);
+      const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: "#bfe8c0", fontSize: FONT.caption }).setOrigin(0.5);
       const container = this.add.container(0, 0, [body, label, hp]).setDepth(1);
       this.views.set(unit.id, { container, body, hp });
       this.boardObjects.push(container);
@@ -868,7 +869,7 @@ export class BattleScene extends Phaser.Scene {
 
   private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
     const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: "13px" }).setOrigin(0.5).setDepth(13);
+    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.body }).setOrigin(0.5).setDepth(13);
     fitText(label, w - 10);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
     bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
