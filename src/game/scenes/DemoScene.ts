@@ -549,8 +549,15 @@ export class DemoScene extends Phaser.Scene {
     this.hideBattleHud();
     const o = this.runner.outcome ?? "complete";
     const title = o === "complete" ? "The Hollow Mill is Cleared!" : o === "failed" ? "Quest Failed — the Party Survives" : "Party Wiped";
+    // A payoff line so a win lands: who made it back, the purse, and a star rating
+    // (all five home = ★★★, one down = ★★, bloodier = ★; a graded failure earns ★).
+    const survived = this.runner.party.filter((u) => u.alive).length;
+    const total = this.runner.party.length;
+    const stars = o === "wipe" ? "" : o === "failed" ? "★" : survived === total ? "★★★" : survived >= total - 1 ? "★★" : "★";
+    const tally = `${survived}/${total} marched home   ·   ${this.runner.gold}g purse${stars ? `   ·   ${stars}` : ""}`;
     this.titleText.setText("");
-    this.showOverlay(title, this.runner.log.slice(-6).join("\n"), o !== "wipe", 620, 240);
+    this.showOverlay(title, `${tally}\n\n${this.runner.log.slice(-6).join("\n")}`, o !== "wipe", 620, 270);
+    this.setHint(o === "wipe" ? "The run is over — back to the guild to rebuild." : "Return to the guild to bank the survivors and loot.");
     this.runner.outcome = o; // ensure onPrimary routes back to the guild
     this.setPrimary("Back to Guild");
   }
@@ -939,6 +946,8 @@ export class DemoScene extends Phaser.Scene {
   private clearButtons(): void {
     this.commandPanel?.destroy();
     this.commandPanel = undefined;
+    // A button hovered at teardown never fires pointer-out; drop any stuck tip.
+    this.hintPanel.clearTip();
   }
 
   /**

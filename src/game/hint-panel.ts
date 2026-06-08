@@ -116,6 +116,20 @@ export class HintPanel extends Phaser.GameObjects.Container {
     return this;
   }
 
+  /**
+   * Drop any transient tip and fall back to the resting hint. Call this when the
+   * thing that raised a tip goes away mid-hover (e.g. a hovered button is destroyed
+   * on a panel rebuild) — its pointer-out never fires, so the tip would stick.
+   */
+  clearTip(): this {
+    if (this.tipActive) {
+      this.tipActive = false;
+      this.setTipText(this.resting);
+      this.scheduleCollapse();
+    }
+    return this;
+  }
+
   /** Swap the tip text and, if the card is open, re-fit the body to the new height. */
   private setTipText(text: string): void {
     this.tipText.setText(text);
