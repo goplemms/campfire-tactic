@@ -44,25 +44,83 @@ const OUT_DIR = path.resolve(ROOT, process.env.SHOTS_OUT ?? "screenshots");
 const CACHE_DIR = path.resolve(ROOT, ".cache", "chrome");
 const PORT = Number(process.env.SHOTS_PORT ?? 5188);
 
-// The demo is driven entirely from the keyboard (Space = advance/primary,
-// 1–9 = ability buttons — the same controls a playtester uses), which makes it
-// scriptable without guessing canvas pixel coordinates. Each step optionally
-// presses some keys, waits for animations/tweens to settle, then captures the
-// canvas. Add or reorder entries here to capture different moments.
-// `minMs` is just a floor before the animation-idle gate (waitForSettled) takes
-// over — the gate handles the variable animation length and makes every frame
-// deterministic. `hoverCanvas` parks the cursor over a token (in 800×600 canvas
-// coords) to exercise the hover-only nameplate; otherwise the cursor is parked
-// off the board so no stray hover state leaks in.
+// A "standard route" walk of the whole demo — one capture per screen the game can
+// show, so a glance at the sheet flags any regression (panel sizing, board layout,
+// overlays, hint wiring). Each step optionally presses keys, runs an `eval`, parks
+// the cursor, waits for the animation-idle gate, then screenshots the canvas.
+//
+// Two ways to drive it:
+//   • keys      — the real playtester controls (Space = advance/primary, 1–9 =
+//                 abilities). Preferred: it exercises the genuine input path.
+//   • eval      — a function run in the page to reach screens the keyboard can't.
+//                 The mid-quest beats (rest choice, encounters 2–3, the end) sit
+//                 behind combat that can't be scripted by clicks, so we jump there
+//                 via the runner's `beatIndex` and let the scene render the beat
+//                 with its own methods — the same code the live game runs.
+//
+// `minMs` floors the wait before the idle gate (waitForSettled) takes over and
+// makes the frame deterministic. `hoverCanvas` parks the cursor (800×600 canvas
+// coords) to exercise a hover state; otherwise it's parked off-board so no stray
+// hover leaks in.
 const STEPS = [
-  { name: "01-provision", minMs: 800 },                        // initial load — Provision screen
-  { name: "02-encounter-open", keys: ["Space"], minMs: 400 },  // March Out → Encounter 1 board
-  { name: "02b-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
+  // --- Beat 1: Provision, then Encounter 1 (real keyboard play) --------------
+  { name: "01-provision", minMs: 800 },                        // initial load — Provision screen (hint card collapsed, top-right)
+  { name: "01b-hint-peek", hoverCanvas: { x: 693, y: 248 }, minMs: 300 }, // hover a herb button → tip peeks the card open
+  { name: "01c-hint-pinned", minMs: 300, eval: togglePin() }, // click-pin → card stays open (resting tip + keys)
+  { name: "02-encounter1-open", keys: ["Space"], minMs: 400, eval: togglePin() }, // unpin, then March Out → deployment
+  { name: "02a-deploy-gamble", minMs: 600, eval: spotDeploy(6) }, // push Edrin deep + spotted → he bolts for cover (capture rolls)
+  { name: "02b-encounter1-hover", hoverCanvas: { x: 536, y: 309 }, minMs: 300 }, // hover the isolated Bandit Cutthroat
   { name: "03-advance-1", keys: ["Space"], minMs: 300 },       // advance the clock; a player turn
-  { name: "04-advance-2", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
+  { name: "04-kit-panel", keys: ["Space"], minMs: 300 },       // opens the right-hand kit panel
   { name: "05-advance-3", keys: ["Space"], minMs: 300 },
   { name: "06-advance-4", keys: ["Space"], minMs: 300 },
+  // --- Beat 3: Rest + the deserter choice ------------------------------------
+  { name: "07-rest-choice", minMs: 300, eval: gotoBeat(2) },   // jump to the rest beat → choice box
+  { name: "07b-rest-hover", hoverCanvas: { x: 713, y: 264 }, minMs: 300 }, // hover Spare → tradeoff in the hint bar
+  // --- Beats 4–5: the later encounters ---------------------------------------
+  { name: "08-encounter2", minMs: 300, eval: stageEncounter(3, true) }, // Ambush (spare path reveals it)
+  { name: "09-encounter3", minMs: 300, eval: stageEncounter(4, false) }, // the Captain's Holdout (bridge-cut)
+  // --- Terminal: a full auto-played run, then the end screen ------------------
+  { name: "10-end", minMs: 300, eval: autoPlayToEnd() },
+  // --- The guild hall (boots on the base URL, no #demo) -----------------------
+  { name: "11-guild", goto: "", minMs: 500 },                  // hall: card pinned open (feedback visible)
+  { name: "11b-guild-collapsed", minMs: 600, eval: togglePin("GuildScene") }, // unpin → collapses to a bottom-right chip
 ];
+
+// Each helper returns a *plain function* puppeteer serializes and runs in the page
+// (so it can't close over anything here). They call the DemoScene's own render
+// methods, keeping every captured frame faithful to what the live game draws.
+
+/** Toggle a scene's hint-card pinned-open state (DemoScene unless named). */
+function togglePin(scene = "DemoScene") {
+  return new Function(`window.game.scene.getScene(${JSON.stringify(scene)}).hintPanel.togglePin();`);
+}
+/** Push the current deploy unit deep, max the alert, and trigger a spot → the unit
+ *  bolts for cover rolling capture per tile (seeded, so the outcome is reproducible). */
+function spotDeploy(col) {
+  return new Function(
+    `const s=window.game.scene.getScene("DemoScene");const u=s.deployActor;` +
+      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.deployAlert.meter=100;s.resolveDeploy(u);}`,
+  );
+}
+/** Jump to beat `i` and let the scene dispatch it (provision / rest). */
+function gotoBeat(i) {
+  return new Function(`const s=window.game.scene.getScene("DemoScene");s.runner.outcome=undefined;s.runner.beatIndex=${i};s.nextBeat();`);
+}
+/** Stage encounter beat `i` and draw its opening board; `reveal` un-hides the ambush.
+ *  Clears any leftover command panel — a fresh board shows none until a player's turn
+ *  (in live play the prior beat's panel is torn down on the click that advanced it). */
+function stageEncounter(i, reveal) {
+  return new Function(`const s=window.game.scene.getScene("DemoScene");const r=s.runner;r.outcome=undefined;r.beatIndex=${i};r.ambushRevealed=${reveal};s.startEncounter();s.clearButtons();`);
+}
+/** Reset to a pristine party, auto-play the whole quest, then show the end screen. */
+function autoPlayToEnd() {
+  return new Function(
+    `const s=window.game.scene.getScene("DemoScene");const r=s.runner;` +
+      `r.beatIndex=0;r.outcome=undefined;r.log.length=0;r.ambushRevealed=false;r.gold=0;` +
+      `r.party.forEach(u=>{u.hp=u.maxHp;u.alive=true;});r.autoPlay("spare");s.nextBeat();`,
+  );
+}
 
 // chrome-for-testing packages per platform: [zip subpath, binary subpath].
 const PLATFORMS = {
@@ -86,7 +144,8 @@ async function waitForSettled(page, minMs = 250, timeoutMs = 8000) {
   while (Date.now() - start < timeoutMs) {
     const settled = await page.evaluate(() => {
       const scene = window.game?.scene?.getScene?.("DemoScene");
-      return !scene || typeof scene.isSettled !== "function" ? true : scene.isSettled();
+      if (!scene || typeof scene.isSettled !== "function") return true;
+      try { return scene.isSettled(); } catch { return true; } // inactive scene (e.g. on the Guild page)
     });
     if (settled) return;
     await sleep(80);
@@ -163,9 +222,19 @@ async function main() {
     // chevron bob) — set before any page script runs.
     await page.evaluateOnNewDocument(() => { window.__SHOT__ = true; });
     await page.goto(`${url}#demo`, { waitUntil: "networkidle0", timeout: 30000 });
-    const canvas = await page.waitForSelector("canvas", { timeout: 15000 });
+    let canvas = await page.waitForSelector("canvas", { timeout: 15000 });
 
     for (const step of STEPS) {
+      // A `goto` re-navigates to another scene (e.g. "" boots the Guild hall on the
+      // base URL); the canvas element is recreated, so re-acquire it.
+      if (step.goto !== undefined) {
+        // "load" (not networkidle0) — the dev server's HMR socket keeps the page
+        // from ever going network-idle on a re-navigation. The settle gate below
+        // still makes the frame deterministic.
+        await page.goto(step.goto ? `${url}#${step.goto}` : url, { waitUntil: "load", timeout: 30000 });
+        canvas = await page.waitForSelector("canvas", { timeout: 15000 });
+      }
+      if (step.eval) await page.evaluate(step.eval);
       for (const key of step.keys ?? []) await page.keyboard.press(key);
       // Position the cursor (canvas coords → page coords via the canvas box).
       const box = await canvas.boundingBox();

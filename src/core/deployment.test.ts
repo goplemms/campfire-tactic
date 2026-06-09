@@ -8,8 +8,19 @@ import {
   freeCaptive,
   isCaptured,
   CAPTURE_THRESHOLD,
+  createAlert,
+  deployNoise,
+  addNoise,
+  rollAlerted,
+  captureChance,
+  settleAlert,
+  NOISE_PER_DEPTH,
+  CAPTURE_CHANCE_MAX,
+  resolveDeployAction,
 } from "./deployment";
 import { CTClock, sideSeed } from "./clock";
+import { Rng } from "./rng";
+import { TileGrid } from "./grid";
 import { createUnit, type Side, type Unit } from "./units";
 
 function unit(id: string, side: Side, awareness: number, speed = 10): Unit {
@@ -110,5 +121,104 @@ describe("initiative seed excludes captured units (D7 → D11)", () => {
       if (actor) clock.spend(actor, { acted: true });
     }
     expect(sawValeNow).toBe(true);
+  });
+});
+
+describe("deployment stealth-alert layer (D11)", () => {
+  // awareness 2 → safe depth 3 (2 + floor(2/2)).
+  const scout = () => unit("scout", "player", 2);
+
+  it("noise is silent within the safe zone and scales past it", () => {
+    const u = scout();
+    expect(safeDepth(u)).toBe(3);
+    expect(deployNoise(u, 3)).toBe(0); // at the safe edge
+    expect(deployNoise(u, 4)).toBe(NOISE_PER_DEPTH); // one tile past
+    expect(deployNoise(u, 6)).toBe(3 * NOISE_PER_DEPTH);
+  });
+
+  it("the shared meter accumulates across units and clamps at the cap", () => {
+    const alert = createAlert();
+    addNoise(alert, scout(), 5); // +24
+    addNoise(alert, scout(), 5); // +24 → 48
+    expect(alert.meter).toBe(48);
+    for (let i = 0; i < 20; i++) addNoise(alert, scout(), 7);
+    expect(alert.meter).toBe(100); // clamped to ALERT_CAP
+  });
+
+  it("capture chance rises with depth and is capped", () => {
+    const u = scout();
+    expect(captureChance(u, 3)).toBe(0); // safe
+    expect(captureChance(u, 4)).toBeCloseTo(0.15, 5);
+    expect(captureChance(u, 99)).toBe(CAPTURE_CHANCE_MAX); // capped, never a sure loss
+  });
+
+  it("alert rolls are deterministic for a given seed", () => {
+    const seq = (seed: number) => {
+      const alert = createAlert();
+      alert.meter = 50;
+      const rng = new Rng(seed);
+      return Array.from({ length: 8 }, () => rollAlerted(alert, rng));
+    };
+    expect(seq(42)).toEqual(seq(42)); // same seed → same outcomes
+    // a 50% meter over 8 rolls should produce a mix (not all one way)
+    const rolls = seq(42);
+    expect(rolls.some(Boolean) && rolls.some((b) => !b)).toBe(true);
+  });
+
+  it("settling halves the meter after a survived spotting", () => {
+    const alert = createAlert();
+    alert.meter = 80;
+    settleAlert(alert);
+    expect(alert.meter).toBe(40);
+  });
+});
+
+describe("resolveDeployAction — the shared stealth resolver (D11)", () => {
+  // 6-wide board; awareness 2 → safe depth 3.
+  const grid = () => new TileGrid(6, 4);
+  const deep = (col: number) => {
+    const u = unit("scout", "player", 2);
+    u.pos = { col, row: 1 };
+    return u;
+  };
+
+  it("a move inside the safe zone is silent (never spotted)", () => {
+    const u = deep(2); // within safe depth 3
+    const alert = createAlert();
+    const out = resolveDeployAction(alert, u, grid(), [u], new Rng(1));
+    expect(out.spotted).toBe(false);
+    expect(alert.meter).toBe(0);
+  });
+
+  it("a forward action with a hot meter is spotted and retreats toward cover", () => {
+    const u = deep(5); // 2 past safe
+    const ally = unit("ally", "player", 2); // a second body so the last-unit shield doesn't apply
+    const alert = createAlert();
+    alert.meter = 100; // guarantee a spot
+    const out = resolveDeployAction(alert, u, grid(), [u, ally], new Rng(7));
+    expect(out.spotted).toBe(true);
+    expect(out.retreatPath.length).toBeGreaterThan(0);
+    // the retreat ends inside the safe zone
+    expect(out.retreatPath[out.retreatPath.length - 1].col).toBeLessThanOrEqual(safeDepth(u));
+  });
+
+  it("the party's last un-captured unit is spotted but never netted", () => {
+    const u = deep(5);
+    const alert = createAlert();
+    alert.meter = 100;
+    const out = resolveDeployAction(alert, u, grid(), [u], new Rng(7)); // u is the only unit
+    expect(out.spotted).toBe(true);
+    expect(out.capturedAt).toBe(-1); // protected
+  });
+
+  it("is deterministic for a given seed", () => {
+    const run = (seed: number) => {
+      const u = deep(5);
+      const ally = unit("ally", "player", 2);
+      const alert = createAlert();
+      alert.meter = 80;
+      return resolveDeployAction(alert, u, grid(), [u, ally], new Rng(seed));
+    };
+    expect(run(123)).toEqual(run(123));
   });
 });

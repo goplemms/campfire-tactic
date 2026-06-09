@@ -1,20 +1,30 @@
 /**
- * Deployment — the per-unit push-your-luck exposure gamble (D7/D11).
+ * Deployment — the push-your-luck deployment gamble (D7/D11).
  *
- * Deployment plays out **on the board**, like combat: units walk out and place
- * field entities where they stand. The gamble is **spatial** — a **safe depth**
- * near your edge (banded by Awareness) costs nothing, but each tile **deeper**
- * you commit a placement raises a **transparent exposure meter**. Cross
- * {@link CAPTURE_THRESHOLD} and the unit is **captured** — bound on the map,
- * dropped from the initiative seed, a rescuable sub-objective in the battle.
+ * Deployment plays out **on the board**, like combat: units walk out (and may
+ * lay traps) where they stand. The gamble is **spatial** — a **safe depth** near
+ * your edge (banded by Awareness) is silent, but each tile **deeper** you commit
+ * a noisy action carries more risk.
  *
- * (M5b uses a transparent deterministic meter driven by placement depth; the
- * full D11 "auto-retreat with a per-step roll" is a later tuning pass.)
+ * This module carries two models on that same spatial spine:
+ *  - **M5b** — a transparent *deterministic* exposure meter (placement depth →
+ *    {@link recordPlacement}); cross {@link CAPTURE_THRESHOLD} and the unit is
+ *    captured. Kept for reference / re-use.
+ *  - **D11** — the *stealth* model both scenes now run on: a shared, party-wide
+ *    camp-alert meter that noisy actions raise, a seeded **spot** roll, and a
+ *    **bolt-for-cover retreat** with a per-tile capture roll (the party's last
+ *    un-captured fighter is never netted). See {@link resolveDeployAction}.
  *
- * Pure logic: no Phaser, no DOM.
+ * Either way a captured unit is **bound on the map**, dropped from the initiative
+ * seed, a rescuable sub-objective in the battle. Pure logic: no Phaser, no DOM.
  */
 
 import type { Unit } from "./units";
+import type { Rng } from "./rng";
+import type { TileGrid } from "./grid";
+import type { GridCoord } from "./iso";
+import { findPath } from "./pathfinding";
+import { occupiedGrid } from "./ai";
 
 /** Exposure at which a unit is captured. */
 export const CAPTURE_THRESHOLD = 100;
@@ -104,4 +114,133 @@ export function freeCaptive(unit: Unit): void {
 /** True if the unit is currently captured. */
 export function isCaptured(unit: Unit): boolean {
   return unit.captured;
+}
+
+// --- D11: the stealth-alert layer (party-wide cumulative awareness) ---------
+//
+// A second, *probabilistic* deployment model layered on the same spatial depth:
+// each forward action raises a **shared camp-awareness meter**; the further past
+// safe depth, the more noise. After a noisy action you **roll against the meter**
+// — on an alert the spotted unit auto-retreats to safety, and **each tile of that
+// retreat is a capture roll** whose odds scale with how deep it was caught. All
+// rolls take a seeded {@link Rng}, so a given seed always plays out the same.
+
+/** Camp awareness gained per tile a unit deploys past its safe depth. */
+export const NOISE_PER_DEPTH = 12;
+/** Awareness ceiling — the alert chance on an action is `meter / ALERT_CAP`. */
+export const ALERT_CAP = 100;
+/** Per-tile capture chance gained per tile past safe depth, during a retreat. */
+export const CAPTURE_PER_DEPTH = 0.15;
+/** Cap on the per-tile capture chance, so even a deep retreat isn't a sure loss. */
+export const CAPTURE_CHANCE_MAX = 0.6;
+/** Fraction the meter settles to after a spotting that ends without a capture. */
+export const ALERT_SETTLE = 0.5;
+
+/** Party-wide deployment awareness (D11): one shared meter the camp accrues. */
+export interface DeployAlert {
+  meter: number;
+}
+
+/** A fresh (silent) alert meter for the start of a deployment. */
+export function createAlert(): DeployAlert {
+  return { meter: 0 };
+}
+
+/** Awareness a unit raises by deploying to `depth` — zero within its safe depth. */
+export function deployNoise(unit: Unit, depth: number, moraleDepthBonus = 0): number {
+  return Math.max(0, depth - safeDepth(unit, moraleDepthBonus)) * NOISE_PER_DEPTH;
+}
+
+/** Add a unit's deploy noise to the shared meter (clamped to the cap); returns it. */
+export function addNoise(alert: DeployAlert, unit: Unit, depth: number, moraleDepthBonus = 0): number {
+  alert.meter = Math.min(ALERT_CAP, alert.meter + deployNoise(unit, depth, moraleDepthBonus));
+  return alert.meter;
+}
+
+/** Roll whether the camp spots a forward action, weighted by the current meter. */
+export function rollAlerted(alert: DeployAlert, rng: Rng): boolean {
+  return rng.chance(alert.meter / ALERT_CAP);
+}
+
+/**
+ * The per-tile capture chance for a unit caught at `depth`, scaling with how far
+ * past its safe depth it ranged — so a deep push is a long, dangerous walk home
+ * and a shallow one usually slips back.
+ */
+export function captureChance(unit: Unit, depth: number, moraleDepthBonus = 0): number {
+  return Math.min(CAPTURE_CHANCE_MAX, Math.max(0, depth - safeDepth(unit, moraleDepthBonus)) * CAPTURE_PER_DEPTH);
+}
+
+/** Settle the meter after a survived spotting — the patrol checked and relaxed. */
+export function settleAlert(alert: DeployAlert): void {
+  alert.meter = Math.round(alert.meter * ALERT_SETTLE);
+}
+
+/**
+ * The resolved outcome of one noisy deploy action: whether the camp spotted it,
+ * and if so the spotted unit's retreat path to cover and where (if anywhere) it
+ * gets netted. The scene just *plays* this plan — all the rolls happened here.
+ */
+export interface DeployOutcome {
+  spotted: boolean;
+  /** Tiles the spotted unit retreats along toward cover (empty if not spotted). */
+  retreatPath: GridCoord[];
+  /** Index into retreatPath where the unit is netted, or -1 if it reaches cover. */
+  capturedAt: number;
+}
+
+/**
+ * The closest reachable, unoccupied tile inside `unit`'s safe depth — returned as
+ * the retreat path (origin tile dropped), or `[]` if there's nowhere to fall back.
+ */
+export function nearestSafePath(grid: TileGrid, units: readonly Unit[], unit: Unit, moraleDepthBonus = 0): GridCoord[] {
+  const safe = Math.min(safeDepth(unit, moraleDepthBonus), grid.cols - 1);
+  const nav = occupiedGrid(grid, units, [unit]);
+  let best: GridCoord[] | null = null;
+  for (let col = safe; col >= 0; col--) {
+    for (let row = 0; row < grid.rows; row++) {
+      const t = { col, row };
+      if (!grid.isWalkable(t)) continue;
+      if (units.some((u) => u !== unit && u.alive && u.pos.col === col && u.pos.row === row)) continue;
+      const p = findPath(nav, unit.pos, t);
+      if (p && (!best || p.length < best.length)) best = p;
+    }
+  }
+  return best ? best.slice(1) : [];
+}
+
+/**
+ * Resolve a noisy deployment action end to end (the D11 stealth gamble), the one
+ * model both the demo and the full game run on: add the unit's depth noise to the
+ * shared meter, roll whether the camp spots it, and if so plan the retreat to
+ * cover and roll capture per tile — the party's last un-captured fighter is never
+ * netted. A silent action (within safe depth) is a no-op. Every roll takes the
+ * seeded `rng`, so the whole outcome is reproducible.
+ */
+export function resolveDeployAction(
+  alert: DeployAlert,
+  unit: Unit,
+  grid: TileGrid,
+  units: readonly Unit[],
+  rng: Rng,
+  moraleDepthBonus = 0,
+): DeployOutcome {
+  const quiet: DeployOutcome = { spotted: false, retreatPath: [], capturedAt: -1 };
+  if (deployNoise(unit, unit.pos.col, moraleDepthBonus) === 0) return quiet; // within cover — silent
+  addNoise(alert, unit, unit.pos.col, moraleDepthBonus);
+  if (!rollAlerted(alert, rng)) return quiet;
+
+  const retreatPath = nearestSafePath(grid, units, unit, moraleDepthBonus);
+  const protectedLast = units.filter((u) => u.side === unit.side && !u.captured).length <= 1;
+  let capturedAt = -1;
+  if (!protectedLast) {
+    for (let i = 0; i < retreatPath.length; i++) {
+      if (rng.chance(captureChance(unit, retreatPath[i].col, moraleDepthBonus))) {
+        capturedAt = i;
+        break;
+      }
+    }
+  }
+  if (capturedAt === -1) settleAlert(alert); // got away — the patrol relaxes
+  return { spotted: true, retreatPath, capturedAt };
 }

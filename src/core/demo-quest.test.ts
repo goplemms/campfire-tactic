@@ -105,6 +105,23 @@ describe("the DemoRunner walks the Hollow Mill beats (D44)", () => {
     expect(runner.log.length).toBeGreaterThan(0);
   });
 
+  it("keeps story-choice button labels terse (detail belongs in the hover hint)", () => {
+    // A choice button is a label, not a paragraph: the DemoScene panel fits ~24
+    // chars at full size, so anything longer gets shrunk/ellipsized and becomes
+    // hard to read. The tradeoff each choice carries lives in its outcome
+    // `summary` (surfaced as the hover hint) instead of being crammed on the button.
+    const BUTTON_LABEL_BUDGET = 24;
+    const choices = THE_HOLLOW_MILL.beats.flatMap((b) => (b.kind === "rest" && b.choice ? [b.choice] : []));
+    expect(choices.length).toBeGreaterThan(0);
+    for (const c of choices) {
+      expect(c.spareLabel.length).toBeLessThanOrEqual(BUTTON_LABEL_BUDGET);
+      expect(c.pressLabel.length).toBeLessThanOrEqual(BUTTON_LABEL_BUDGET);
+      // The detail still exists — just in the summaries the UI shows on hover.
+      expect(c.spare.summary.length).toBeGreaterThan(0);
+      expect(c.press.summary.length).toBeGreaterThan(0);
+    }
+  });
+
   it("objective-failure is survivable — distinct from a wipe (D43)", () => {
     const runner = new DemoRunner();
     const beat = THE_HOLLOW_MILL.beats.find((b) => b.kind === "encounter" && b.encounter.id === E3_HOLDOUT.id);

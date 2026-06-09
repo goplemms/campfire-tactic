@@ -159,8 +159,10 @@ export const THE_HOLLOW_MILL: AuthoredQuest = {
       xp: 100, // tuned to take the party from job-L1 to L2 → 2nd actives unlock
       choice: {
         prompt: "A wounded bandit deserter begs for mercy.",
-        spareLabel: "Spare (intel: the ambush + a snare-trapper ahead)",
-        pressLabel: "Press (take his gold; you'll have to scout)",
+        // Keep the button labels terse — the tradeoff each implies rides in the
+        // outcome `summary`, which the UI surfaces as the hover hint.
+        spareLabel: "Spare him",
+        pressLabel: "Press for coin",
         spare: {
           summary: "He warns of a hidden ambush and a snare-trapper — buy antidotes.",
           items: [{ id: "antidote", count: 1 }],
@@ -181,6 +183,36 @@ export interface StagedEncounter {
   battle: Battle;
   objective: ObjectiveState;
   encounter: AuthoredEncounter;
+}
+
+/**
+ * Balance telemetry for one auto-played encounter (D43 instrumentation). The
+ * auto-play is an AI-vs-AI sim (both sides on the scoring planner, no item use),
+ * so treat these as a *relative* difficulty read — a way to spot pushovers and
+ * coin-flips and to compare branches — not a substitute for human play.
+ */
+export interface EncounterReport {
+  encounter: string;
+  result: EncounterResult;
+  /** Actor activations until the fight resolved. */
+  turns: number;
+  /** Party HP fraction (0–1) when the fight ended, before the retreat heal. */
+  endHpPct: number;
+  /** The lowest party HP fraction seen at any point — the closest call. */
+  lowestHpPct: number;
+  /** Party members downed at the fight's end. */
+  downed: number;
+  /** Foes still standing at the end (telling on a wipe / objective loss). */
+  foesLeft: number;
+  /** Most simultaneous party debuffs — how much the snare/debuffer pressure bit. */
+  debuffPeak: number;
+}
+
+/** Telemetry for a whole auto-played run of a quest, one row per encounter. */
+export interface RunReport {
+  restChoice: "spare" | "press";
+  outcome: "complete" | "failed" | "wipe";
+  encounters: EncounterReport[];
 }
 
 /**
@@ -258,10 +290,21 @@ export class DemoRunner {
    * Headlessly auto-play a staged encounter (both sides via the scoring AI) and
    * return the graded result (D43). Stops the moment the objective is lost.
    */
-  autoResolveEncounter(staged: StagedEncounter, maxTurns = 2000): EncounterResult {
+  autoResolveEncounter(staged: StagedEncounter, maxTurns = 2000, sink?: EncounterReport[]): EncounterResult {
     const { battle, objective } = staged;
+    // Balance telemetry, sampled each step (cheap; pushed to `sink` if given).
+    const party = battle.units.filter((u) => u.side === "player");
+    const maxTotal = party.reduce((s, u) => s + u.maxHp, 0) || 1;
+    const hpPct = () => party.reduce((s, u) => s + Math.max(0, u.hp), 0) / maxTotal;
+    const debuffs = () => party.reduce((s, u) => s + u.statuses.filter((st) => st.kind === "debuff").length, 0);
+    let turns = 0;
+    let lowest = hpPct();
+    let debuffPeak = debuffs();
+
     let result: EncounterResult | undefined;
     for (let i = 0; i < maxTurns; i++) {
+      lowest = Math.min(lowest, hpPct());
+      debuffPeak = Math.max(debuffPeak, debuffs());
       if (objective.failed) {
         result = "objective-failure";
         break;
@@ -273,6 +316,7 @@ export class DemoRunner {
       }
       const actor = battle.nextActor();
       if (!actor) break;
+      turns++;
       if (objective.failed) {
         result = "objective-failure";
         break;
@@ -288,7 +332,18 @@ export class DemoRunner {
       if (plan.target?.alive) battle.attack(actor, plan.target);
       battle.endTurn(actor, { moved: plan.path.length > 0, acted: plan.target !== null });
     }
-    return result ?? (objective.failed ? "objective-failure" : "wipe");
+    const final = result ?? (objective.failed ? "objective-failure" : "wipe");
+    sink?.push({
+      encounter: staged.encounter.name,
+      result: final,
+      turns,
+      endHpPct: hpPct(),
+      lowestHpPct: lowest,
+      downed: party.filter((u) => u.hp <= 0).length,
+      foesLeft: battle.units.filter((u) => u.side === "enemy" && u.alive).length,
+      debuffPeak,
+    });
+    return final;
   }
 
   /**
@@ -343,7 +398,7 @@ export class DemoRunner {
    * herb load, spare the deserter, auto-resolve each fight). Returns the
    * terminal outcome. Used by tests + as the demo's fast-forward.
    */
-  autoPlay(restChoice: "spare" | "press" = "spare"): "complete" | "failed" | "wipe" {
+  autoPlay(restChoice: "spare" | "press" = "spare", sink?: EncounterReport[]): "complete" | "failed" | "wipe" {
     while (this.beatIndex < this.quest.beats.length && !this.outcome) {
       const beat = this.currentBeat()!;
       if (beat.kind === "provision") {
@@ -356,12 +411,19 @@ export class DemoRunner {
         this.rest(restChoice);
       } else {
         const staged = this.stageEncounter(beat);
-        const result = this.autoResolveEncounter(staged);
+        const result = this.autoResolveEncounter(staged, 2000, sink);
         this.resolveEncounter(staged, result);
       }
       this.advance();
     }
     if (!this.outcome) this.outcome = "complete";
     return this.outcome;
+  }
+
+  /** {@link autoPlay} plus per-encounter balance telemetry (see {@link RunReport}). */
+  autoPlayReport(restChoice: "spare" | "press" = "spare"): RunReport {
+    const encounters: EncounterReport[] = [];
+    const outcome = this.autoPlay(restChoice, encounters);
+    return { restChoice, outcome, encounters };
   }
 }

@@ -13,16 +13,16 @@ import {
   unitSkills,
   isValidSkillTarget,
   makeTrap,
-  // M5b — logistics / deployment gamble
+  // M5b/D11 — deployment: the shared stealth-alert model
   removeItem,
   countOf,
   slotsUsed,
-  createExposure,
-  recordPlacement,
-  exposureRisk,
   safeDepth,
-  placementCost,
   freeCaptive,
+  captureUnit,
+  createAlert,
+  resolveDeployAction,
+  streamFor,
   // M5 — camp / morale
   moraleTier,
   moraleModifiers,
@@ -41,7 +41,9 @@ import {
   type RunState,
   type RunLoop,
   type IntelReport,
-  type DeployExposure,
+  type DeployAlert,
+  type DeployOutcome,
+  type Rng,
   type GridCoord,
   type Unit,
   type Side,
@@ -49,13 +51,9 @@ import {
   type TheftAttempt,
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
-import { fitText } from "../ui";
-
-/** A small text button with a hover highlight. */
-interface TextButton {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
+import { Button } from "../button";
+import { HintPanel } from "../hint-panel";
+import { dropNet as dropNetCage } from "../deploy-fx";
 
 /**
  * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
@@ -96,15 +94,16 @@ export class BattleScene extends Phaser.Scene {
   private campText!: Phaser.GameObjects.Text;
   private intelText!: Phaser.GameObjects.Text;
   private orderText!: Phaser.GameObjects.Text;
-  private hintText!: Phaser.GameObjects.Text;
+  private hintPanel!: HintPanel;
   private lastHint = "";
-  private primary!: TextButton;
+  private primary!: Button;
   private actionButtons: Phaser.GameObjects.GameObject[] = [];
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
-  // Deployment state.
+  // Deployment state (D11): a shared camp-alert meter + a seeded roll stream.
   private deployActor: Unit | null = null;
-  private deployExposures = new Map<string, DeployExposure>();
+  private deployAlert: DeployAlert = createAlert();
+  private deployRng!: Rng;
   private placedTraps: { pos: GridCoord; damage: number; marker: Phaser.GameObjects.Text; sprung: boolean }[] = [];
   private trapDamage = 12;
   private intel?: IntelReport;
@@ -143,9 +142,10 @@ export class BattleScene extends Phaser.Scene {
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: "#d6c98a", fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     this.orderText = this.add.text(12, 12, "", { color: "#cdd7ee", fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
-    this.hintText = this.add.text(this.scale.width / 2, this.scale.height - 104, "", { color: "#9fb0d0", fontSize: FONT.body, align: "center", wordWrap: { width: 700 } }).setOrigin(0.5).setDepth(10);
+    this.hintPanel = new HintPanel(this);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
+    this.primary.setDepth(12);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
 
     this.startCombatNode();
@@ -176,7 +176,6 @@ export class BattleScene extends Phaser.Scene {
     this.waitingFor = null;
     this.armedSkill = null;
     this.deployActor = null;
-    this.deployExposures.clear();
     this.placedTraps = [];
     this.rebuildBoard();
 
@@ -212,6 +211,8 @@ export class BattleScene extends Phaser.Scene {
 
   private enterDeploy(): void {
     this.phase = "deployment";
+    this.deployAlert = createAlert();
+    this.deployRng = streamFor(this.run.seed, "deploy");
     const trapSkill = this.run.party
       .flatMap((u) => unitSkills(u, "deployment"))
       .find((s) => s.effect.kind === "placeTrap");
@@ -222,15 +223,6 @@ export class BattleScene extends Phaser.Scene {
 
   private moraleMods() {
     return moraleModifiers(moraleTier(this.run.camp.morale));
-  }
-
-  private exposureOf(unit: Unit): DeployExposure {
-    let st = this.deployExposures.get(unit.id);
-    if (!st) {
-      st = createExposure();
-      this.deployExposures.set(unit.id, st);
-    }
-    return st;
   }
 
   private selectDeployActor(unit: Unit | null): void {
@@ -278,13 +270,11 @@ export class BattleScene extends Phaser.Scene {
       this.titleText.setText("Deployment");
       return;
     }
-    const st = this.exposureOf(actor);
-    const pct = Math.round(exposureRisk(st) * 100);
     const mods = this.moraleMods();
-    const here = Math.round(placementCost(actor, this.depthOf(actor.pos), mods));
+    const past = Math.max(0, this.depthOf(actor.pos) - safeDepth(actor, mods.safeDepthBonus));
     const kits = countOf(this.run.inventory, "trap-kit");
-    const tag = actor.captured ? " — CAPTURED" : `, safe to depth ${safeDepth(actor, mods.safeDepthBonus)} (place here +${here}%)`;
-    this.titleText.setText(`Deployment — ${actor.name} exposure ${pct}%${tag} · Trap Kits ${kits}`);
+    const tag = actor.captured ? " — CAPTURED" : past > 0 ? ` — ${past} past safe` : " — in cover";
+    this.titleText.setText(`Deployment — ${actor.name}${tag} · camp alert ${this.deployAlert.meter}% · Trap Kits ${kits}`);
   }
 
   private drawSafeZone(unit: Unit | null): void {
@@ -328,9 +318,62 @@ export class BattleScene extends Phaser.Scene {
     this.animateMove(actor, steps, () => {
       this.busy = false;
       this.highlightTile(actor.pos);
+      this.resolveDeploy(actor);
+    });
+  }
+
+  /** Resolve a noisy deploy action (move or deep trap) via the shared core model. */
+  private resolveDeploy(actor: Unit): void {
+    const outcome = resolveDeployAction(this.deployAlert, actor, this.grid, this.battle.units, this.deployRng, this.moraleMods().safeDepthBonus);
+    if (outcome.spotted) this.playRetreat(actor, outcome);
+    else {
       this.refreshDeployStatus();
       this.refreshDeployButtons();
+    }
+  }
+
+  /** Animate a spotted unit bolting for cover along the resolver's planned path. */
+  private playRetreat(unit: Unit, outcome: DeployOutcome): void {
+    this.setHint(`${unit.name} was spotted — bolting for cover!`);
+    if (outcome.retreatPath.length === 0) {
+      this.refreshDeployStatus();
+      this.refreshDeployButtons();
+      return;
+    }
+    this.walkRetreat(unit, outcome.retreatPath, outcome.capturedAt, 0);
+  }
+
+  /** Step the retreat one tile at a time; net the unit at the planned capture index. */
+  private walkRetreat(unit: Unit, path: readonly GridCoord[], capturedAt: number, i: number): void {
+    if (i >= path.length) {
+      this.busy = false;
+      this.highlightTile(unit.pos);
+      this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
+      this.refreshDeployStatus();
+      this.refreshDeployButtons();
+      return;
+    }
+    this.busy = true;
+    unit.pos = { ...path[i] };
+    this.animateMove(unit, [path[i]], () => {
+      this.placeView(unit);
+      if (i === capturedAt) return this.netCapture(unit);
+      this.walkRetreat(unit, path, capturedAt, i + 1);
     });
+  }
+
+  /** Netted mid-retreat: drop the net, then bind the unit in the enemy zone. */
+  private netCapture(unit: Unit): void {
+    captureUnit(unit);
+    this.dropNet(unit);
+    this.busy = false;
+    this.captureDuringDeploy(unit);
+  }
+
+  /** Drop the capture-net cage on a unit's tile (shared deploy FX). */
+  private dropNet(unit: Unit): void {
+    const { x, y } = this.tileToWorld(unit.pos);
+    this.boardObjects.push(dropNetCage(this, x, y - TILE_HEIGHT / 2));
   }
 
   private placeTrap(): void {
@@ -351,21 +394,9 @@ export class BattleScene extends Phaser.Scene {
     this.boardObjects.push(marker);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
     this.refreshCampText();
-
-    const st = this.exposureOf(actor);
-    const result = recordPlacement(st, actor, this.depthOf(tile), this.moraleMods());
-    this.refreshDeployStatus();
-    if (result.captured) {
-      this.captureDuringDeploy(actor);
-    } else {
-      const pct = Math.round(exposureRisk(st) * 100);
-      this.refreshDeployButtons();
-      this.setHint(
-        result.exposureAdded > 0
-          ? `Trap placed deep — exposure now ${pct}%. Press your luck or Start Battle.`
-          : "Trap placed safely. Range deeper or Start Battle.",
-      );
-    }
+    this.setHint("Trap placed. A deep one is noisy — range back or Start Battle.");
+    // A trap laid past the safe zone is a noisy action too, so it rolls a spot.
+    this.resolveDeploy(actor);
   }
 
   private captureDuringDeploy(unit: Unit): void {
@@ -375,7 +406,7 @@ export class BattleScene extends Phaser.Scene {
     this.highlightTile(null);
     const next = this.battle.units.find((u) => u.side === "player" && !u.captured && u !== unit);
     this.selectDeployActor(next ?? null);
-    this.setHint(`${unit.name} ranged too deep and was captured! She starts the battle bound in the enemy zone — rescue her, or win to bring her home.`);
+    this.setHint(`${unit.name} was netted mid-retreat! She starts the battle bound in the enemy zone — rescue her, or win to bring her home.`);
   }
 
   // --- Phase: Battle ---------------------------------------------------------
@@ -846,7 +877,7 @@ export class BattleScene extends Phaser.Scene {
 
   private setHint(text: string): void {
     this.lastHint = text;
-    this.hintText.setText(text);
+    this.hintPanel.setResting(text);
   }
 
   private highlightTile(coord: GridCoord | null): void {
@@ -867,27 +898,22 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Buttons ---------------------------------------------------------------
 
-  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
-    const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.body }).setOrigin(0.5).setDepth(13);
-    fitText(label, w - 10);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color);
-      if (description) this.hintText.setText(description);
+  private makeTextButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): Button {
+    const btn = new Button(this, x, y, {
+      text,
+      w,
+      h,
+      fill,
+      stroke,
+      onClick,
+      hint: { bar: this.hintPanel, description, idle: () => this.lastHint },
     });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      bg.setFillStyle(fill);
-      if (description) this.hintText.setText(this.lastHint);
-    });
-    return { bg, label };
+    this.add.existing(btn).setDepth(12);
+    return btn;
   }
 
   private setPrimary(text: string, visible = true): void {
-    this.primary.label.setText(text);
-    fitText(this.primary.label, this.primary.bg.width - 10);
-    this.primary.bg.setVisible(visible);
-    this.primary.label.setVisible(visible);
+    this.primary.setLabel(text).setVisible(visible);
   }
 
   private clearActionButtons(): void {
@@ -902,8 +928,7 @@ export class BattleScene extends Phaser.Scene {
     const gap = Math.min(150, 720 / specs.length);
     const startX = this.scale.width / 2 - ((specs.length - 1) * gap) / 2;
     specs.forEach((spec, i) => {
-      const btn = this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
-      this.actionButtons.push(btn.bg, btn.label);
+      this.actionButtons.push(this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description));
     });
   }
 

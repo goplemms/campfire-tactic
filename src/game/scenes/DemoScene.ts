@@ -16,6 +16,14 @@ import {
   effectiveMove,
   isImmobilized,
   computeFlankBonus,
+  safeDepth,
+  captureUnit,
+  createAlert,
+  resolveDeployAction,
+  streamFor,
+  type DeployAlert,
+  type DeployOutcome,
+  type Rng,
   jobLevelOf,
   canSee,
   statusVisual,
@@ -29,13 +37,10 @@ import {
   type StagedEncounter,
   type EncounterResult,
 } from "../../core";
-import { fitText } from "../ui";
-
-/** A small text button. */
-interface TextButton {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
+import { Button, ButtonColumn } from "../button";
+import { HintPanel } from "../hint-panel";
+import { roleColor } from "../roles";
+import { dropNet as dropNetCage } from "../deploy-fx";
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
 function initialsOf(name: string): string {
@@ -58,8 +63,16 @@ export class DemoScene extends Phaser.Scene {
 
   private originX = 0;
   private originY = 0;
-  /** Width of the right-hand vertical command panel — the board reserves this band. */
-  private readonly panelW = 150;
+  /**
+   * The right-hand vertical command panel sizes itself to its labels: short sets
+   * (Dash / Defend) stay snug at {@link panelMinW}, while a long label (a kit name
+   * plus a `[cd N]` tag, `+ stimulant (have 0)`) grows the panel *leftward* into
+   * the empty gap beside the board rather than shrinking the text to fit. The
+   * board always reserves the {@link panelMaxW} band on the right, so even a
+   * fully-grown panel never hides a far-right tile.
+   */
+  private readonly panelMinW = 150;
+  private readonly panelMaxW = 196;
   private gridGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
   /** Move-range / attack / valid-target preview, painted on the player's turn. */
@@ -84,6 +97,8 @@ export class DemoScene extends Phaser.Scene {
       hpBarW: number;
     }
   >();
+  /** Units we've already played the death animation for (reset each encounter). */
+  private deadSeen = new Set<string>();
   /** The unit whose turn it is, and the one under the cursor — both get a nameplate. */
   private activeUnitId: string | null = null;
   private hoveredUnitId: string | null = null;
@@ -95,13 +110,20 @@ export class DemoScene extends Phaser.Scene {
   /** One reusable Text per turn-order row (Phaser Text can't colour lines individually). */
   private orderLines: Phaser.GameObjects.Text[] = [];
   private timerText!: Phaser.GameObjects.Text;
-  private hintText!: Phaser.GameObjects.Text;
+  private hintPanel!: HintPanel;
   private lastHint = "";
-  private primary!: TextButton;
-  private buttons: Phaser.GameObjects.GameObject[] = [];
-  /** Click handlers for the current action-row buttons (number-key hotkeys 1–9). */
-  private buttonActions: (() => void)[] = [];
+  private primary!: Button;
+  /** The current right-hand command panel (kit abilities / provision / choices), if any. */
+  private commandPanel?: ButtonColumn;
   private overlay: Phaser.GameObjects.GameObject[] = [];
+
+  // Deployment (M5b/D11): reposition before each fight. Pushing a unit past its
+  // safe depth raises a shared camp-alert meter; on a spot the unit bolts for
+  // cover, risking capture along the way. Rolls use a seeded, reproducible stream.
+  private deploying = false;
+  private deployActor: Unit | null = null;
+  private deployAlert: DeployAlert = createAlert();
+  private deployRng!: Rng;
 
   // Battle interaction.
   private waitingFor: Unit | null = null;
@@ -124,9 +146,9 @@ export class DemoScene extends Phaser.Scene {
     this.orderBg = this.add.rectangle(4, 64, 10, 10, 0x141925, 0.55).setStrokeStyle(1, 0x3d4b6e).setOrigin(0, 0).setDepth(9).setVisible(false);
     this.orderText = this.add.text(10, 70, "", { color: "#cdd7ee", fontSize: FONT.caption, lineSpacing: 3 }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: "#f0b06a", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
-    // Centered in the area left of the right-hand command panel so long hints
-    // (and the per-button descriptions shown on hover) never run under it.
-    this.hintText = this.add.text((this.scale.width - 170) / 2, this.scale.height - 100, "", { color: "#9fb0d0", fontSize: FONT.label, align: "center", wordWrap: { width: 540 } }).setOrigin(0.5).setDepth(10);
+    // A collapsible top-right card consolidates contextual tips and the command
+    // keys in one consistent place (hover to peek, click to pin).
+    this.hintPanel = new HintPanel(this, { keys: "Space / Enter = advance · 1–9 = abilities" });
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
@@ -135,8 +157,8 @@ export class DemoScene extends Phaser.Scene {
       .setStrokeStyle(1.5, 0x7a5a10)
       .setDepth(2)
       .setVisible(false);
-    this.primary = this.makeButton(this.scale.width / 2, this.scale.height - 26, 220, 32, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
-    this.add.text(this.scale.width - 10, this.scale.height - 8, "Space / Enter = advance · 1–9 = abilities", { color: "#6b7794", fontSize: FONT.caption }).setOrigin(1, 1).setDepth(10);
+    this.primary = new Button(this, this.scale.width / 2, this.scale.height - 26, { text: "", w: 220, h: 32, fill: 0x2f6b46, stroke: 0x57b07a, onClick: () => this.onPrimary() });
+    this.add.existing(this.primary).setDepth(12);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.setupKeyboard();
     this.nextBeat();
@@ -150,12 +172,13 @@ export class DemoScene extends Phaser.Scene {
     kb.addCapture("SPACE,ENTER,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,NINE");
     kb.on("keydown", (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "Enter") {
-        if (this.primary.bg.visible) this.onPrimary();
+        if (this.primary.visible) this.onPrimary();
         return;
       }
       const n = Number(e.key);
-      if (Number.isInteger(n) && n >= 1 && n <= this.buttonActions.length) {
-        this.buttonActions[n - 1]();
+      const actions = this.commandPanel?.actions ?? [];
+      if (Number.isInteger(n) && n >= 1 && n <= actions.length) {
+        actions[n - 1]();
       }
     });
   }
@@ -166,10 +189,7 @@ export class DemoScene extends Phaser.Scene {
     this.clearBoard();
     this.clearButtons();
     this.clearOverlay();
-    this.timerText.setText("");
-    this.orderText.setText("");
-    this.orderLines.forEach((t) => t.setVisible(false));
-    this.orderBg.setVisible(false);
+    this.hideBattleHud();
     const beat = this.runner.currentBeat();
     if (!beat || this.runner.outcome) return this.showEnd();
     if (beat.kind === "provision") this.showProvision();
@@ -240,8 +260,10 @@ export class DemoScene extends Phaser.Scene {
       this.setPrimary("To the Chokepoint →");
     };
     this.layoutButtons([
-      { text: choiceMeta?.spareLabel ?? "Spare", description: "Spare the deserter.", onClick: () => apply("spare") },
-      { text: choiceMeta?.pressLabel ?? "Press", description: "Press him for coin.", onClick: () => apply("press") },
+      // Terse labels; the consequence each choice carries shows on hover (the
+      // authored outcome summary) so it doesn't have to cram into the button.
+      { text: choiceMeta?.spareLabel ?? "Spare", description: choiceMeta?.spare.summary ?? "Spare the deserter.", onClick: () => apply("spare") },
+      { text: choiceMeta?.pressLabel ?? "Press", description: choiceMeta?.press.summary ?? "Press him for coin.", onClick: () => apply("press") },
     ]);
     this.setPrimary("", false);
   }
@@ -272,6 +294,149 @@ export class DemoScene extends Phaser.Scene {
     // The header subtitle carries a live ally/foe tally (refreshHud) — storage and
     // gold aren't actionable mid-fight.
     this.rebuildBoard();
+    this.refreshHud();
+    // M5b — a deployment step opens each fight: reposition before the seed.
+    this.enterDeploy();
+  }
+
+  // --- Deployment (M5b) ------------------------------------------------------
+
+  /** Begin the pre-battle deployment step: pick a unit, reset the camp alert. */
+  private enterDeploy(): void {
+    this.deploying = true;
+    this.waitingFor = null;
+    this.armed = null;
+    this.deployAlert = createAlert();
+    this.deployRng = streamFor(this.staged!.encounter.id, "deploy");
+    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
+    this.refreshDeploy();
+    this.setPrimary("Start Battle →");
+  }
+
+  private refreshDeploy(): void {
+    this.refreshHud(); // keep the CT order current (captured units drop); we override its subtitle below
+    this.drawDeployZone(this.deployActor);
+    this.highlightTile(this.deployActor?.pos ?? null);
+    this.setActiveUnit(this.deployActor);
+    const others = this.battle.units.filter((u) => u.side === "player" && !u.captured).length > 1;
+    this.layoutButtons(others ? [{ text: "Next Unit", description: "Switch which unit you're positioning.", onClick: () => this.cycleDeploy() }] : []);
+    const u = this.deployActor;
+    if (!u) {
+      this.subText.setText("Deployment — everyone's in. Start Battle.");
+      this.setHint("Press Start Battle to begin.");
+      return;
+    }
+    const past = Math.max(0, u.pos.col - safeDepth(u));
+    this.subText.setText(`Deploy ${u.name}  ·  camp alert ${this.deployAlert.meter}%  ·  ${past > 0 ? `${past} past safe` : "in cover"}`);
+    this.setHint(`${u.name}: reposition. Pushing past the green safe zone raises the camp's alert — get spotted and they bolt for cover, risking a net on the way. Start Battle when set.`);
+  }
+
+  /** Tint the safe-depth tiles (silent deployment) for the chosen unit. */
+  private drawDeployZone(unit: Unit | null): void {
+    this.preview.clear();
+    if (!unit) return;
+    const maxCol = safeDepth(unit);
+    for (let row = 0; row < this.battle.grid.rows; row++) {
+      for (let col = 0; col <= maxCol && col < this.battle.grid.cols; col++) {
+        if (this.battle.grid.isWalkable({ col, row })) this.fillTile(this.preview, { col, row }, 0x2f6b46, 0.22);
+      }
+    }
+  }
+
+  private cycleDeploy(): void {
+    if (this.busy) return;
+    const players = this.battle.units.filter((u) => u.side === "player" && !u.captured);
+    if (players.length === 0) return;
+    const i = this.deployActor ? players.indexOf(this.deployActor) : -1;
+    this.deployActor = players[(i + 1) % players.length];
+    this.refreshDeploy();
+  }
+
+  private onDeployClick(tile: GridCoord): void {
+    if (this.busy) return;
+    // Click a (deployable) party member to select it.
+    const clicked = this.battle.units.find((u) => u.alive && !u.captured && u.pos.col === tile.col && u.pos.row === tile.row);
+    if (clicked && clicked.side === "player") {
+      this.deployActor = clicked;
+      return this.refreshDeploy();
+    }
+    const actor = this.deployActor;
+    if (!actor || actor.captured) return;
+    if (!this.battle.grid.isWalkable(tile)) return this.setHint("Can't deploy onto that tile.");
+    const nav = occupiedGrid(this.battle.grid, this.battle.units, [actor]);
+    const path = findPath(nav, actor.pos, tile);
+    if (!path || path.length < 2) return this.setHint("No deploy path there.");
+    const steps = path.slice(1).slice(0, effectiveMove(actor));
+    actor.pos = { ...steps[steps.length - 1] };
+    this.busy = true;
+    this.animateMove(actor, steps, () => {
+      this.busy = false;
+      this.placeView(actor);
+      this.resolveDeploy(actor);
+    });
+  }
+
+  /** Resolve a deploy move via the shared core model, then play out the result. */
+  private resolveDeploy(actor: Unit): void {
+    const outcome = resolveDeployAction(this.deployAlert, actor, this.battle.grid, this.battle.units, this.deployRng);
+    if (outcome.spotted) this.playRetreat(actor, outcome);
+    else this.refreshDeploy();
+  }
+
+  /** Animate a spotted unit bolting for cover along the resolver's planned path. */
+  private playRetreat(unit: Unit, outcome: DeployOutcome): void {
+    this.floatText(unit, "SPOTTED!", "#ffd86b", -22);
+    if (outcome.retreatPath.length === 0) return this.refreshDeploy(); // nowhere to fall back
+    this.setHint(`${unit.name} was spotted — bolting for cover!`);
+    this.walkRetreat(unit, outcome.retreatPath, outcome.capturedAt, 0);
+  }
+
+  /** Step the retreat one tile at a time; net the unit at the planned capture index. */
+  private walkRetreat(unit: Unit, path: readonly GridCoord[], capturedAt: number, i: number): void {
+    if (i >= path.length) {
+      this.busy = false;
+      this.refreshDeploy(); // refreshDeploy resets the hint, so set the outcome line after it
+      this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
+      return;
+    }
+    this.busy = true;
+    unit.pos = { ...path[i] };
+    this.animateMove(unit, [path[i]], () => {
+      this.placeView(unit);
+      if (i === capturedAt) return this.netCapture(unit);
+      this.walkRetreat(unit, path, capturedAt, i + 1);
+    });
+  }
+
+  /** Netted mid-retreat: drop the net, bind the unit in the enemy corner. */
+  private netCapture(unit: Unit): void {
+    captureUnit(unit);
+    this.dropNet(unit);
+    this.floatText(unit, "NETTED!", "#ff9d5c", -22);
+    unit.pos = { col: this.battle.grid.cols - 1, row: this.battle.grid.rows - 1 };
+    this.placeView(unit);
+    this.refreshHp();
+    this.busy = false;
+    this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
+    this.refreshDeploy();
+    this.setHint(`${unit.name} was netted mid-retreat — bound for this fight, back with you next encounter.`);
+  }
+
+  /** Drop the capture-net cage on a unit's tile (shared deploy FX). */
+  private dropNet(unit: Unit): void {
+    const { x, y } = this.tileToWorld(unit.pos);
+    this.boardObjects.push(dropNetCage(this, x, y - TILE_HEIGHT / 2, this.reduceMotion));
+  }
+
+  /** Commit the deployment and start combat: re-seed initiative on the final board. */
+  private startBattle(): void {
+    this.deploying = false;
+    this.deployActor = null;
+    this.preview.clear();
+    this.clearButtons();
+    this.setActiveUnit(null);
+    this.highlightTile(null);
+    this.battle.seed(); // positions + captures are final — seed initiative now
     this.refreshHud();
     this.setPrimary("Advance Clock");
     this.setHint("Battle: press Advance Clock. Flank isolated foes, tarpit with Edrin, cleanse snares with Sela's antidote.");
@@ -392,6 +557,7 @@ export class DemoScene extends Phaser.Scene {
     if (!this.staged) return;
     const tile = this.worldToTile(pointer.worldX, pointer.worldY);
     if (!this.battle.grid.inBounds(tile)) return;
+    if (this.deploying) return this.onDeployClick(tile);
     const actor = this.waitingFor;
     if (this.ended || this.busy || !actor) return;
     const clicked = this.battle.units.find((u) => u.alive && !u.hidden && u.pos.col === tile.col && u.pos.row === tile.row);
@@ -515,6 +681,7 @@ export class DemoScene extends Phaser.Scene {
     }
     if (!beat) return this.showEnd();
     if (beat.kind === "encounter") {
+      if (this.deploying) return this.startBattle();
       if (this.ended) {
         this.runner.advance();
         return this.nextBeat();
@@ -526,13 +693,32 @@ export class DemoScene extends Phaser.Scene {
     this.nextBeat();
   }
 
+  /** Tear down the in-battle HUD header — turn order, the bridge timer, and the
+   *  ally/foe tally — so non-battle screens (rest) and the end overlay don't
+   *  inherit stale battle chrome at the top. */
+  private hideBattleHud(): void {
+    this.subText.setText("");
+    this.timerText.setText("");
+    this.orderText.setText("");
+    this.orderLines.forEach((t) => t.setVisible(false));
+    this.orderBg.setVisible(false);
+  }
+
   private showEnd(): void {
     this.clearBoard();
     this.clearButtons();
+    this.hideBattleHud();
     const o = this.runner.outcome ?? "complete";
     const title = o === "complete" ? "The Hollow Mill is Cleared!" : o === "failed" ? "Quest Failed — the Party Survives" : "Party Wiped";
+    // A payoff line so a win lands: who made it back, the purse, and a star rating
+    // (all five home = ★★★, one down = ★★, bloodier = ★; a graded failure earns ★).
+    const survived = this.runner.party.filter((u) => u.alive).length;
+    const total = this.runner.party.length;
+    const stars = o === "wipe" ? "" : o === "failed" ? "★" : survived === total ? "★★★" : survived >= total - 1 ? "★★" : "★";
+    const tally = `${survived}/${total} marched home   ·   ${this.runner.gold}g purse${stars ? `   ·   ${stars}` : ""}`;
     this.titleText.setText("");
-    this.showOverlay(title, this.runner.log.slice(-6).join("\n"), o !== "wipe", 620, 240);
+    this.showOverlay(title, `${tally}\n\n${this.runner.log.slice(-6).join("\n")}`, o !== "wipe", 620, 270);
+    this.setHint(o === "wipe" ? "The run is over — back to the guild to rebuild." : "Return to the guild to bank the survivors and loot.");
     this.runner.outcome = o; // ensure onPrimary routes back to the guild
     this.setPrimary("Back to Guild");
   }
@@ -544,7 +730,7 @@ export class DemoScene extends Phaser.Scene {
     const grid = this.battle.grid;
     // Center the board in the band *left* of the right-hand command panel so its
     // far-right tiles never hide behind the action buttons.
-    this.originX = (this.scale.width - this.panelW - 24) / 2;
+    this.originX = (this.scale.width - this.panelMaxW - 24) / 2;
     this.originY = this.scale.height / 2 - (grid.rows * TILE_HEIGHT) / 2 + 10;
     this.drawGrid();
     for (const unit of this.battle.units) this.spawnUnit(unit);
@@ -559,6 +745,9 @@ export class DemoScene extends Phaser.Scene {
     for (const o of this.boardObjects) o.destroy();
     this.boardObjects = [];
     this.views.clear();
+    this.deadSeen.clear();
+    this.deploying = false;
+    this.deployActor = null;
     this.activeUnitId = null;
     this.hoveredUnitId = null;
     this.orderBg.setVisible(false);
@@ -603,7 +792,9 @@ export class DemoScene extends Phaser.Scene {
     const color = unit.side === "player" ? 0xffcf6b : 0xe06b6b;
     const stroke = unit.side === "player" ? 0x6b4a1c : 0x6b1c1c;
     const cy = -TILE_HEIGHT / 2;
-    const body = this.add.circle(0, cy, 12, color).setStrokeStyle(2, stroke);
+    // Side-coloured fill (friend/foe), role-coloured ring (class) — so the board
+    // reads at a glance: "my gold token with the cyan ring is the medic".
+    const body = this.add.circle(0, cy, 12, color).setStrokeStyle(3, roleColor(unit, stroke));
     // Identity lives *inside* the token (initials), so the board reads at a glance
     // without a floating label over every unit.
     const initials = this.add.text(0, cy, initialsOf(unit.name), { color: "#1b1f2a", fontSize: FONT.micro, fontStyle: "bold" }).setOrigin(0.5);
@@ -646,6 +837,12 @@ export class DemoScene extends Phaser.Scene {
     this.activeUnitId = unit?.id ?? null;
     if (prev && prev !== this.activeUnitId) this.refreshNameplate(prev);
     if (this.activeUnitId) this.refreshNameplate(this.activeUnitId);
+    // A quick scale-pop when a unit takes the turn — a clearer hand-off than the
+    // chevron alone. End state is unchanged (yoyo), so captures are unaffected.
+    if (unit && prev !== this.activeUnitId && !this.reduceMotion) {
+      const view = this.views.get(unit.id);
+      if (view) this.tweens.add({ targets: view.container, scaleX: 1.18, scaleY: 1.18, duration: 130, yoyo: true, ease: "Quad.Out" });
+    }
   }
 
   private placeView(unit: Unit): void {
@@ -669,7 +866,15 @@ export class DemoScene extends Phaser.Scene {
       const badges = unit.statuses.map((s) => statusVisual(s.id).glyph).join("");
       view.badges.setText(badges);
       if (unit.statuses.length > 0) view.badges.setColor(`#${statusVisual(unit.statuses[0].id).tint.toString(16).padStart(6, "0")}`);
-      view.container.setAlpha(!unit.alive ? 0.2 : unit.hidden ? 0.35 : 1);
+      view.container.setAlpha(!unit.alive ? 0.2 : unit.captured ? 0.4 : unit.hidden ? 0.35 : 1);
+      // Death pop: the first time a unit reads as dead, collapse its token so the
+      // kill registers (it then rests as the faded "downed" marker). The fade above
+      // is the capture-safe end state; the shrink is the juice, skipped under reduceMotion.
+      if (!unit.alive && !this.deadSeen.has(unit.id)) {
+        this.deadSeen.add(unit.id);
+        view.hpBarFill.setVisible(false);
+        if (!this.reduceMotion) this.tweens.add({ targets: view.container, scaleX: 0.72, scaleY: 0.72, duration: 260, ease: "Quad.Out" });
+      }
     }
   }
 
@@ -884,74 +1089,54 @@ export class DemoScene extends Phaser.Scene {
       const toward = this.tileToWorld(target.pos);
       this.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true });
     }
-    if (tv) this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshHp() });
+    if (tv) {
+      // Punchier impact: a white flash on the struck token + a short camera shake,
+      // on top of the alpha blink. The body colour is restored once the blink settles.
+      const base = target.side === "player" ? 0xffcf6b : 0xe06b6b;
+      tv.body.setFillStyle(0xffffff);
+      this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshHp() });
+      this.time.delayedCall(95, () => tv.body.setFillStyle(base));
+      if (!this.reduceMotion) this.cameras.main.shake(70, 0.0035);
+    }
   }
 
   // --- UI primitives ---------------------------------------------------------
 
-  private makeButton(x: number, y: number, w: number, h: number, text: string, fill: number, stroke: number, onClick: () => void, description?: string): TextButton {
-    const bg = this.add.rectangle(x, y, w, h, fill).setStrokeStyle(2, stroke).setInteractive({ useHandCursor: true }).setDepth(12);
-    const label = this.add.text(x, y, text, { color: "#eafff0", fontSize: FONT.label }).setOrigin(0.5).setDepth(13);
-    fitText(label, w - 10);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-      bg.setFillStyle(Phaser.Display.Color.IntegerToColor(fill).brighten(18).color);
-      if (description) this.hintText.setText(description);
-    });
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
-      bg.setFillStyle(fill);
-      if (description) this.hintText.setText(this.lastHint);
-    });
-    return { bg, label };
-  }
-
   private setPrimary(text: string, visible = true): void {
-    this.primary.label.setText(text);
-    fitText(this.primary.label, this.primary.bg.width - 10);
-    this.primary.bg.setVisible(visible);
-    this.primary.label.setVisible(visible);
+    this.primary.setLabel(text).setVisible(visible);
   }
 
   private clearButtons(): void {
-    for (const o of this.buttons) o.destroy();
-    this.buttons = [];
-    this.buttonActions = [];
+    this.commandPanel?.destroy();
+    this.commandPanel = undefined;
+    // A button hovered at teardown never fires pointer-out; drop any stuck tip.
+    this.hintPanel.clearTip();
   }
 
+  /**
+   * Build (or rebuild) the right-hand command panel. A {@link ButtonColumn} sizes
+   * itself to its widest label — growing leftward into the gap beside the board,
+   * never past the reserved `panelMaxW` band — so labels render at full size
+   * instead of being shrunk to fit. The number-key hotkeys (1–9) ride on the
+   * labels and are exposed via the panel's `actions`.
+   */
   private layoutButtons(specs: { text: string; description?: string; onClick: () => void }[]): void {
     this.clearButtons();
     if (specs.length === 0) return;
-    // A vertical command panel down the right edge (FFT-style): new abilities
-    // extend the column *downward* instead of widening a horizontal row toward
-    // the screen edges. The stack is centered vertically so it reads the same
-    // with two buttons or eight.
-    const panelW = this.panelW;
-    const h = 26;
-    const step = 32;
-    const padX = 8;
-    const padY = 8;
-    const cx = this.scale.width - 12 - panelW / 2;
-    const centerY = this.scale.height / 2 - 20;
-    const startY = centerY - ((specs.length - 1) * step) / 2;
-    // A faint backing so the column reads as one grouped panel.
-    const bgH = (specs.length - 1) * step + h + padY * 2;
-    const bg = this.add
-      .rectangle(cx, centerY, panelW + padX * 2, bgH, 0x141925, 0.6)
-      .setStrokeStyle(1, 0x3d4b6e)
-      .setDepth(11);
-    this.buttons.push(bg);
-    specs.forEach((spec, i) => {
-      // The number-key hotkey (1–9) is shown on the label and recorded for keys.
-      const label = i < 9 ? `${i + 1}. ${spec.text}` : spec.text;
-      const btn = this.makeButton(cx, startY + i * step, panelW, h, label, 0x394063, 0x6f7bb0, spec.onClick, spec.description);
-      this.buttons.push(btn.bg, btn.label);
-      this.buttonActions.push(spec.onClick);
+    this.commandPanel = new ButtonColumn(this, {
+      specs,
+      rightEdge: this.scale.width - 12,
+      centerY: this.scale.height / 2 - 20,
+      minW: this.panelMinW,
+      maxW: this.panelMaxW,
+      hintBar: this.hintPanel,
+      idleHint: () => this.lastHint,
     });
   }
 
   private setHint(text: string): void {
     this.lastHint = text;
-    this.hintText.setText(text);
+    this.hintPanel.setResting(text);
   }
 
   private clearOverlay(): void {

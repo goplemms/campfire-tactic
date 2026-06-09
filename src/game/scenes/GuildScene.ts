@@ -32,6 +32,7 @@ import {
 } from "../../core";
 import type { RunHandoff } from "./OverworldScene";
 import { fitText } from "../ui";
+import { HintPanel } from "../hint-panel";
 
 /** Data handed back to the hall when a caravan reaches a terminal (D27). */
 export interface GuildHandoff {
@@ -62,6 +63,10 @@ export class GuildScene extends Phaser.Scene {
   private ui: Phaser.GameObjects.GameObject[] = [];
   private banner?: CaravanResolution;
   private hint = "";
+  /** The hint card: bottom-right (the only free corner here), pinned open since the
+   *  hall's hints are action feedback you want visible, not opt-in tips. Created once
+   *  and updated each render — it must survive the render's destroy-everything pass. */
+  private hintPanel?: HintPanel;
 
   constructor() {
     super("GuildScene");
@@ -71,6 +76,7 @@ export class GuildScene extends Phaser.Scene {
     // Phaser reuses the scene instance across starts, so reset transient UI state.
     this.banner = undefined;
     this.hint = "";
+    this.hintPanel = undefined; // its game object is destroyed on shutdown; recreate in create()
     if (data?.guild) {
       this.guild = data.guild;
       // A caravan whose run hit a terminal: resolve it now and surface the result.
@@ -104,6 +110,9 @@ export class GuildScene extends Phaser.Scene {
     this.selectedCaravanId ??= this.guild.caravans.find((c) => !c.dispatched)?.id;
     this.selectedQuestId ??= this.guild.board[0]?.id;
 
+    // Persistent across renders (render() rebuilds this.ui from scratch each time).
+    this.hintPanel ??= new HintPanel(this, { anchor: "bottom", startPinned: true });
+    if (!this.hint) this.hint = "Pick a quest and a caravan, add crew from the pool, then Dispatch.";
     this.render();
   }
 
@@ -143,7 +152,7 @@ export class GuildScene extends Phaser.Scene {
     this.drawStable(20, 430);
 
     if (this.banner) this.drawBanner();
-    this.text(this.scale.width / 2, this.scale.height - 12, this.hint, "#9fb0d0", 12, 0.5);
+    this.hintPanel?.setResting(this.hint);
   }
 
   /** The quest board (never empty, D26). Click a quest to target the dispatch. */
