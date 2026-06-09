@@ -40,7 +40,7 @@ import {
 import { Button, ButtonColumn } from "../button";
 import { HintPanel } from "../hint-panel";
 import { roleColor } from "../roles";
-
+import { dropNet as dropNetCage } from "../deploy-fx";
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
 function initialsOf(name: string): string {
@@ -395,8 +395,9 @@ export class DemoScene extends Phaser.Scene {
   private walkRetreat(unit: Unit, path: readonly GridCoord[], capturedAt: number, i: number): void {
     if (i >= path.length) {
       this.busy = false;
+      this.refreshDeploy(); // refreshDeploy resets the hint, so set the outcome line after it
       this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
-      return this.refreshDeploy();
+      return;
     }
     this.busy = true;
     unit.pos = { ...path[i] };
@@ -421,32 +422,10 @@ export class DemoScene extends Phaser.Scene {
     this.setHint(`${unit.name} was netted mid-retreat — bound for this fight, back with you next encounter.`);
   }
 
-  /** A net dropping onto a captured unit — a crosshatched cage that falls and fades. */
+  /** Drop the capture-net cage on a unit's tile (shared deploy FX). */
   private dropNet(unit: Unit): void {
     const { x, y } = this.tileToWorld(unit.pos);
-    const cy = y - TILE_HEIGHT / 2;
-    const r = 15;
-    const g = this.add.graphics().setDepth(28);
-    g.lineStyle(2, 0xe6d8b0, 0.95);
-    g.strokeRect(x - r, cy - r, r * 2, r * 2);
-    g.lineBetween(x - r, cy - r, x + r, cy + r);
-    g.lineBetween(x + r, cy - r, x - r, cy + r);
-    g.lineBetween(x, cy - r, x, cy + r);
-    g.lineBetween(x - r, cy, x + r, cy);
-    this.boardObjects.push(g);
-    if (this.reduceMotion) {
-      this.time.delayedCall(450, () => g.destroy());
-      return;
-    }
-    g.setY(-44).setAlpha(0.3);
-    this.tweens.add({
-      targets: g,
-      y: 0,
-      alpha: 1,
-      duration: 170,
-      ease: "Quad.In",
-      onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 480, delay: 320, onComplete: () => g.destroy() }),
-    });
+    this.boardObjects.push(dropNetCage(this, x, y - TILE_HEIGHT / 2, this.reduceMotion));
   }
 
   /** Commit the deployment and start combat: re-seed initiative on the final board. */

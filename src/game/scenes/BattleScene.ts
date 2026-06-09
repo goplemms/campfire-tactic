@@ -53,6 +53,7 @@ import {
 import type { RunHandoff } from "./OverworldScene";
 import { Button } from "../button";
 import { HintPanel } from "../hint-panel";
+import { dropNet as dropNetCage } from "../deploy-fx";
 
 /**
  * The mission driver (M6 phase loop, M7-framed): plays **one combat node** of the
@@ -369,28 +370,10 @@ export class BattleScene extends Phaser.Scene {
     this.captureDuringDeploy(unit);
   }
 
-  /** A net dropping onto a captured unit — a crosshatched cage that falls and fades. */
+  /** Drop the capture-net cage on a unit's tile (shared deploy FX). */
   private dropNet(unit: Unit): void {
     const { x, y } = this.tileToWorld(unit.pos);
-    const cy = y - TILE_HEIGHT / 2;
-    const r = 15;
-    const g = this.add.graphics().setDepth(28);
-    g.lineStyle(2, 0xe6d8b0, 0.95);
-    g.strokeRect(x - r, cy - r, r * 2, r * 2);
-    g.lineBetween(x - r, cy - r, x + r, cy + r);
-    g.lineBetween(x + r, cy - r, x - r, cy + r);
-    g.lineBetween(x, cy - r, x, cy + r);
-    g.lineBetween(x - r, cy, x + r, cy);
-    this.boardObjects.push(g);
-    g.setY(-44).setAlpha(0.3);
-    this.tweens.add({
-      targets: g,
-      y: 0,
-      alpha: 1,
-      duration: 170,
-      ease: "Quad.In",
-      onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 480, delay: 320, onComplete: () => g.destroy() }),
-    });
+    this.boardObjects.push(dropNetCage(this, x, y - TILE_HEIGHT / 2));
   }
 
   private placeTrap(): void {
