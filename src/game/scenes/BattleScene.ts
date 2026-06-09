@@ -13,16 +13,16 @@ import {
   unitSkills,
   isValidSkillTarget,
   makeTrap,
-  // M5b — logistics / deployment gamble
+  // M5b/D11 — deployment: the shared stealth-alert model
   removeItem,
   countOf,
   slotsUsed,
-  createExposure,
-  recordPlacement,
-  exposureRisk,
   safeDepth,
-  placementCost,
   freeCaptive,
+  captureUnit,
+  createAlert,
+  resolveDeployAction,
+  streamFor,
   // M5 — camp / morale
   moraleTier,
   moraleModifiers,
@@ -41,7 +41,9 @@ import {
   type RunState,
   type RunLoop,
   type IntelReport,
-  type DeployExposure,
+  type DeployAlert,
+  type DeployOutcome,
+  type Rng,
   type GridCoord,
   type Unit,
   type Side,
@@ -97,9 +99,10 @@ export class BattleScene extends Phaser.Scene {
   private actionButtons: Phaser.GameObjects.GameObject[] = [];
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
-  // Deployment state.
+  // Deployment state (D11): a shared camp-alert meter + a seeded roll stream.
   private deployActor: Unit | null = null;
-  private deployExposures = new Map<string, DeployExposure>();
+  private deployAlert: DeployAlert = createAlert();
+  private deployRng!: Rng;
   private placedTraps: { pos: GridCoord; damage: number; marker: Phaser.GameObjects.Text; sprung: boolean }[] = [];
   private trapDamage = 12;
   private intel?: IntelReport;
@@ -172,7 +175,6 @@ export class BattleScene extends Phaser.Scene {
     this.waitingFor = null;
     this.armedSkill = null;
     this.deployActor = null;
-    this.deployExposures.clear();
     this.placedTraps = [];
     this.rebuildBoard();
 
@@ -208,6 +210,8 @@ export class BattleScene extends Phaser.Scene {
 
   private enterDeploy(): void {
     this.phase = "deployment";
+    this.deployAlert = createAlert();
+    this.deployRng = streamFor(this.run.seed, "deploy");
     const trapSkill = this.run.party
       .flatMap((u) => unitSkills(u, "deployment"))
       .find((s) => s.effect.kind === "placeTrap");
@@ -218,15 +222,6 @@ export class BattleScene extends Phaser.Scene {
 
   private moraleMods() {
     return moraleModifiers(moraleTier(this.run.camp.morale));
-  }
-
-  private exposureOf(unit: Unit): DeployExposure {
-    let st = this.deployExposures.get(unit.id);
-    if (!st) {
-      st = createExposure();
-      this.deployExposures.set(unit.id, st);
-    }
-    return st;
   }
 
   private selectDeployActor(unit: Unit | null): void {
@@ -274,13 +269,11 @@ export class BattleScene extends Phaser.Scene {
       this.titleText.setText("Deployment");
       return;
     }
-    const st = this.exposureOf(actor);
-    const pct = Math.round(exposureRisk(st) * 100);
     const mods = this.moraleMods();
-    const here = Math.round(placementCost(actor, this.depthOf(actor.pos), mods));
+    const past = Math.max(0, this.depthOf(actor.pos) - safeDepth(actor, mods.safeDepthBonus));
     const kits = countOf(this.run.inventory, "trap-kit");
-    const tag = actor.captured ? " — CAPTURED" : `, safe to depth ${safeDepth(actor, mods.safeDepthBonus)} (place here +${here}%)`;
-    this.titleText.setText(`Deployment — ${actor.name} exposure ${pct}%${tag} · Trap Kits ${kits}`);
+    const tag = actor.captured ? " — CAPTURED" : past > 0 ? ` — ${past} past safe` : " — in cover";
+    this.titleText.setText(`Deployment — ${actor.name}${tag} · camp alert ${this.deployAlert.meter}% · Trap Kits ${kits}`);
   }
 
   private drawSafeZone(unit: Unit | null): void {
@@ -324,8 +317,79 @@ export class BattleScene extends Phaser.Scene {
     this.animateMove(actor, steps, () => {
       this.busy = false;
       this.highlightTile(actor.pos);
+      this.resolveDeploy(actor);
+    });
+  }
+
+  /** Resolve a noisy deploy action (move or deep trap) via the shared core model. */
+  private resolveDeploy(actor: Unit): void {
+    const outcome = resolveDeployAction(this.deployAlert, actor, this.grid, this.battle.units, this.deployRng, this.moraleMods().safeDepthBonus);
+    if (outcome.spotted) this.playRetreat(actor, outcome);
+    else {
       this.refreshDeployStatus();
       this.refreshDeployButtons();
+    }
+  }
+
+  /** Animate a spotted unit bolting for cover along the resolver's planned path. */
+  private playRetreat(unit: Unit, outcome: DeployOutcome): void {
+    this.setHint(`${unit.name} was spotted — bolting for cover!`);
+    if (outcome.retreatPath.length === 0) {
+      this.refreshDeployStatus();
+      this.refreshDeployButtons();
+      return;
+    }
+    this.walkRetreat(unit, outcome.retreatPath, outcome.capturedAt, 0);
+  }
+
+  /** Step the retreat one tile at a time; net the unit at the planned capture index. */
+  private walkRetreat(unit: Unit, path: readonly GridCoord[], capturedAt: number, i: number): void {
+    if (i >= path.length) {
+      this.busy = false;
+      this.highlightTile(unit.pos);
+      this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
+      this.refreshDeployStatus();
+      this.refreshDeployButtons();
+      return;
+    }
+    this.busy = true;
+    unit.pos = { ...path[i] };
+    this.animateMove(unit, [path[i]], () => {
+      this.placeView(unit);
+      if (i === capturedAt) return this.netCapture(unit);
+      this.walkRetreat(unit, path, capturedAt, i + 1);
+    });
+  }
+
+  /** Netted mid-retreat: drop the net, then bind the unit in the enemy zone. */
+  private netCapture(unit: Unit): void {
+    captureUnit(unit);
+    this.dropNet(unit);
+    this.busy = false;
+    this.captureDuringDeploy(unit);
+  }
+
+  /** A net dropping onto a captured unit — a crosshatched cage that falls and fades. */
+  private dropNet(unit: Unit): void {
+    const { x, y } = this.tileToWorld(unit.pos);
+    const cy = y - TILE_HEIGHT / 2;
+    const r = 15;
+    const g = this.add.graphics().setDepth(28);
+    g.lineStyle(2, 0xe6d8b0, 0.95);
+    g.strokeRect(x - r, cy - r, r * 2, r * 2);
+    g.lineBetween(x - r, cy - r, x + r, cy + r);
+    g.lineBetween(x + r, cy - r, x - r, cy + r);
+    g.lineBetween(x, cy - r, x, cy + r);
+    g.lineBetween(x - r, cy, x + r, cy);
+    this.boardObjects.push(g);
+    g.setY(-44).setAlpha(0.3);
+    this.tweens.add({
+      targets: g,
+      y: 0,
+      alpha: 1,
+      duration: 170,
+      ease: "Quad.In",
+      onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 480, delay: 320, onComplete: () => g.destroy() }),
     });
   }
 
@@ -347,21 +411,9 @@ export class BattleScene extends Phaser.Scene {
     this.boardObjects.push(marker);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
     this.refreshCampText();
-
-    const st = this.exposureOf(actor);
-    const result = recordPlacement(st, actor, this.depthOf(tile), this.moraleMods());
-    this.refreshDeployStatus();
-    if (result.captured) {
-      this.captureDuringDeploy(actor);
-    } else {
-      const pct = Math.round(exposureRisk(st) * 100);
-      this.refreshDeployButtons();
-      this.setHint(
-        result.exposureAdded > 0
-          ? `Trap placed deep — exposure now ${pct}%. Press your luck or Start Battle.`
-          : "Trap placed safely. Range deeper or Start Battle.",
-      );
-    }
+    this.setHint("Trap placed. A deep one is noisy — range back or Start Battle.");
+    // A trap laid past the safe zone is a noisy action too, so it rolls a spot.
+    this.resolveDeploy(actor);
   }
 
   private captureDuringDeploy(unit: Unit): void {
@@ -371,7 +423,7 @@ export class BattleScene extends Phaser.Scene {
     this.highlightTile(null);
     const next = this.battle.units.find((u) => u.side === "player" && !u.captured && u !== unit);
     this.selectDeployActor(next ?? null);
-    this.setHint(`${unit.name} ranged too deep and was captured! She starts the battle bound in the enemy zone — rescue her, or win to bring her home.`);
+    this.setHint(`${unit.name} was netted mid-retreat! She starts the battle bound in the enemy zone — rescue her, or win to bring her home.`);
   }
 
   // --- Phase: Battle ---------------------------------------------------------
