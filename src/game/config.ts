@@ -3,6 +3,7 @@ import { GuildScene } from "./scenes/GuildScene";
 import { OverworldScene } from "./scenes/OverworldScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { DemoScene } from "./scenes/DemoScene";
+import { COLOR } from "./theme";
 
 // Standalone **demo mode** (M12/D44): `#demo` (or the run-bar button) boots
 // straight into *The Hollow Mill*, bypassing the guild/overworld. Otherwise the
@@ -16,7 +17,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   parent: "app",
   width: 800,
   height: 600,
-  backgroundColor: "#11141b",
+  backgroundColor: COLOR.bg,
   scene: isDemo
     ? [DemoScene, GuildScene, OverworldScene, BattleScene]
     : [GuildScene, OverworldScene, BattleScene, DemoScene],

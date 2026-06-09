@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { FONT } from "../theme";
+import { COLOR, FONT, INK } from "../theme";
 import {
   gridToScreen,
   screenToGrid,
@@ -138,13 +138,13 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     // Persistent UI.
-    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: "#e8eefc", fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
-    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: "#cdd7ee", fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
-    this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: "#d6c98a", fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
-    this.orderText = this.add.text(12, 12, "", { color: "#cdd7ee", fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
+    this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
+    this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
+    this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
+    this.orderText = this.add.text(12, 12, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
     this.hintPanel = new HintPanel(this);
     this.highlight = this.add.graphics().setDepth(0.5);
-    this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", 0x2f6b46, 0x57b07a, () => this.onPrimary());
+    this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", COLOR.successDeep, COLOR.success, () => this.onPrimary());
     this.primary.setDepth(12);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
 
@@ -291,7 +291,7 @@ export class BattleScene extends Phaser.Scene {
         const { x, y } = this.tileToWorld({ col, row });
         const halfW = TILE_WIDTH / 2;
         const halfH = TILE_HEIGHT / 2;
-        this.safeZoneGfx.fillStyle(0x2f6b46, 0.28);
+        this.safeZoneGfx.fillStyle(COLOR.successDeep, 0.28);
         this.safeZoneGfx.beginPath();
         this.safeZoneGfx.moveTo(x, y - halfH);
         this.safeZoneGfx.lineTo(x + halfW, y);
@@ -390,7 +390,7 @@ export class BattleScene extends Phaser.Scene {
     }
     removeItem(this.run.inventory, "trap-kit", 1);
     const { x, y } = this.tileToWorld(tile);
-    const marker = this.add.text(x, y - TILE_HEIGHT / 2, "✸", { color: "#ff9d5c", fontSize: FONT.display }).setOrigin(0.5).setDepth(0.8);
+    const marker = this.add.text(x, y - TILE_HEIGHT / 2, "✸", { color: INK.ember, fontFamily: FONT.family, fontSize: FONT.display }).setOrigin(0.5).setDepth(0.8);
     this.boardObjects.push(marker);
     this.placedTraps.push({ pos: { ...tile }, damage: this.trapDamage, marker, sprung: false });
     this.refreshCampText();
@@ -430,7 +430,7 @@ export class BattleScene extends Phaser.Scene {
       const t = this.placedTraps.find((t) => !t.sprung && t.pos.col === tile.col && t.pos.row === tile.row);
       if (t) {
         t.sprung = true;
-        t.marker.setText("✺").setColor("#7a8190");
+        t.marker.setText("✺").setColor(INK.disabled);
         this.tweens.add({ targets: t.marker, scale: 1.8, duration: 140, yoyo: true });
       }
     });
@@ -504,7 +504,7 @@ export class BattleScene extends Phaser.Scene {
     // Turncoat: flip the enemy to the player's side for the rest of the fight.
     (foe as unknown as { side: Side }).side = "player";
     const view = this.views.get(foe.id);
-    view?.body.setFillStyle(0xffcf6b).setStrokeStyle(2, 0x6b4a1c);
+    view?.body.setFillStyle(COLOR.ally).setStrokeStyle(2, COLOR.allyEdge);
     if (res.outcome?.permanent) this.pendingRecruits.push(foe);
     this.waitingFor = null;
     this.busy = true;
@@ -757,9 +757,9 @@ export class BattleScene extends Phaser.Scene {
     const cx = this.scale.width / 2;
     const cy = this.scale.height / 2;
     this.overlay.push(
-      this.add.rectangle(cx, cy, w, h, 0x11141b, 0.92).setStrokeStyle(2, good ? 0x57b07a : 0xb05757).setDepth(20),
-      this.add.text(cx, cy - h / 2 + 28, title, { color: good ? "#9ff0bf" : "#f0a0a0", fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
-      this.add.text(cx, cy + 14, body, { color: "#cdd7ee", fontSize: FONT.body, align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
+      this.add.rectangle(cx, cy, w, h, COLOR.bg, 0.92).setStrokeStyle(2, good ? COLOR.success : COLOR.danger).setDepth(20),
+      this.add.text(cx, cy - h / 2 + 28, title, { color: good ? INK.success : INK.danger, fontFamily: FONT.family, fontSize: FONT.display }).setOrigin(0.5).setDepth(21),
+      this.add.text(cx, cy + 14, body, { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body, align: "center", lineSpacing: 4 }).setOrigin(0.5).setDepth(21),
     );
   }
 
@@ -782,7 +782,7 @@ export class BattleScene extends Phaser.Scene {
       for (let col = 0; col < this.grid.cols; col++) {
         const { x, y } = this.tileToWorld({ col, row });
         const walkable = this.grid.isWalkable({ col, row });
-        const fill = !walkable ? 0x55304a : (col + row) % 2 === 0 ? 0x2a3550 : 0x222b40;
+        const fill = !walkable ? COLOR.tileBlocked : (col + row) % 2 === 0 ? COLOR.tileLight : COLOR.tileDark;
         this.drawDiamond(g, x, y, fill);
       }
     }
@@ -792,7 +792,7 @@ export class BattleScene extends Phaser.Scene {
     const halfW = TILE_WIDTH / 2;
     const halfH = TILE_HEIGHT / 2;
     g.fillStyle(fill, 1);
-    g.lineStyle(1, 0x3d4b6e, 1);
+    g.lineStyle(1, COLOR.border, 1);
     g.beginPath();
     g.moveTo(cx, cy - halfH);
     g.lineTo(cx + halfW, cy);
@@ -805,11 +805,11 @@ export class BattleScene extends Phaser.Scene {
 
   private spawnUnits(): void {
     for (const unit of this.battle.units) {
-      const color = unit.side === "player" ? 0xffcf6b : 0xe06b6b;
-      const stroke = unit.side === "player" ? 0x6b4a1c : 0x6b1c1c;
+      const color = unit.side === "player" ? COLOR.ally : COLOR.foe;
+      const stroke = unit.side === "player" ? COLOR.allyEdge : COLOR.foeEdge;
       const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(2, stroke);
-      const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: "#e8eefc", fontSize: FONT.caption }).setOrigin(0.5);
-      const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: "#bfe8c0", fontSize: FONT.caption }).setOrigin(0.5);
+      const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
+      const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: INK.success, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
       const container = this.add.container(0, 0, [body, label, hp]).setDepth(1);
       this.views.set(unit.id, { container, body, hp });
       this.boardObjects.push(container);
@@ -822,8 +822,8 @@ export class BattleScene extends Phaser.Scene {
   private tintCaptured(unit: Unit, captured: boolean): void {
     const view = this.views.get(unit.id);
     if (!view) return;
-    view.body.setFillStyle(captured ? 0x9a6bd0 : 0xffcf6b);
-    view.body.setStrokeStyle(2, captured ? 0x4a2c6b : 0x6b4a1c);
+    view.body.setFillStyle(captured ? COLOR.captive : COLOR.ally);
+    view.body.setStrokeStyle(2, captured ? COLOR.captiveEdge : COLOR.allyEdge);
   }
 
   private placeView(unit: Unit): void {
@@ -886,7 +886,7 @@ export class BattleScene extends Phaser.Scene {
     const { x, y } = this.tileToWorld(coord);
     const halfW = TILE_WIDTH / 2;
     const halfH = TILE_HEIGHT / 2;
-    this.highlight.lineStyle(3, 0x7fe0a0, 1);
+    this.highlight.lineStyle(3, COLOR.accent, 1);
     this.highlight.beginPath();
     this.highlight.moveTo(x, y - halfH);
     this.highlight.lineTo(x + halfW, y);
@@ -928,7 +928,7 @@ export class BattleScene extends Phaser.Scene {
     const gap = Math.min(150, 720 / specs.length);
     const startX = this.scale.width / 2 - ((specs.length - 1) * gap) / 2;
     specs.forEach((spec, i) => {
-      this.actionButtons.push(this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, 0x394063, 0x6f7bb0, spec.onClick, spec.description));
+      this.actionButtons.push(this.makeTextButton(startX + i * gap, y, gap - 12, 30, spec.text, COLOR.btnFill, COLOR.btnStroke, spec.onClick, spec.description));
     });
   }
 
