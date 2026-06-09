@@ -81,9 +81,10 @@ export const COLOR = {
   /** Lighter divider, hint-card edge, enabled-control stroke. */
   borderSoft: 0x4a5d86,
 
-  // Board tiles.
-  tileDark: 0x222b40,
-  tileLight: 0x2a3550,
+  // Board tiles — a wider light/dark split than the original near-flat checker,
+  // so the grid reads at a glance without turning into a loud chessboard.
+  tileDark: 0x1f2636,
+  tileLight: 0x2e3a58,
   /** Impassable terrain. */
   tileBlocked: 0x55304a,
 

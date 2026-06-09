@@ -811,7 +811,9 @@ export class DemoScene extends Phaser.Scene {
     const hpBarY = cy - 14;
     const hpBarBg = this.add.rectangle(0, hpBarY, hpBarW, hpBarH, COLOR.bg).setStrokeStyle(1, COLOR.black, 0.6);
     const hpBarFill = this.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, hpBarH, COLOR.success).setOrigin(0, 0.5);
-    const container = this.add.container(0, 0, [hpBarBg, hpBarFill, body, initials, label, hp, badges]).setDepth(1);
+    // A soft contact shadow at the tile centre lifts the floating token off the grid.
+    const shadow = this.add.ellipse(0, -2, 24, 9, COLOR.black, 0.28);
+    const container = this.add.container(0, 0, [shadow, hpBarBg, hpBarFill, body, initials, label, hp, badges]).setDepth(1);
     this.views.set(unit.id, { container, body, label, hp, badges, hpBarFill, hpBarW });
     // Hovering a token reveals its nameplate (the other half of "active/hover only").
     body.setInteractive({ useHandCursor: false });

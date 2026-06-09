@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { COLOR, FONT, INK } from "../theme";
+import { roleColor } from "../roles";
 import {
   gridToScreen,
   screenToGrid,
@@ -807,10 +808,14 @@ export class BattleScene extends Phaser.Scene {
     for (const unit of this.battle.units) {
       const color = unit.side === "player" ? COLOR.ally : COLOR.foe;
       const stroke = unit.side === "player" ? COLOR.allyEdge : COLOR.foeEdge;
-      const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(2, stroke);
+      // Side-coloured fill (friend/foe) with a role-coloured ring (class), matching
+      // the demo scene so the mission board reads the same at a glance.
+      const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(3, roleColor(unit, stroke));
       const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
       const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: INK.success, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
-      const container = this.add.container(0, 0, [body, label, hp]).setDepth(1);
+      // A soft contact shadow at the tile centre lifts the floating token off the grid.
+      const shadow = this.add.ellipse(0, -2, 22, 8, COLOR.black, 0.28);
+      const container = this.add.container(0, 0, [shadow, body, label, hp]).setDepth(1);
       this.views.set(unit.id, { container, body, hp });
       this.boardObjects.push(container);
       if (unit.captured) this.tintCaptured(unit, true);
@@ -823,7 +828,7 @@ export class BattleScene extends Phaser.Scene {
     const view = this.views.get(unit.id);
     if (!view) return;
     view.body.setFillStyle(captured ? COLOR.captive : COLOR.ally);
-    view.body.setStrokeStyle(2, captured ? COLOR.captiveEdge : COLOR.allyEdge);
+    view.body.setStrokeStyle(3, captured ? COLOR.captiveEdge : roleColor(unit, COLOR.allyEdge));
   }
 
   private placeView(unit: Unit): void {
