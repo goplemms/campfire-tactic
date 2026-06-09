@@ -19,13 +19,10 @@ import {
   safeDepth,
   captureUnit,
   createAlert,
-  addNoise,
-  deployNoise,
-  rollAlerted,
-  captureChance,
-  settleAlert,
+  resolveDeployAction,
   streamFor,
   type DeployAlert,
+  type DeployOutcome,
   type Rng,
   jobLevelOf,
   canSee,
@@ -375,46 +372,38 @@ export class DemoScene extends Phaser.Scene {
     this.animateMove(actor, steps, () => {
       this.busy = false;
       this.placeView(actor);
-      // A noisy (forward) move raises the shared alert, then rolls a spot.
-      if (deployNoise(actor, actor.pos.col) > 0) {
-        addNoise(this.deployAlert, actor, actor.pos.col);
-        if (rollAlerted(this.deployAlert, this.deployRng)) return this.spotAndRetreat(actor);
-      }
-      this.refreshDeploy();
+      this.resolveDeploy(actor);
     });
   }
 
-  /** A spotted unit bolts for the nearest cover, rolling capture on each tile. */
-  private spotAndRetreat(unit: Unit): void {
-    this.floatText(unit, "SPOTTED!", "#ffd86b", -22);
-    const target = this.nearestSafeTile(unit);
-    const nav = occupiedGrid(this.battle.grid, this.battle.units, [unit]);
-    const path = target ? findPath(nav, unit.pos, target) : null;
-    if (!path || path.length < 2) {
-      settleAlert(this.deployAlert); // nowhere to fall back — the moment passes
-      return this.refreshDeploy();
-    }
-    this.setHint(`${unit.name} was spotted — bolting for cover!`);
-    this.retreatStep(unit, path.slice(1), 0);
+  /** Resolve a deploy move via the shared core model, then play out the result. */
+  private resolveDeploy(actor: Unit): void {
+    const outcome = resolveDeployAction(this.deployAlert, actor, this.battle.grid, this.battle.units, this.deployRng);
+    if (outcome.spotted) this.playRetreat(actor, outcome);
+    else this.refreshDeploy();
   }
 
-  /** Walk the retreat one tile at a time; each landing is a depth-scaled capture roll. */
-  private retreatStep(unit: Unit, steps: readonly GridCoord[], i: number): void {
-    if (i >= steps.length) {
-      settleAlert(this.deployAlert);
+  /** Animate a spotted unit bolting for cover along the resolver's planned path. */
+  private playRetreat(unit: Unit, outcome: DeployOutcome): void {
+    this.floatText(unit, "SPOTTED!", "#ffd86b", -22);
+    if (outcome.retreatPath.length === 0) return this.refreshDeploy(); // nowhere to fall back
+    this.setHint(`${unit.name} was spotted — bolting for cover!`);
+    this.walkRetreat(unit, outcome.retreatPath, outcome.capturedAt, 0);
+  }
+
+  /** Step the retreat one tile at a time; net the unit at the planned capture index. */
+  private walkRetreat(unit: Unit, path: readonly GridCoord[], capturedAt: number, i: number): void {
+    if (i >= path.length) {
       this.busy = false;
       this.setHint(`${unit.name} slipped back into cover — camp alert eased to ${this.deployAlert.meter}%.`);
       return this.refreshDeploy();
     }
     this.busy = true;
-    const tile = steps[i];
-    unit.pos = { ...tile };
-    this.animateMove(unit, [tile], () => {
+    unit.pos = { ...path[i] };
+    this.animateMove(unit, [path[i]], () => {
       this.placeView(unit);
-      // The party's last un-captured fighter can be spotted but never netted.
-      const lastStanding = this.battle.units.filter((u) => u.side === "player" && !u.captured).length <= 1;
-      if (!lastStanding && this.deployRng.chance(captureChance(unit, tile.col))) return this.netCapture(unit);
-      this.retreatStep(unit, steps, i + 1);
+      if (i === capturedAt) return this.netCapture(unit);
+      this.walkRetreat(unit, path, capturedAt, i + 1);
     });
   }
 
@@ -430,27 +419,6 @@ export class DemoScene extends Phaser.Scene {
     this.deployActor = this.battle.units.find((u) => u.side === "player" && !u.captured) ?? null;
     this.refreshDeploy();
     this.setHint(`${unit.name} was netted mid-retreat — bound for this fight, back with you next encounter.`);
-  }
-
-  /** Nearest reachable, unoccupied tile inside the unit's safe depth. */
-  private nearestSafeTile(unit: Unit): GridCoord | null {
-    const safe = safeDepth(unit);
-    const nav = occupiedGrid(this.battle.grid, this.battle.units, [unit]);
-    let best: GridCoord | null = null;
-    let bestLen = Infinity;
-    for (let col = safe; col >= 0; col--) {
-      for (let row = 0; row < this.battle.grid.rows; row++) {
-        const t = { col, row };
-        if (!this.battle.grid.isWalkable(t)) continue;
-        if (this.battle.units.some((u) => u !== unit && u.alive && u.pos.col === col && u.pos.row === row)) continue;
-        const path = findPath(nav, unit.pos, t);
-        if (path && path.length < bestLen) {
-          bestLen = path.length;
-          best = t;
-        }
-      }
-    }
-    return best;
   }
 
   /** A net dropping onto a captured unit — a crosshatched cage that falls and fades. */

@@ -100,7 +100,7 @@ function togglePin(scene = "DemoScene") {
 function spotDeploy(col) {
   return new Function(
     `const s=window.game.scene.getScene("DemoScene");const u=s.deployActor;` +
-      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.deployAlert.meter=100;s.spotAndRetreat(u);}`,
+      `if(u){u.pos={col:${col},row:u.pos.row};s.placeView(u);s.deployAlert.meter=100;s.resolveDeploy(u);}`,
   );
 }
 /** Jump to beat `i` and let the scene dispatch it (provision / rest). */
