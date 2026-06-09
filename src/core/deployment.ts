@@ -1,17 +1,22 @@
 /**
- * Deployment — the per-unit push-your-luck exposure gamble (D7/D11).
+ * Deployment — the push-your-luck deployment gamble (D7/D11).
  *
- * Deployment plays out **on the board**, like combat: units walk out and place
- * field entities where they stand. The gamble is **spatial** — a **safe depth**
- * near your edge (banded by Awareness) costs nothing, but each tile **deeper**
- * you commit a placement raises a **transparent exposure meter**. Cross
- * {@link CAPTURE_THRESHOLD} and the unit is **captured** — bound on the map,
- * dropped from the initiative seed, a rescuable sub-objective in the battle.
+ * Deployment plays out **on the board**, like combat: units walk out (and may
+ * lay traps) where they stand. The gamble is **spatial** — a **safe depth** near
+ * your edge (banded by Awareness) is silent, but each tile **deeper** you commit
+ * a noisy action carries more risk.
  *
- * (M5b uses a transparent deterministic meter driven by placement depth; the
- * full D11 "auto-retreat with a per-step roll" is a later tuning pass.)
+ * This module carries two models on that same spatial spine:
+ *  - **M5b** — a transparent *deterministic* exposure meter (placement depth →
+ *    {@link recordPlacement}); cross {@link CAPTURE_THRESHOLD} and the unit is
+ *    captured. Kept for reference / re-use.
+ *  - **D11** — the *stealth* model both scenes now run on: a shared, party-wide
+ *    camp-alert meter that noisy actions raise, a seeded **spot** roll, and a
+ *    **bolt-for-cover retreat** with a per-tile capture roll (the party's last
+ *    un-captured fighter is never netted). See {@link resolveDeployAction}.
  *
- * Pure logic: no Phaser, no DOM.
+ * Either way a captured unit is **bound on the map**, dropped from the initiative
+ * seed, a rescuable sub-objective in the battle. Pure logic: no Phaser, no DOM.
  */
 
 import type { Unit } from "./units";
