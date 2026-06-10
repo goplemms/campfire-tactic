@@ -81,6 +81,8 @@ export class BattleScene extends Phaser.Scene {
   private gridGfx?: Phaser.GameObjects.Graphics;
   private safeZoneGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
+  /** Move-range / attack / valid-target preview, painted on the player's turn. */
+  private preview!: Phaser.GameObjects.Graphics;
   private boardObjects: Phaser.GameObjects.GameObject[] = [];
   private originX = 0;
   private originY = 0;
@@ -143,6 +145,7 @@ export class BattleScene extends Phaser.Scene {
     this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     this.orderText = this.add.text(12, 12, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
     this.hintPanel = new HintPanel(this);
+    this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", COLOR.successDeep, COLOR.success, () => this.onPrimary());
     this.primary.setDepth(12);
@@ -199,6 +202,7 @@ export class BattleScene extends Phaser.Scene {
     this.safeZoneGfx?.destroy();
     this.safeZoneGfx = undefined;
     this.highlight.clear();
+    this.preview.clear();
 
     this.originX = this.scale.width / 2;
     this.originY = this.scale.height / 2 - (this.grid.rows * TILE_HEIGHT) / 2 + 4;
@@ -465,6 +469,7 @@ export class BattleScene extends Phaser.Scene {
       this.waitingFor = actor;
       this.setHint(`${actor.name}'s turn — move, attack, or use a skill.`);
       this.showSkillButtons(actor);
+      this.drawPreview();
     }
   }
 
@@ -521,6 +526,7 @@ export class BattleScene extends Phaser.Scene {
     if (skill.target === "self") return this.commitSkill(actor, skill, actor);
     this.armedSkill = skill;
     this.setHint(`${skill.name}: click a valid target (or click ${actor.name} to cancel).`);
+    this.drawPreview();
   }
 
   private commitSkill(actor: Unit, skill: SkillDef, target: Unit): void {
@@ -604,6 +610,7 @@ export class BattleScene extends Phaser.Scene {
       if (clicked === actor) {
         this.armedSkill = null;
         this.setHint(`${actor.name}'s turn — move, attack, or use a skill.`);
+        this.drawPreview();
         return;
       }
       if (clicked && isValidSkillTarget(this.armedSkill, actor, clicked)) this.commitSkill(actor, this.armedSkill, clicked);
@@ -684,6 +691,7 @@ export class BattleScene extends Phaser.Scene {
     this.resolveTheftDeaths();
     this.refreshHud();
     this.highlightTile(null);
+    this.preview.clear();
     if (this.battle.outcome().over) return this.finishBattle();
     this.setHint("Press Advance Clock for the next turn.");
   }
@@ -839,6 +847,16 @@ export class BattleScene extends Phaser.Scene {
   private setHint(text: string): void {
     this.lastHint = text;
     this.hintPanel.setResting(text);
+  }
+
+  /** Paint the active player unit's move/attack (or armed-skill target) preview. */
+  private drawPreview(): void {
+    const actor = this.waitingFor;
+    if (!actor || this.busy || this.over || this.phase !== "battle") {
+      this.preview.clear();
+      return;
+    }
+    this.view.drawPreview(this.preview, actor, this.battle.units, this.grid, this.armedSkill ?? undefined);
   }
 
   private highlightTile(coord: GridCoord | null): void {

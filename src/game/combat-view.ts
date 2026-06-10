@@ -3,11 +3,17 @@ import {
   gridToScreen,
   screenToGrid,
   statusVisual,
+  isValidSkillTarget,
+  isImmobilized,
+  effectiveMove,
+  reachableTiles,
+  manhattan,
   TILE_WIDTH,
   TILE_HEIGHT,
   type TileGrid,
   type GridCoord,
   type Unit,
+  type SkillDef,
 } from "../core";
 import { COLOR, FONT, INK, WEIGHT } from "./theme";
 import { roleColor } from "./roles";
@@ -117,6 +123,36 @@ export class CombatView {
     this.diamondPath(g, x, y);
     g.lineStyle(2.5, color, 0.95);
     g.strokePath();
+  }
+
+  /**
+   * Paint a player unit's turn preview onto `g`: when a skill is `armed`, its valid
+   * targets (green allies / red foes); otherwise the reachable tiles (blue wash) plus
+   * a threat outline on every foe a move would bring into attack range. Clears `g`
+   * first, so the caller just re-invokes it whenever the turn state changes.
+   */
+  drawPreview(g: Phaser.GameObjects.Graphics, actor: Unit, units: readonly Unit[], grid: TileGrid, armed?: SkillDef): void {
+    g.clear();
+    if (armed) {
+      for (const u of units) {
+        if (!u.alive || u.hidden || !isValidSkillTarget(armed, actor, u)) continue;
+        const ally = u.side === actor.side;
+        this.fillTile(g, u.pos, ally ? COLOR.success : COLOR.danger, 0.22, ally ? COLOR.accent : COLOR.threat);
+      }
+      return;
+    }
+    const budget = isImmobilized(actor) ? 0 : effectiveMove(actor);
+    const reach = reachableTiles(actor, units, grid, budget);
+    for (const r of reach) {
+      if (r.tile.col === actor.pos.col && r.tile.row === actor.pos.row) continue;
+      this.fillTile(g, r.tile, COLOR.reach, 0.18);
+    }
+    for (const foe of units) {
+      if (!foe.alive || foe.hidden || foe.side === actor.side) continue;
+      if (reach.some((r) => manhattan(r.tile, foe.pos) <= actor.attackRange)) {
+        this.outlineTile(g, foe.pos, COLOR.threat);
+      }
+    }
   }
 
   /** A solid, bordered tile diamond centred at world `(cx, cy)`. */

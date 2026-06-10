@@ -4,7 +4,6 @@ import {
   findPath,
   occupiedGrid,
   manhattan,
-  reachableTiles,
   TILE_WIDTH,
   TILE_HEIGHT,
   DemoRunner,
@@ -12,7 +11,6 @@ import {
   isValidSkillTarget,
   inAttackRange,
   effectiveMove,
-  isImmobilized,
   computeFlankBonus,
   safeDepth,
   captureUnit,
@@ -861,38 +859,16 @@ export class DemoScene extends Phaser.Scene {
    * **reachable** move tiles and outline the **foes in reach** this turn.
    */
   private drawPreview(): void {
-    this.preview.clear();
     const actor = this.waitingFor;
-    if (!actor || this.busy || this.ended) return;
-    const g = this.preview;
-    if (this.armed) {
-      for (const u of this.battle.units) {
-        if (!u.alive || u.hidden || !isValidSkillTarget(this.armed, actor, u)) continue;
-        const ally = u.side === actor.side;
-        this.fillTile(g, u.pos, ally ? COLOR.success : COLOR.danger, 0.22, ally ? COLOR.accent : COLOR.threat);
-      }
+    if (!actor || this.busy || this.ended) {
+      this.preview.clear();
       return;
     }
-    const budget = isImmobilized(actor) ? 0 : effectiveMove(actor);
-    const reach = reachableTiles(actor, this.battle.units, this.battle.grid, budget);
-    for (const r of reach) {
-      if (r.tile.col === actor.pos.col && r.tile.row === actor.pos.row) continue;
-      this.fillTile(g, r.tile, COLOR.reach, 0.18);
-    }
-    for (const foe of this.battle.units) {
-      if (!foe.alive || foe.hidden || foe.side === actor.side) continue;
-      if (reach.some((r) => manhattan(r.tile, foe.pos) <= actor.attackRange)) {
-        this.outlineTile(g, foe.pos, COLOR.threat);
-      }
-    }
+    this.view.drawPreview(this.preview, actor, this.battle.units, this.battle.grid, this.armed ?? undefined);
   }
 
   private fillTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, fill: number, alpha: number, line?: number): void {
     this.view.fillTile(g, coord, fill, alpha, line);
-  }
-
-  private outlineTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, color: number): void {
-    this.view.outlineTile(g, coord, color);
   }
 
   /** A short-lived combat-text pop-up that drifts up off a unit and fades. */
