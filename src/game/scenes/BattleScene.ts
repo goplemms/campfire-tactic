@@ -139,7 +139,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.view = new CombatView();
+    this.view = new CombatView(this);
     // Persistent UI.
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
