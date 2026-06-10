@@ -860,19 +860,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private highlightTile(coord: GridCoord | null): void {
-    this.highlight.clear();
-    if (!coord) return;
-    const { x, y } = this.tileToWorld(coord);
-    const halfW = TILE_WIDTH / 2;
-    const halfH = TILE_HEIGHT / 2;
-    this.highlight.lineStyle(3, COLOR.accent, 1);
-    this.highlight.beginPath();
-    this.highlight.moveTo(x, y - halfH);
-    this.highlight.lineTo(x + halfW, y);
-    this.highlight.lineTo(x, y + halfH);
-    this.highlight.lineTo(x - halfW, y);
-    this.highlight.closePath();
-    this.highlight.strokePath();
+    this.view.highlightTile(this.highlight, coord);
   }
 
   // --- Buttons ---------------------------------------------------------------
@@ -918,19 +906,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private flashAttack(attacker: Unit, target: Unit): void {
-    const av = this.view.views.get(attacker.id);
-    const tv = this.view.views.get(target.id);
-    if (av) {
-      const home = this.tileToWorld(attacker.pos);
-      const toward = this.tileToWorld(target.pos);
-      this.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true, ease: "Quad.easeOut" });
-    }
-    if (tv) this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true });
+    this.view.flashHit(attacker, target);
   }
 
   private flashHeal(unit: Unit): void {
-    const view = this.view.views.get(unit.id);
-    if (!view) return;
-    this.tweens.add({ targets: view.container, scale: 1.25, duration: 130, yoyo: true, ease: "Quad.easeOut" });
+    this.view.flashHeal(unit);
   }
 }

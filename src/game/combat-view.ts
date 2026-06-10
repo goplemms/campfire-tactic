@@ -125,6 +125,16 @@ export class CombatView {
     g.strokePath();
   }
 
+  /** Outline a single tile (the cursor / selected tile) onto `g`, or clear it on null. */
+  highlightTile(g: Phaser.GameObjects.Graphics, coord: GridCoord | null): void {
+    g.clear();
+    if (!coord) return;
+    const { x, y } = this.tileToWorld(coord);
+    this.diamondPath(g, x, y);
+    g.lineStyle(3, COLOR.accent, 1);
+    g.strokePath();
+  }
+
   /**
    * Paint a player unit's turn preview onto `g`: when a skill is `armed`, its valid
    * targets (green allies / red foes); otherwise the reachable tiles (blue wash) plus
@@ -298,6 +308,36 @@ export class CombatView {
     }
     const targets = path.map((c) => this.tileToWorld(c));
     this.scene.tweens.chain({ targets: view.container, tweens: targets.map((p) => ({ x: p.x, y: p.y, duration: stepMs, ease: "Linear" })), onComplete: done });
+  }
+
+  /**
+   * The attack-impact FX: the attacker lunges a third of the way at the target, the
+   * struck token flashes white and blinks, and the camera gives a short shake. The
+   * body colour is captured and restored, so a recoloured token (a captured unit)
+   * keeps its hue. Shake is skipped under reduceMotion for stable captures.
+   */
+  flashHit(attacker: Unit, target: Unit): void {
+    const av = this.views.get(attacker.id);
+    const tv = this.views.get(target.id);
+    if (av && attacker !== target) {
+      const home = this.tileToWorld(attacker.pos);
+      const toward = this.tileToWorld(target.pos);
+      this.scene.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true, ease: "Quad.easeOut" });
+    }
+    if (tv) {
+      const prevFill = tv.body.fillColor;
+      tv.body.setFillStyle(COLOR.white);
+      this.scene.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshUnits() });
+      this.scene.time.delayedCall(95, () => tv.body.setFillStyle(prevFill));
+      if (!this.reduceMotion) this.scene.cameras.main.shake(70, 0.0035);
+    }
+  }
+
+  /** A heal/buff cue: a quick scale-pop on the unit's token. */
+  flashHeal(unit: Unit): void {
+    const view = this.views.get(unit.id);
+    if (!view) return;
+    this.scene.tweens.add({ targets: view.container, scale: 1.25, duration: 130, yoyo: true, ease: "Quad.easeOut" });
   }
 
   /** Tear down all unit tokens and floaters (call when rebuilding the board). */

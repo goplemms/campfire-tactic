@@ -4,7 +4,6 @@ import {
   findPath,
   occupiedGrid,
   manhattan,
-  TILE_WIDTH,
   TILE_HEIGHT,
   DemoRunner,
   unlockedSkills,
@@ -811,23 +810,9 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private highlightTile(coord: GridCoord | null): void {
-    this.highlight.clear();
+    this.view.highlightTile(this.highlight, coord);
     this.setActiveMarker(coord);
-    if (!coord) {
-      this.preview.clear();
-      return;
-    }
-    const { x, y } = this.tileToWorld(coord);
-    const hw = TILE_WIDTH / 2;
-    const hh = TILE_HEIGHT / 2;
-    this.highlight.lineStyle(3, COLOR.accent, 1);
-    this.highlight.beginPath();
-    this.highlight.moveTo(x, y - hh);
-    this.highlight.lineTo(x + hw, y);
-    this.highlight.lineTo(x, y + hh);
-    this.highlight.lineTo(x - hw, y);
-    this.highlight.closePath();
-    this.highlight.strokePath();
+    if (!coord) this.preview.clear();
   }
 
   /** Hover the bobbing active-unit chevron over a tile (or hide it on null). */
@@ -883,22 +868,7 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private flash(attacker: Unit, target: Unit): void {
-    const av = this.view.views.get(attacker.id);
-    const tv = this.view.views.get(target.id);
-    if (av && attacker !== target) {
-      const home = this.tileToWorld(attacker.pos);
-      const toward = this.tileToWorld(target.pos);
-      this.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true });
-    }
-    if (tv) {
-      // Punchier impact: a white flash on the struck token + a short camera shake,
-      // on top of the alpha blink. The body colour is restored once the blink settles.
-      const base = target.side === "player" ? COLOR.ally : COLOR.foe;
-      tv.body.setFillStyle(COLOR.white);
-      this.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshHp() });
-      this.time.delayedCall(95, () => tv.body.setFillStyle(base));
-      if (!this.reduceMotion) this.cameras.main.shake(70, 0.0035);
-    }
+    this.view.flashHit(attacker, target);
   }
 
   // --- UI primitives ---------------------------------------------------------
