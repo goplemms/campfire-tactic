@@ -1,8 +1,6 @@
 import Phaser from "phaser";
 import { COLOR, FONT, INK, WEIGHT } from "../theme";
 import {
-  gridToScreen,
-  screenToGrid,
   findPath,
   occupiedGrid,
   manhattan,
@@ -40,6 +38,7 @@ import {
 import { Button, ButtonColumn } from "../button";
 import { HintPanel } from "../hint-panel";
 import { roleColor } from "../roles";
+import { CombatView } from "../combat-view";
 import { dropNet as dropNetCage } from "../deploy-fx";
 
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
@@ -63,6 +62,8 @@ export class DemoScene extends Phaser.Scene {
 
   private originX = 0;
   private originY = 0;
+  /** Shared board geometry + grid/tile drawing (the seam shared with BattleScene). */
+  private view!: CombatView;
   /**
    * The right-hand vertical command panel sizes itself to its labels: short sets
    * (Dash / Defend) stay snug at {@link panelMinW}, while a long label (a kit name
@@ -140,6 +141,7 @@ export class DemoScene extends Phaser.Scene {
 
   create(): void {
     this.runner = new DemoRunner();
+    this.view = new CombatView();
     this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.subText = this.add.text(this.scale.width / 2, 38, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     // A faint backing groups the turn-order readout; sized to the text each refresh.
@@ -732,6 +734,7 @@ export class DemoScene extends Phaser.Scene {
     // far-right tiles never hide behind the action buttons.
     this.originX = (this.scale.width - this.panelMaxW - 24) / 2;
     this.originY = this.scale.height / 2 - (grid.rows * TILE_HEIGHT) / 2 + 10;
+    this.view.setOrigin(this.originX, this.originY);
     this.drawGrid();
     for (const unit of this.battle.units) this.spawnUnit(unit);
     this.refreshHp();
@@ -762,30 +765,7 @@ export class DemoScene extends Phaser.Scene {
   private drawGrid(): void {
     const g = this.add.graphics();
     this.gridGfx = g;
-    const grid = this.battle.grid;
-    for (let row = 0; row < grid.rows; row++) {
-      for (let col = 0; col < grid.cols; col++) {
-        const { x, y } = this.tileToWorld({ col, row });
-        const walkable = grid.isWalkable({ col, row });
-        const fill = !walkable ? COLOR.tileBlocked : (col + row) % 2 === 0 ? COLOR.tileLight : COLOR.tileDark;
-        this.drawDiamond(g, x, y, fill);
-      }
-    }
-  }
-
-  private drawDiamond(g: Phaser.GameObjects.Graphics, cx: number, cy: number, fill: number): void {
-    const hw = TILE_WIDTH / 2;
-    const hh = TILE_HEIGHT / 2;
-    g.fillStyle(fill, 1);
-    g.lineStyle(1, COLOR.border, 1);
-    g.beginPath();
-    g.moveTo(cx, cy - hh);
-    g.lineTo(cx + hw, cy);
-    g.lineTo(cx, cy + hh);
-    g.lineTo(cx - hw, cy);
-    g.closePath();
-    g.fillPath();
-    g.strokePath();
+    this.view.drawGrid(g, this.battle.grid);
   }
 
   private spawnUnit(unit: Unit): void {
@@ -933,13 +913,11 @@ export class DemoScene extends Phaser.Scene {
   // --- Geometry --------------------------------------------------------------
 
   private tileToWorld(coord: GridCoord): { x: number; y: number } {
-    const { x, y } = gridToScreen(coord);
-    return { x: this.originX + x, y: this.originY + y };
+    return this.view.tileToWorld(coord);
   }
 
   private worldToTile(px: number, py: number): GridCoord {
-    const frac = screenToGrid({ x: px - this.originX, y: py - this.originY });
-    return { col: Math.round(frac.col), row: Math.round(frac.row) };
+    return this.view.worldToTile(px, py);
   }
 
   private highlightTile(coord: GridCoord | null): void {
@@ -1018,35 +996,11 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private fillTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, fill: number, alpha: number, line?: number): void {
-    const { x, y } = this.tileToWorld(coord);
-    const hw = TILE_WIDTH / 2;
-    const hh = TILE_HEIGHT / 2;
-    g.fillStyle(fill, alpha);
-    g.beginPath();
-    g.moveTo(x, y - hh);
-    g.lineTo(x + hw, y);
-    g.lineTo(x, y + hh);
-    g.lineTo(x - hw, y);
-    g.closePath();
-    g.fillPath();
-    if (line !== undefined) {
-      g.lineStyle(2, line, 0.9);
-      g.strokePath();
-    }
+    this.view.fillTile(g, coord, fill, alpha, line);
   }
 
   private outlineTile(g: Phaser.GameObjects.Graphics, coord: GridCoord, color: number): void {
-    const { x, y } = this.tileToWorld(coord);
-    const hw = TILE_WIDTH / 2;
-    const hh = TILE_HEIGHT / 2;
-    g.lineStyle(2.5, color, 0.95);
-    g.beginPath();
-    g.moveTo(x, y - hh);
-    g.lineTo(x + hw, y);
-    g.lineTo(x, y + hh);
-    g.lineTo(x - hw, y);
-    g.closePath();
-    g.strokePath();
+    this.view.outlineTile(g, coord, color);
   }
 
   /** A short-lived combat-text pop-up that drifts up off a unit and fades. */

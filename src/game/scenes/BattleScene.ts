@@ -1,9 +1,8 @@
 import Phaser from "phaser";
 import { COLOR, FONT, INK } from "../theme";
 import { roleColor } from "../roles";
+import { CombatView } from "../combat-view";
 import {
-  gridToScreen,
-  screenToGrid,
   findPath,
   occupiedGrid,
   isAdjacent,
@@ -89,6 +88,8 @@ export class BattleScene extends Phaser.Scene {
   >();
   private originX = 0;
   private originY = 0;
+  /** Shared board geometry + grid/tile drawing (the seam shared with DemoScene). */
+  private view!: CombatView;
 
   // Persistent HUD.
   private titleText!: Phaser.GameObjects.Text;
@@ -138,6 +139,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.view = new CombatView();
     // Persistent UI.
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
@@ -203,6 +205,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.originX = this.scale.width / 2;
     this.originY = this.scale.height / 2 - (this.grid.rows * TILE_HEIGHT) / 2 + 4;
+    this.view.setOrigin(this.originX, this.originY);
 
     this.drawGrid();
     this.spawnUnits();
@@ -767,41 +770,17 @@ export class BattleScene extends Phaser.Scene {
   // --- Drawing helpers -------------------------------------------------------
 
   private tileToWorld(coord: GridCoord): { x: number; y: number } {
-    const { x, y } = gridToScreen(coord);
-    return { x: this.originX + x, y: this.originY + y };
+    return this.view.tileToWorld(coord);
   }
 
   private worldToTile(px: number, py: number): GridCoord {
-    const frac = screenToGrid({ x: px - this.originX, y: py - this.originY });
-    return { col: Math.round(frac.col), row: Math.round(frac.row) };
+    return this.view.worldToTile(px, py);
   }
 
   private drawGrid(): void {
     const g = this.add.graphics();
     this.gridGfx = g;
-    for (let row = 0; row < this.grid.rows; row++) {
-      for (let col = 0; col < this.grid.cols; col++) {
-        const { x, y } = this.tileToWorld({ col, row });
-        const walkable = this.grid.isWalkable({ col, row });
-        const fill = !walkable ? COLOR.tileBlocked : (col + row) % 2 === 0 ? COLOR.tileLight : COLOR.tileDark;
-        this.drawDiamond(g, x, y, fill);
-      }
-    }
-  }
-
-  private drawDiamond(g: Phaser.GameObjects.Graphics, cx: number, cy: number, fill: number): void {
-    const halfW = TILE_WIDTH / 2;
-    const halfH = TILE_HEIGHT / 2;
-    g.fillStyle(fill, 1);
-    g.lineStyle(1, COLOR.border, 1);
-    g.beginPath();
-    g.moveTo(cx, cy - halfH);
-    g.lineTo(cx + halfW, cy);
-    g.lineTo(cx, cy + halfH);
-    g.lineTo(cx - halfW, cy);
-    g.closePath();
-    g.fillPath();
-    g.strokePath();
+    this.view.drawGrid(g, this.grid);
   }
 
   private spawnUnits(): void {
