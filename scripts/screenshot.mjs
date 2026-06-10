@@ -85,6 +85,8 @@ const STEPS = [
   // --- The guild hall (boots on the base URL, no #demo) -----------------------
   { name: "11-guild", goto: "", minMs: 500 },                  // hall: card pinned open (feedback visible)
   { name: "11b-guild-collapsed", minMs: 600, eval: togglePin("GuildScene") }, // unpin → collapses to a bottom-right chip
+  // --- The real mission scene (#battle: a headless boot into a deterministic run) ---
+  { name: "12-battle-deploy", goto: "battle", minMs: 900 },    // genuine BattleScene: the deployment board
 ];
 
 // Each helper returns a *plain function* puppeteer serializes and runs in the page
@@ -232,6 +234,9 @@ async function main() {
         // from ever going network-idle on a re-navigation. The settle gate below
         // still makes the frame deterministic.
         await page.goto(step.goto ? `${url}#${step.goto}` : url, { waitUntil: "load", timeout: 30000 });
+        // A hash-only change (e.g. → #battle) is a same-document navigation, so the
+        // page wouldn't reload and config.ts wouldn't re-read the hash. Force it.
+        if (step.goto) await page.reload({ waitUntil: "load", timeout: 30000 });
         canvas = await page.waitForSelector("canvas", { timeout: 15000 });
       }
       if (step.eval) await page.evaluate(step.eval);
