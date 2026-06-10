@@ -329,8 +329,29 @@ export class CombatView {
       tv.body.setFillStyle(COLOR.white);
       this.scene.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshUnits() });
       this.scene.time.delayedCall(95, () => tv.body.setFillStyle(prevFill));
-      if (!this.reduceMotion) this.scene.cameras.main.shake(70, 0.0035);
+      // A kill hits harder: a longer, stronger shake + freeze than a glancing blow.
+      // (The death pop itself is played by refreshUnits when the token reads dead.)
+      const fatal = !target.alive;
+      if (!this.reduceMotion) {
+        this.scene.cameras.main.shake(fatal ? 140 : 70, fatal ? 0.008 : 0.0035);
+        this.hitStop(fatal ? 90 : 45);
+      }
     }
+  }
+
+  /**
+   * A brief **hit-stop**: freeze every tween for `ms` so an impact *lands* — the
+   * pause reads as force. The scene clock keeps running (so this self-restores),
+   * and it's skipped under reduceMotion to keep captures deterministic.
+   */
+  private hitStop(ms: number): void {
+    if (this.reduceMotion) return;
+    const tw = this.scene.tweens;
+    if (tw.timeScale === 0) return; // already frozen by a prior hit this frame
+    tw.timeScale = 0;
+    this.scene.time.delayedCall(ms, () => {
+      tw.timeScale = 1;
+    });
   }
 
   /** A heal/buff cue: a quick scale-pop on the unit's token. */
