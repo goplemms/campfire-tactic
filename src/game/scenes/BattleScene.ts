@@ -82,10 +82,6 @@ export class BattleScene extends Phaser.Scene {
   private safeZoneGfx?: Phaser.GameObjects.Graphics;
   private highlight!: Phaser.GameObjects.Graphics;
   private boardObjects: Phaser.GameObjects.GameObject[] = [];
-  private views = new Map<
-    string,
-    { container: Phaser.GameObjects.Container; body: Phaser.GameObjects.Arc; hp: Phaser.GameObjects.Text }
-  >();
   private originX = 0;
   private originY = 0;
   /** Shared board geometry + grid/tile drawing (the seam shared with DemoScene). */
@@ -140,6 +136,7 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     this.view = new CombatView(this);
+    this.view.reduceMotion = !!(window as Window & { __SHOT__?: boolean }).__SHOT__;
     // Persistent UI.
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
@@ -197,7 +194,7 @@ export class BattleScene extends Phaser.Scene {
   private rebuildBoard(): void {
     for (const o of this.boardObjects) o.destroy();
     this.boardObjects = [];
-    this.views.clear();
+    this.view.clearUnits();
     this.gridGfx?.destroy();
     this.safeZoneGfx?.destroy();
     this.safeZoneGfx = undefined;
@@ -507,7 +504,7 @@ export class BattleScene extends Phaser.Scene {
     if (!res.applied) return this.setHint(`Can't bribe: ${res.reason}`);
     // Turncoat: flip the enemy to the player's side for the rest of the fight.
     (foe as unknown as { side: Side }).side = "player";
-    const view = this.views.get(foe.id);
+    const view = this.view.views.get(foe.id);
     view?.body.setFillStyle(COLOR.ally).setStrokeStyle(2, COLOR.allyEdge);
     if (res.outcome?.permanent) this.pendingRecruits.push(foe);
     this.waitingFor = null;
@@ -785,45 +782,25 @@ export class BattleScene extends Phaser.Scene {
 
   private spawnUnits(): void {
     for (const unit of this.battle.units) {
-      const color = unit.side === "player" ? COLOR.ally : COLOR.foe;
-      const stroke = unit.side === "player" ? COLOR.allyEdge : COLOR.foeEdge;
-      // Side-coloured fill (friend/foe) with a role-coloured ring (class), matching
-      // the demo scene so the mission board reads the same at a glance.
-      const body = this.add.circle(0, -TILE_HEIGHT / 2, 11, color).setStrokeStyle(3, roleColor(unit, stroke));
-      const label = this.add.text(0, -TILE_HEIGHT / 2 - 26, unit.name, { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
-      const hp = this.add.text(0, -TILE_HEIGHT / 2 - 13, "", { color: INK.success, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0.5);
-      // A soft contact shadow at the tile centre lifts the floating token off the grid.
-      const shadow = this.add.ellipse(0, -2, 22, 8, COLOR.black, 0.28);
-      const container = this.add.container(0, 0, [shadow, body, label, hp]).setDepth(1);
-      this.views.set(unit.id, { container, body, hp });
-      this.boardObjects.push(container);
+      this.view.spawnUnit(unit);
       if (unit.captured) this.tintCaptured(unit, true);
-      this.placeView(unit);
     }
-    this.refreshHp();
+    this.view.refreshUnits();
   }
 
   private tintCaptured(unit: Unit, captured: boolean): void {
-    const view = this.views.get(unit.id);
+    const view = this.view.views.get(unit.id);
     if (!view) return;
     view.body.setFillStyle(captured ? COLOR.captive : COLOR.ally);
     view.body.setStrokeStyle(3, captured ? COLOR.captiveEdge : roleColor(unit, COLOR.allyEdge));
   }
 
   private placeView(unit: Unit): void {
-    const view = this.views.get(unit.id);
-    if (!view) return;
-    const { x, y } = this.tileToWorld(unit.pos);
-    view.container.setPosition(x, y);
+    this.view.placeView(unit);
   }
 
   private refreshHp(): void {
-    for (const unit of this.battle.units) {
-      const view = this.views.get(unit.id);
-      if (!view) continue;
-      view.hp.setText(`${Math.max(0, unit.hp)}/${unit.maxHp}`);
-      view.container.setAlpha(unit.alive ? 1 : 0.25);
-    }
+    this.view.refreshUnits();
   }
 
   private refreshHud(): void {
@@ -919,15 +896,12 @@ export class BattleScene extends Phaser.Scene {
   // --- Animation -------------------------------------------------------------
 
   private animateMove(unit: Unit, path: readonly GridCoord[], done: () => void): void {
-    const view = this.views.get(unit.id);
-    if (!view || path.length === 0) return done();
-    const targets = path.map((c) => this.tileToWorld(c));
-    this.tweens.chain({ targets: view.container, tweens: targets.map((p) => ({ x: p.x, y: p.y, duration: 150, ease: "Linear" })), onComplete: done });
+    this.view.animateMove(unit, path, done, 150);
   }
 
   private flashAttack(attacker: Unit, target: Unit): void {
-    const av = this.views.get(attacker.id);
-    const tv = this.views.get(target.id);
+    const av = this.view.views.get(attacker.id);
+    const tv = this.view.views.get(target.id);
     if (av) {
       const home = this.tileToWorld(attacker.pos);
       const toward = this.tileToWorld(target.pos);
@@ -937,7 +911,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private flashHeal(unit: Unit): void {
-    const view = this.views.get(unit.id);
+    const view = this.view.views.get(unit.id);
     if (!view) return;
     this.tweens.add({ targets: view.container, scale: 1.25, duration: 130, yoyo: true, ease: "Quad.easeOut" });
   }
