@@ -1,14 +1,14 @@
 import Phaser from "phaser";
 import { COLOR, FONT, INK } from "../theme";
 import {
+  planMove,
+  planAttack,
   findPath,
   occupiedGrid,
-  manhattan,
   TILE_HEIGHT,
   DemoRunner,
   unlockedSkills,
   isValidSkillTarget,
-  inAttackRange,
   effectiveMove,
   computeFlankBonus,
   safeDepth,
@@ -550,20 +550,15 @@ export class DemoScene extends Phaser.Scene {
   }
 
   private playerAttack(actor: Unit, foe: Unit): void {
-    if (inAttackRange(actor, foe)) return this.commitMove(actor, [], foe);
-    const nav = occupiedGrid(this.battle.grid, this.battle.units, [actor, foe]);
-    const path = findPath(nav, actor.pos, foe.pos);
-    if (!path || path.length < 2) return this.setHint("No path to that foe.");
-    const approach = path.slice(1, -1).slice(0, effectiveMove(actor));
-    const dest = approach.length > 0 ? approach[approach.length - 1] : actor.pos;
-    this.commitMove(actor, approach, manhattan(dest, foe.pos) <= actor.attackRange ? foe : null);
+    const plan = planAttack(actor, foe, this.battle.units, this.battle.grid);
+    if (!plan) return this.setHint("No path to that foe.");
+    this.commitMove(actor, plan.path, plan.attackTarget);
   }
 
   private playerMove(actor: Unit, tile: GridCoord): void {
-    const nav = occupiedGrid(this.battle.grid, this.battle.units, [actor]);
-    const path = findPath(nav, actor.pos, tile);
-    if (!path || path.length < 2) return this.setHint("Can't move there.");
-    this.commitMove(actor, path.slice(1).slice(0, effectiveMove(actor)), null);
+    const path = planMove(actor, tile, this.battle.units, this.battle.grid);
+    if (!path) return this.setHint("Can't move there.");
+    this.commitMove(actor, path, null);
   }
 
   private commitMove(actor: Unit, path: GridCoord[], target: Unit | null): void {

@@ -3,6 +3,8 @@ import { COLOR, FONT, INK } from "../theme";
 import { roleColor } from "../roles";
 import { CombatView } from "../combat-view";
 import {
+  planMove,
+  planAttack,
   findPath,
   occupiedGrid,
   isAdjacent,
@@ -655,20 +657,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private playerAttackOrApproach(actor: Unit, foe: Unit): void {
-    if (isAdjacent(actor.pos, foe.pos)) return this.commitPlayer(actor, [], foe);
-    const nav = occupiedGrid(this.grid, this.battle.units, [actor, foe]);
-    const path = findPath(nav, actor.pos, foe.pos);
-    if (!path || path.length < 2) return this.setHint("No path to that foe.");
-    const approach = path.slice(1, -1).slice(0, actor.moveRange);
-    const dest = approach.length > 0 ? approach[approach.length - 1] : actor.pos;
-    this.commitPlayer(actor, approach, isAdjacent(dest, foe.pos) ? foe : null);
+    const plan = planAttack(actor, foe, this.battle.units, this.grid);
+    if (!plan) return this.setHint("No path to that foe.");
+    this.commitPlayer(actor, plan.path, plan.attackTarget);
   }
 
   private playerMove(actor: Unit, tile: GridCoord): void {
-    const nav = occupiedGrid(this.grid, this.battle.units, [actor]);
-    const path = findPath(nav, actor.pos, tile);
-    if (!path || path.length < 2) return this.setHint("Can't move there.");
-    this.commitPlayer(actor, path.slice(1).slice(0, actor.moveRange), null);
+    const path = planMove(actor, tile, this.battle.units, this.grid);
+    if (!path) return this.setHint("Can't move there.");
+    this.commitPlayer(actor, path, null);
   }
 
   private commitPlayer(actor: Unit, path: GridCoord[], target: Unit | null): void {
