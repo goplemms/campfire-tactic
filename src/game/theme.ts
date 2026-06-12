@@ -37,12 +37,17 @@ export const FONT = {
   /** Overlay and end-screen titles. */
   display: "22px",
   /**
-   * The UI typeface. Phaser's built-in default is bare `"Courier"` — which is
-   * what every label has rendered in so far, so naming it here changes nothing
-   * today. It exists to be the *one* knob that retunes the whole game's type:
-   * swap this value and every nameplate, button and title follows.
+   * The UI typeface — the *one* knob that retunes the whole game's type: swap
+   * this value and every nameplate, button and title follows.
+   *
+   * "Courier Prime" is a warm, well-drawn typewriter monospace (bundled in
+   * `fonts.css`, awaited in main.ts before boot) — a "field journal by
+   * firelight" feel that keeps the column alignment the turn rail and HP
+   * readouts rely on. The fallback chain degrades to the system Courier (the
+   * old default) if the web font is blocked. "IBM Plex Mono" is the bundled
+   * alternate.
    */
-  family: "Courier",
+  family: '"Courier Prime", "Courier New", Courier, monospace',
 } as const;
 
 /** Font weights, as Phaser `fontStyle` strings. */
