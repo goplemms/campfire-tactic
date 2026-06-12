@@ -144,7 +144,7 @@ export class GuildScene extends Phaser.Scene {
     // The two pools + Influence (D34): the persistent TREASURY (vault), the
     // walled-off INFLUENCE currency, the roster, and the free armory. The run
     // PURSE lives on each caravan (shown in Assembly / surfaced on a return).
-    this.text(W / 2, 14, `Guild Hall — Treasury ${this.guild.treasury}g  ·  Influence ${this.guild.influence}  ·  Roster ${this.guild.roster.length}  ·  Armory ${availableGear(this.guild).length} free`, INK.primary, 17, 0.5);
+    this.text(W / 2, 14, `Guild Hall — Treasury ${this.guild.treasury}g  ·  Influence ${this.guild.influence}  ·  Roster ${this.guild.roster.length}  ·  Armory ${availableGear(this.guild).length} free`, INK.primary, FONT.title, 0.5);
 
     this.drawBoard(20, 44);
     this.drawAssembly(280, 44);
@@ -157,7 +157,7 @@ export class GuildScene extends Phaser.Scene {
 
   /** The quest board (never empty, D26). Click a quest to target the dispatch. */
   private drawBoard(x: number, y: number): void {
-    this.text(x, y, "Quest Board", INK.gold, 14, 0);
+    this.text(x, y, "Quest Board", INK.gold, FONT.body, 0);
     let yy = y + 24;
     for (const q of this.guild.board) {
       const selected = q.id === this.selectedQuestId;
@@ -174,21 +174,21 @@ export class GuildScene extends Phaser.Scene {
   private drawAssembly(x: number, y: number): void {
     const caravan = this.selectedCaravan();
     if (!caravan) {
-      this.text(x, y, "Assembly", INK.success, 14, 0);
-      this.text(x, y + 26, "No caravan selected.", INK.muted, 12, 0);
+      this.text(x, y, "Assembly", INK.success, FONT.body, 0);
+      this.text(x, y + 26, "No caravan selected.", INK.muted, FONT.label, 0);
       return;
     }
     const vessel = getVessel(caravan.vesselId);
     const dispatched = caravan.dispatched;
-    this.text(x, y, `Assembly — ${vessel.label}`, INK.success, 14, 0);
-    this.text(x, y + 20, `slots ${caravan.party.length}/${caravanCapacity(caravan)}  ·  storage ${caravan.storageCap}  ·  purse ${caravan.purse}g${dispatched ? "  ·  DISPATCHED" : ""}`, INK.secondary, 12, 0);
+    this.text(x, y, `Assembly — ${vessel.label}`, INK.success, FONT.body, 0);
+    this.text(x, y + 20, `slots ${caravan.party.length}/${caravanCapacity(caravan)}  ·  storage ${caravan.storageCap}  ·  purse ${caravan.purse}g${dispatched ? "  ·  DISPATCHED" : ""}`, INK.secondary, FONT.label, 0);
 
     let yy = y + 44;
     // Aboard party (uniform slots) — click to remove (if not dispatched).
-    this.text(x, yy, "Aboard:", INK.secondary, 12, 0);
+    this.text(x, yy, "Aboard:", INK.secondary, FONT.label, 0);
     yy += 20;
     if (caravan.party.length === 0) {
-      this.text(x + 6, yy, "(empty — add from the pool →)", INK.disabled, 12, 0);
+      this.text(x + 6, yy, "(empty — add from the pool →)", INK.disabled, FONT.label, 0);
       yy += 22;
     }
     for (const u of caravan.party) {
@@ -202,10 +202,10 @@ export class GuildScene extends Phaser.Scene {
 
     // Locked gear — click to unlock.
     yy += 6;
-    this.text(x, yy, "Locked gear:", INK.secondary, 12, 0);
+    this.text(x, yy, "Locked gear:", INK.secondary, FONT.label, 0);
     yy += 20;
     if (caravan.gear.length === 0) {
-      this.text(x + 6, yy, "(none)", INK.disabled, 12, 0);
+      this.text(x + 6, yy, "(none)", INK.disabled, FONT.label, 0);
       yy += 22;
     }
     for (const g of caravan.gear) {
@@ -221,11 +221,11 @@ export class GuildScene extends Phaser.Scene {
 
     // Purse slider (treasury → purse), in steps of 20.
     yy += 6;
-    this.text(x, yy, "Purse (from treasury):", INK.secondary, 12, 0);
+    this.text(x, yy, "Purse (from treasury):", INK.secondary, FONT.label, 0);
     yy += 22;
     this.smallButton(x, yy, 34, "−20", () => this.adjustPurse(caravan, -20));
     this.smallButton(x + 40, yy, 34, "+20", () => this.adjustPurse(caravan, +20));
-    this.text(x + 86, yy + 2, `${caravan.purse}g`, INK.bright, 13, 0);
+    this.text(x + 86, yy + 2, `${caravan.purse}g`, INK.bright, FONT.body, 0);
 
     // Dispatch.
     yy += 38;
@@ -243,10 +243,10 @@ export class GuildScene extends Phaser.Scene {
   /** The available roster pool + armory + the rebuild valve. */
   private drawPool(x: number, y: number): void {
     const caravan = this.selectedCaravan();
-    this.text(x, y, "Roster Pool", INK.gold, 14, 0);
+    this.text(x, y, "Roster Pool", INK.gold, FONT.body, 0);
     let yy = y + 24;
     const pool = availableRoster(this.guild);
-    if (pool.length === 0) this.text(x + 6, yy, "(all committed)", INK.disabled, 12, 0);
+    if (pool.length === 0) this.text(x + 6, yy, "(all committed)", INK.disabled, FONT.label, 0);
     for (const u of pool) {
       const refusal = caravan ? memberRefusal(caravan, u, this.others(caravan)) : "No caravan.";
       this.listButton(x, yy, 220, `${u.name} (${u.jobId}) Lv${u.level}`, false, () => {
@@ -259,10 +259,10 @@ export class GuildScene extends Phaser.Scene {
     }
 
     yy += 10;
-    this.text(x, yy, "Armory", INK.gold, 14, 0);
+    this.text(x, yy, "Armory", INK.gold, FONT.body, 0);
     yy += 24;
     const gear = availableGear(this.guild);
-    if (gear.length === 0) this.text(x + 6, yy, "(all locked out)", INK.disabled, 12, 0);
+    if (gear.length === 0) this.text(x + 6, yy, "(all locked out)", INK.disabled, FONT.label, 0);
     for (const g of gear) {
       this.listButton(x, yy, 220, g, false, () => {
         if (!caravan) return this.setHint("Select an assembling caravan first.");
@@ -288,7 +288,7 @@ export class GuildScene extends Phaser.Scene {
 
     // The refreshing mercenary pool (D33): several rolled recruits, gold-hired.
     yy += 40;
-    this.text(x, yy, "Recruits (refreshing pool)", INK.gold, 14, 0);
+    this.text(x, yy, "Recruits (refreshing pool)", INK.gold, FONT.body, 0);
     yy += 24;
     const poolMercs = mercPool(this.guild);
     const canAffordMerc = this.guild.treasury >= GUILD.mercCost;
@@ -314,7 +314,7 @@ export class GuildScene extends Phaser.Scene {
 
   /** The stable — every caravan with its status; Play an in-flight one (serial, D26). */
   private drawStable(x: number, y: number): void {
-    this.text(x, y, "The Stable", INK.gold, 14, 0);
+    this.text(x, y, "The Stable", INK.gold, FONT.body, 0);
     let xx = x;
     for (const c of this.guild.caravans) {
       const gr = runFor(this.guild, c.id);
@@ -400,8 +400,8 @@ export class GuildScene extends Phaser.Scene {
 
   // --- Small UI helpers -----------------------------------------------------
 
-  private text(x: number, y: number, s: string, color: string, size: number, originX: number): void {
-    this.ui.push(this.add.text(x, y, s, { color, fontFamily: FONT.family, fontSize: `${size}px` }).setOrigin(originX, 0).setDepth(10));
+  private text(x: number, y: number, s: string, color: string, size: string, originX: number): void {
+    this.ui.push(this.add.text(x, y, s, { color, fontFamily: FONT.family, fontSize: size }).setOrigin(originX, 0).setDepth(10));
   }
 
   private listButton(x: number, y: number, w: number, label: string, selected: boolean, onClick: () => void): void {
