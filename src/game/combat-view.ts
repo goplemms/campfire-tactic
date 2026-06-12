@@ -7,7 +7,7 @@ import {
   isImmobilized,
   effectiveMove,
   reachableTiles,
-  manhattan,
+  forecastAttack,
   TILE_WIDTH,
   TILE_HEIGHT,
   type TileGrid,
@@ -62,6 +62,8 @@ export class CombatView {
   readonly views = new Map<string, UnitView>();
   /** Live floating-combat-text objects, swept on teardown. */
   readonly floaters = new Set<Phaser.GameObjects.Text>();
+  /** Attack-forecast labels drawn over foes in the move/attack preview. */
+  private readonly forecastLabels = new Set<Phaser.GameObjects.Text>();
   /** The unit taking its turn / under the cursor — both reveal a nameplate. */
   activeUnitId: string | null = null;
   hoveredUnitId: string | null = null;
@@ -149,6 +151,7 @@ export class CombatView {
    */
   drawPreview(g: Phaser.GameObjects.Graphics, actor: Unit, units: readonly Unit[], grid: TileGrid, armed?: SkillDef): void {
     g.clear();
+    this.clearForecast();
     if (armed) {
       for (const u of units) {
         if (!u.alive || u.hidden || !isValidSkillTarget(armed, actor, u)) continue;
@@ -163,12 +166,41 @@ export class CombatView {
       if (r.tile.col === actor.pos.col && r.tile.row === actor.pos.row) continue;
       this.fillTile(g, r.tile, COLOR.reach, 0.18);
     }
+    // Telegraph each foe the actor could strike this turn: outline it, and float a
+    // forecast badge — the best-case damage, a flank tag, and a skull when lethal —
+    // so a player reads the consequence before committing the move.
     for (const foe of units) {
       if (!foe.alive || foe.hidden || foe.side === actor.side) continue;
-      if (reach.some((r) => manhattan(r.tile, foe.pos) <= actor.attackRange)) {
-        this.outlineTile(g, foe.pos, COLOR.threat);
-      }
+      const f = forecastAttack(actor, foe, units, grid);
+      if (!f) continue;
+      this.outlineTile(g, foe.pos, f.lethal ? COLOR.danger : COLOR.threat);
+      this.drawForecast(foe, f);
     }
+  }
+
+  /** Float an attack-forecast badge above a foe (best-case damage / flank / lethal). */
+  private drawForecast(foe: Unit, f: { damage: number; lethal: boolean; flank: boolean }): void {
+    const { x, y } = this.tileToWorld(foe.pos);
+    const text = `${f.flank ? "⚔" : ""}${f.damage}${f.lethal ? "☠" : ""}`;
+    const color = f.lethal ? "#ff7a3a" : f.flank ? INK.gold : INK.ember;
+    const label = this.scene.add
+      .text(x, y - TILE_HEIGHT / 2 - 30, text, { color, fontFamily: FONT.family, fontSize: FONT.caption, fontStyle: WEIGHT.bold })
+      .setOrigin(0.5)
+      .setDepth(6)
+      .setStroke("#1a0d05", 3);
+    this.forecastLabels.add(label);
+  }
+
+  /** Drop every attack-forecast badge (called on redraw and when the preview clears). */
+  private clearForecast(): void {
+    for (const l of this.forecastLabels) l.destroy();
+    this.forecastLabels.clear();
+  }
+
+  /** Wipe the preview graphics *and* its forecast badges — scenes call this to clear the preview. */
+  clearPreview(g: Phaser.GameObjects.Graphics): void {
+    g.clear();
+    this.clearForecast();
   }
 
   /** A solid, bordered tile diamond centred at world `(cx, cy)`. */
@@ -411,6 +443,7 @@ export class CombatView {
   clearUnits(): void {
     for (const f of this.floaters) f.destroy();
     this.floaters.clear();
+    this.clearForecast();
     for (const view of this.views.values()) view.container.destroy();
     this.views.clear();
     this.deadSeen.clear();

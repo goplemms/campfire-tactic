@@ -310,7 +310,7 @@ export class DemoScene extends Phaser.Scene {
 
   /** Tint the safe-depth tiles (silent deployment) for the chosen unit. */
   private drawDeployZone(unit: Unit | null): void {
-    this.preview.clear();
+    this.view.clearPreview(this.preview);
     if (!unit) return;
     const maxCol = safeDepth(unit);
     for (let row = 0; row < this.battle.grid.rows; row++) {
@@ -409,7 +409,7 @@ export class DemoScene extends Phaser.Scene {
   private startBattle(): void {
     this.deploying = false;
     this.deployActor = null;
-    this.preview.clear();
+    this.view.clearPreview(this.preview);
     this.clearButtons();
     this.setActiveUnit(null);
     this.highlightTile(null);
@@ -723,7 +723,7 @@ export class DemoScene extends Phaser.Scene {
     this.gridGfx?.destroy();
     this.gridGfx = undefined;
     this.highlight.clear();
-    this.preview.clear();
+    this.view.clearPreview(this.preview);
     this.setActiveMarker(null);
   }
 
@@ -813,7 +813,7 @@ export class DemoScene extends Phaser.Scene {
   private highlightTile(coord: GridCoord | null): void {
     this.view.highlightTile(this.highlight, coord);
     this.setActiveMarker(coord);
-    if (!coord) this.preview.clear();
+    if (!coord) this.view.clearPreview(this.preview);
   }
 
   /** Hover the bobbing active-unit chevron over a tile (or hide it on null). */
@@ -847,7 +847,7 @@ export class DemoScene extends Phaser.Scene {
   private drawPreview(): void {
     const actor = this.waitingFor;
     if (!actor || this.busy || this.ended) {
-      this.preview.clear();
+      this.view.clearPreview(this.preview);
       return;
     }
     this.view.drawPreview(this.preview, actor, this.battle.units, this.battle.grid, this.armed ?? undefined);

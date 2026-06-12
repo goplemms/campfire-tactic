@@ -207,7 +207,7 @@ export class BattleScene extends Phaser.Scene {
     this.safeZoneGfx?.destroy();
     this.safeZoneGfx = undefined;
     this.highlight.clear();
-    this.preview.clear();
+    this.view.clearPreview(this.preview);
 
     this.originX = this.scale.width / 2;
     this.originY = this.scale.height / 2 - (this.grid.rows * TILE_HEIGHT) / 2 + 4;
@@ -700,7 +700,7 @@ export class BattleScene extends Phaser.Scene {
     this.resolveTheftDeaths();
     this.refreshHud();
     this.highlightTile(null);
-    this.preview.clear();
+    this.view.clearPreview(this.preview);
     if (this.battle.outcome().over) return this.finishBattle();
     this.setHint("Press Advance Clock for the next turn.");
   }
@@ -862,7 +862,7 @@ export class BattleScene extends Phaser.Scene {
   private drawPreview(): void {
     const actor = this.waitingFor;
     if (!actor || this.busy || this.over || this.phase !== "battle") {
-      this.preview.clear();
+      this.view.clearPreview(this.preview);
       return;
     }
     this.view.drawPreview(this.preview, actor, this.battle.units, this.grid, this.armedSkill ?? undefined);
