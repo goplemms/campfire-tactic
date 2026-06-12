@@ -44,8 +44,7 @@ export const FONT = {
    * `fonts.css`, awaited in main.ts before boot) — a "field journal by
    * firelight" feel that keeps the column alignment the turn rail and HP
    * readouts rely on. The fallback chain degrades to the system Courier (the
-   * old default) if the web font is blocked. "IBM Plex Mono" is the bundled
-   * alternate.
+   * old default) if the web font is blocked.
    */
   family: '"Courier Prime", "Courier New", Courier, monospace',
 } as const;

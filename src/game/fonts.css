@@ -1,12 +1,11 @@
 /*
- * Bundled UI typefaces. Phaser bakes whatever font is resolved *at Text-creation
+ * Bundled UI typeface. Phaser bakes whatever font is resolved *at Text-creation
  * time* into a canvas texture, so the face must be loaded before the first scene
  * draws — main.ts awaits `document.fonts.ready` before booting the game.
  *
- * Courier Prime is the shipped face: a warm, well-drawn typewriter monospace (a
- * "field journal by firelight" feel) that keeps the column alignment the turn
- * rail and HP readouts rely on. IBM Plex Mono is kept as an alternate the FONT
- * token can switch to.
+ * Courier Prime: a warm, well-drawn typewriter monospace (a "field journal by
+ * firelight" feel) that keeps the column alignment the turn rail and HP readouts
+ * rely on.
  */
 @font-face {
   font-family: "Courier Prime";
@@ -21,18 +20,4 @@
   font-weight: 700;
   font-display: block;
   src: url("../assets/fonts/CourierPrime-Bold.ttf") format("truetype");
-}
-@font-face {
-  font-family: "IBM Plex Mono";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("../assets/fonts/IBMPlexMono-Regular.ttf") format("truetype");
-}
-@font-face {
-  font-family: "IBM Plex Mono";
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url("../assets/fonts/IBMPlexMono-Bold.ttf") format("truetype");
 }
