@@ -249,15 +249,18 @@ export class DemoScene extends Phaser.Scene {
     // Floating combat text rides the same bus the rules already emit on — so
     // damage/heal pop-ups cover every source (attacks, cleave, charged skills).
     this.busUnsubs.push(
-      this.battle.bus.on("unitDamaged", ({ unit, amount }) => {
+      this.battle.bus.on("unitDamaged", ({ unit, amount, source }) => {
         // Note the blow so flashHit can scale the impact to it, then pop a
-        // magnitude-emphasised damage number.
+        // magnitude-emphasised damage number and narrate it in the log.
         this.view.noteDamage(unit.id, amount);
         this.view.floatDamage(unit, amount);
+        this.view.logDamage(unit, amount, source);
       }),
-      this.battle.bus.on("unitHealed", ({ unit, amount }) => {
+      this.battle.bus.on("unitHealed", ({ unit, amount, source }) => {
         if (amount > 0) this.floatText(unit, `+${amount}`, INK.success);
+        this.view.logHeal(unit, amount, source);
       }),
+      this.battle.bus.on("unitDefeated", ({ unit }) => this.view.logDefeat(unit)),
     );
     this.ended = false;
     this.busy = false;

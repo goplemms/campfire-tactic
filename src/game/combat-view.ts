@@ -83,6 +83,9 @@ export class CombatView {
   private readonly forecastLabels = new Set<Phaser.GameObjects.Text>();
   /** Pooled initiative-rail chips (one per unit row), reused across HUD refreshes. */
   private readonly ctChips: CtChip[] = [];
+  /** The combat log's rolling message buffer (oldest first) + its pooled text lines. */
+  private readonly logBuffer: { text: string; color: string }[] = [];
+  private readonly logLines: Phaser.GameObjects.Text[] = [];
   /** The unit taking its turn / under the cursor — both reveal a nameplate. */
   activeUnitId: string | null = null;
   hoveredUnitId: string | null = null;
@@ -316,6 +319,62 @@ export class CombatView {
     c.ct.setVisible(false);
     c.hpBg.setVisible(false);
     c.hpFill.setVisible(false);
+  }
+
+  // --- Combat log -----------------------------------------------------------
+
+  /** How many recent log lines to keep on screen. */
+  private static readonly LOG_LINES = 6;
+
+  /**
+   * Append a line to the **combat log** — the rolling bottom-left feed that
+   * narrates the exchange (who hit whom, who fell) so fast enemy turns don't blur
+   * past. Keeps the last {@link LOG_LINES}, newest at the bottom. The typed
+   * helpers ({@link logDamage}/{@link logHeal}/{@link logDefeat}) format the
+   * common bus events; this is the raw entry point.
+   */
+  logEvent(text: string, color: string = INK.secondary): void {
+    this.logBuffer.push({ text, color });
+    if (this.logBuffer.length > CombatView.LOG_LINES) this.logBuffer.shift();
+    this.renderLog();
+  }
+
+  /** Log "Attacker hits Target −N" (or "Target takes N" for a sourceless trap/rune). */
+  logDamage(unit: Unit, amount: number, source?: Unit): void {
+    if (amount <= 0) return;
+    this.logEvent(source ? `${shortName(source.name)} hits ${shortName(unit.name)} −${amount}` : `${shortName(unit.name)} takes ${amount}`, INK.danger);
+  }
+
+  /** Log "Healer mends Target +N" (or "Target +N" when sourceless). */
+  logHeal(unit: Unit, amount: number, source?: Unit): void {
+    if (amount <= 0) return;
+    this.logEvent(source ? `${shortName(source.name)} mends ${shortName(unit.name)} +${amount}` : `${shortName(unit.name)} +${amount}`, INK.success);
+  }
+
+  /** Log "Target is defeated". */
+  logDefeat(unit: Unit): void {
+    this.logEvent(`${shortName(unit.name)} is defeated`, INK.ember);
+  }
+
+  /** Clear the log (between encounters). */
+  clearLog(): void {
+    this.logBuffer.length = 0;
+    for (const l of this.logLines) l.setVisible(false);
+  }
+
+  /** Re-lay the pooled log lines bottom-anchored above the action row, newest last. */
+  private renderLog(): void {
+    const step = 14;
+    const bottomY = this.scene.scale.height - 96;
+    const n = this.logBuffer.length;
+    this.logBuffer.forEach((entry, i) => {
+      const line = this.logLines[i] ?? this.scene.add.text(0, 0, "", { fontFamily: FONT.family, fontSize: FONT.caption }).setDepth(10);
+      this.logLines[i] = line;
+      // Older lines fade toward the top — the eye lands on the freshest.
+      const age = n - 1 - i;
+      line.setPosition(10, bottomY - age * step).setText(entry.text).setColor(entry.color).setAlpha(1 - age * 0.13).setVisible(true);
+    });
+    for (let i = n; i < this.logLines.length; i++) this.logLines[i].setVisible(false);
   }
 
   /** A solid, bordered tile diamond centred at world `(cx, cy)`. */
@@ -563,6 +622,9 @@ export class CombatView {
     this.views.clear();
     for (const c of this.ctChips) { c.bg.destroy(); c.dot.destroy(); c.name.destroy(); c.ct.destroy(); c.hpBg.destroy(); c.hpFill.destroy(); }
     this.ctChips.length = 0;
+    for (const l of this.logLines) l.destroy();
+    this.logLines.length = 0;
+    this.logBuffer.length = 0;
     this.deadSeen.clear();
     this.lastHit.clear();
     this.activeUnitId = null;
