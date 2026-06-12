@@ -253,7 +253,10 @@ export class DemoScene extends Phaser.Scene {
     // damage/heal pop-ups cover every source (attacks, cleave, charged skills).
     this.busUnsubs.push(
       this.battle.bus.on("unitDamaged", ({ unit, amount }) => {
-        if (amount > 0) this.floatText(unit, `-${amount}`, INK.danger);
+        // Note the blow so flashHit can scale the impact to it, then pop a
+        // magnitude-emphasised damage number.
+        this.view.noteDamage(unit.id, amount);
+        this.view.floatDamage(unit, amount);
       }),
       this.battle.bus.on("unitHealed", ({ unit, amount }) => {
         if (amount > 0) this.floatText(unit, `+${amount}`, INK.success);

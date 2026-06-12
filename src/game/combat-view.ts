@@ -70,6 +70,12 @@ export class CombatView {
 
   /** Units we've already played the death pop for (reset each encounter). */
   private readonly deadSeen = new Set<string>();
+  /**
+   * The most recent damage dealt to a unit, fed from the scene's `unitDamaged`
+   * bus and consumed by {@link flashHit} so a heavy blow shakes harder than a
+   * chip — without threading the amount through every attack call site.
+   */
+  private readonly lastHit = new Map<string, number>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -281,16 +287,46 @@ export class CombatView {
   floatText(unit: Unit, text: string, color: string, dy = 0): void {
     if (!this.views.has(unit.id)) return;
     const { x, y } = this.tileToWorld(unit.pos);
+    this.emitFloat(x, y - TILE_HEIGHT / 2 - 18 + dy, text, color, 13);
+  }
+
+  /**
+   * A **damage number** with magnitude-scaled emphasis: a chip floats small in
+   * muted red, a heavy blow floats big and hot with a punchy scale-pop and a
+   * longer, taller rise — so the size of the hit *reads* before you parse the
+   * digits. Intensity is the damage as a fraction of the target's max HP (a hit
+   * for ~40%+ of the bar maxes out); there's no separate crit flag in the rules,
+   * so magnitude stands in for "crit". Routes through the shared float emitter.
+   */
+  floatDamage(unit: Unit, amount: number): void {
+    if (amount <= 0 || !this.views.has(unit.id)) return;
+    const intensity = Math.min(1, amount / Math.max(1, unit.maxHp) / 0.4);
+    const sizePx = Math.round(13 + intensity * 11); // 13 (chip) → 24 (heavy)
+    // Muted red for a chip, ember-orange mid, white-hot for a crusher.
+    const color = intensity < 0.34 ? INK.danger : intensity < 0.67 ? "#ff9a4a" : "#ff6a2a";
+    const { x, y } = this.tileToWorld(unit.pos);
+    this.emitFloat(x, y - TILE_HEIGHT / 2 - 18, `-${amount}`, color, sizePx, intensity);
+  }
+
+  /** Record the damage a unit just took (from the scene's `unitDamaged` bus). */
+  noteDamage(unitId: string, amount: number): void {
+    if (amount > 0) this.lastHit.set(unitId, amount);
+  }
+
+  /** Spawn one floating text and tween it up as it fades; `pop` adds a scale punch. */
+  private emitFloat(x: number, y: number, text: string, color: string, sizePx: number, pop = 0): void {
     const t = this.scene.add
-      .text(x, y - TILE_HEIGHT / 2 - 18 + dy, text, { color, fontFamily: FONT.family, fontSize: FONT.body, fontStyle: WEIGHT.bold })
+      .text(x, y, text, { color, fontFamily: FONT.family, fontSize: `${sizePx}px`, fontStyle: WEIGHT.bold })
       .setOrigin(0.5)
       .setDepth(30);
+    if (pop > 0) t.setScale(1 + pop * 0.6).setStroke("#3a0f04", 3);
     this.floaters.add(t);
     this.scene.tweens.add({
       targets: t,
-      y: t.y - 26,
+      y: y - (26 + pop * 14),
       alpha: 0,
-      duration: 760,
+      scale: 1,
+      duration: 760 + pop * 220,
       ease: "Cubic.Out",
       onComplete: () => {
         this.floaters.delete(t);
@@ -319,22 +355,32 @@ export class CombatView {
   flashHit(attacker: Unit, target: Unit): void {
     const av = this.views.get(attacker.id);
     const tv = this.views.get(target.id);
+    // How hard this landed: the damage just dealt (noted off the bus) as a
+    // fraction of the target's bar — a hit for ~40%+ of max HP maxes the impact.
+    const dmg = this.lastHit.get(target.id);
+    this.lastHit.delete(target.id);
+    const intensity = dmg ? Math.min(1, dmg / Math.max(1, target.maxHp) / 0.4) : 0;
+    // A bigger blow lunges farther into the target (chip ~0.28 → crusher ~0.42).
     if (av && attacker !== target) {
       const home = this.tileToWorld(attacker.pos);
       const toward = this.tileToWorld(target.pos);
-      this.scene.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * 0.3, y: home.y + (toward.y - home.y) * 0.3, duration: 90, yoyo: true, ease: "Quad.easeOut" });
+      const reach = 0.28 + intensity * 0.14;
+      this.scene.tweens.add({ targets: av.container, x: home.x + (toward.x - home.x) * reach, y: home.y + (toward.y - home.y) * reach, duration: 90, yoyo: true, ease: "Quad.easeOut" });
     }
     if (tv) {
       const prevFill = tv.body.fillColor;
       tv.body.setFillStyle(COLOR.white);
       this.scene.tweens.add({ targets: tv.container, alpha: 0.4, duration: 70, yoyo: true, onComplete: () => this.refreshUnits() });
       this.scene.time.delayedCall(95, () => tv.body.setFillStyle(prevFill));
-      // A kill hits harder: a longer, stronger shake + freeze than a glancing blow.
+      // Impact scales with the blow: a chip barely nudges the camera, a crusher
+      // shakes hard and freezes longer. A kill always lands near the top of the
+      // range so finishing a foe feels decisive, big overkill harder still.
       // (The death pop itself is played by refreshUnits when the token reads dead.)
       const fatal = !target.alive;
+      const power = fatal ? Math.max(0.8, intensity) : intensity;
       if (!this.reduceMotion) {
-        this.scene.cameras.main.shake(fatal ? 140 : 70, fatal ? 0.008 : 0.0035);
-        this.hitStop(fatal ? 90 : 45);
+        this.scene.cameras.main.shake(55 + power * 95, 0.003 + power * 0.006);
+        this.hitStop(Math.round(35 + power * 70));
       }
     }
   }
@@ -368,6 +414,7 @@ export class CombatView {
     for (const view of this.views.values()) view.container.destroy();
     this.views.clear();
     this.deadSeen.clear();
+    this.lastHit.clear();
     this.activeUnitId = null;
     this.hoveredUnitId = null;
   }

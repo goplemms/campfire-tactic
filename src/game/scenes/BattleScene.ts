@@ -444,6 +444,15 @@ export class BattleScene extends Phaser.Scene {
         this.tweens.add({ targets: t.marker, scale: 1.8, duration: 140, yoyo: true });
       }
     });
+    // Floating combat text + impact scaling ride the rules' damage/heal bus, so
+    // they cover every source (attacks, traps, charged skills) — parity with the demo.
+    this.battle.bus.on("unitDamaged", ({ unit, amount }) => {
+      this.view.noteDamage(unit.id, amount);
+      this.view.floatDamage(unit, amount);
+    });
+    this.battle.bus.on("unitHealed", ({ unit, amount }) => {
+      if (amount > 0) this.view.floatText(unit, `+${amount}`, INK.success);
+    });
 
     // beginBattle: Chef heal + morale-warmed initiative seed (D8).
     const healed = this.loop.beginBattle();
