@@ -238,7 +238,11 @@ async function main() {
     // Tell the scene we're capturing, so it freezes perpetual motion (the
     // chevron bob) — set before any page script runs.
     await page.evaluateOnNewDocument(() => { window.__SHOT__ = true; });
-    await page.goto(`${url}#demo`, { waitUntil: "networkidle0", timeout: 30000 });
+    // "load" (not networkidle0): Vite's HMR WebSocket holds the connection open,
+    // so the page can never reach network-idle — the same reason the re-navigations
+    // below use "load". Readiness/determinism comes from the canvas-selector wait
+    // plus the per-step waitForSettled gate, not from network quiescence.
+    await page.goto(`${url}#demo`, { waitUntil: "load", timeout: 30000 });
     let canvas = await page.waitForSelector("canvas", { timeout: 15000 });
 
     for (const step of STEPS) {
