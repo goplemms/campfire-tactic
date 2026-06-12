@@ -75,10 +75,8 @@ export class DemoScene extends Phaser.Scene {
 
   private titleText!: Phaser.GameObjects.Text;
   private subText!: Phaser.GameObjects.Text;
+  /** Header label above the shared initiative rail (the rail itself lives in CombatView). */
   private orderText!: Phaser.GameObjects.Text;
-  private orderBg!: Phaser.GameObjects.Rectangle;
-  /** One reusable Text per turn-order row (Phaser Text can't colour lines individually). */
-  private orderLines: Phaser.GameObjects.Text[] = [];
   private timerText!: Phaser.GameObjects.Text;
   private hintPanel!: HintPanel;
   private lastHint = "";
@@ -116,9 +114,8 @@ export class DemoScene extends Phaser.Scene {
     addVignette(this);
     this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.subText = this.add.text(this.scale.width / 2, 38, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
-    // A faint backing groups the turn-order readout; sized to the text each refresh.
-    this.orderBg = this.add.rectangle(4, 64, 10, 10, COLOR.surface, 0.55).setStrokeStyle(1, COLOR.border).setOrigin(0, 0).setDepth(9).setVisible(false);
-    this.orderText = this.add.text(10, 70, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.caption, lineSpacing: 3 }).setDepth(10);
+    // Header above the shared initiative rail (drawn by CombatView in refreshHud).
+    this.orderText = this.add.text(10, 68, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.caption }).setDepth(10);
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: INK.ember, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     // A collapsible top-right card consolidates contextual tips and the command
     // keys in one consistent place (hover to peek, click to pin).
@@ -672,8 +669,7 @@ export class DemoScene extends Phaser.Scene {
     this.subText.setText("");
     this.timerText.setText("");
     this.orderText.setText("");
-    this.orderLines.forEach((t) => t.setVisible(false));
-    this.orderBg.setVisible(false);
+    this.view.hideInitiative();
   }
 
   private showEnd(): void {
@@ -718,8 +714,6 @@ export class DemoScene extends Phaser.Scene {
     this.boardObjects = [];
     this.deploying = false;
     this.deployActor = null;
-    this.orderBg.setVisible(false);
-    this.orderLines.forEach((t) => t.setVisible(false));
     this.gridGfx?.destroy();
     this.gridGfx = undefined;
     this.highlight.clear();
@@ -756,20 +750,11 @@ export class DemoScene extends Phaser.Scene {
     const allies = live.filter((u) => u.side === "player").length;
     const foes = live.filter((u) => u.side === "enemy").length;
     this.subText.setText(`Allies ${allies}  ·  Foes ${foes}`);
-    // Turn-order readout. One tinted row per unit: faction reads at a glance from
-    // colour (warm = ally, cool = foe), a "▸" flags whoever is acting, and fallen
-    // units trail dimmed at the bottom so casualties stay trackable.
-    this.orderText.setText("CT order");
-    const rowOf = (u: Unit, dead: boolean) => ({
-      text: `${u.id === this.view.activeUnitId ? "▸" : " "} ${u.side === "player" ? "●" : "○"} ${u.name}${
-        dead ? "  ✕" : `  CT${Math.round(u.ct)}${this.battle.clock.isCharging(u) ? " ⏳" : ""}`
-      }`,
-      color: u.side === "player" ? INK.gold : INK.danger,
-      alpha: dead ? 0.4 : 1,
-    });
-    const rows = live.sort((a, b) => b.ct - a.ct).map((u) => rowOf(u, false));
-    const dead = this.battle.units.filter((u) => !u.alive && !u.captured && !u.hidden).map((u) => rowOf(u, true));
-    this.renderOrderRows([...rows, ...dead]);
+    // The visual initiative rail (shared CombatView): one chip per unit sorted by
+    // charge time, the acting unit lit, fallen trailing dimmed. Replaces the old
+    // monospace "CT order" list — `orderText` is now just its header.
+    this.orderText.setText("Turn order");
+    this.view.drawInitiative(this.battle.units, 8, 86, (u) => this.battle.clock.isCharging(u));
     this.refreshHp();
     // The bridge-cut timer (D43): a visible race readout.
     const prog = this.battle.clock.scheduledProgress(`objective:${this.staged?.encounter.id}:bridge-cut`);
@@ -779,25 +764,6 @@ export class DemoScene extends Phaser.Scene {
     } else if (this.staged?.encounter.objective && !this.staged.objective.failed) {
       this.timerText.setText("Bridge secured — the Sapper is down.");
     }
-  }
-
-  /** Draw the turn-order rows into a reusable Text pool and size the backing to fit. */
-  private renderOrderRows(rows: { text: string; color: string; alpha: number }[]): void {
-    const x = 14;
-    const y0 = 90;
-    const step = 15;
-    let maxW = this.orderText.width;
-    rows.forEach((r, i) => {
-      let t = this.orderLines[i];
-      if (!t) {
-        t = this.add.text(x, 0, "", { fontFamily: FONT.family, fontSize: FONT.caption }).setDepth(10);
-        this.orderLines[i] = t;
-      }
-      t.setPosition(x, y0 + i * step).setText(r.text).setColor(r.color).setAlpha(r.alpha).setVisible(true);
-      maxW = Math.max(maxW, t.width);
-    });
-    for (let i = rows.length; i < this.orderLines.length; i++) this.orderLines[i].setVisible(false);
-    this.orderBg.setSize(maxW + 18, y0 + rows.length * step - 64).setVisible(true);
   }
 
   // --- Geometry --------------------------------------------------------------

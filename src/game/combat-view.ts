@@ -20,11 +20,26 @@ import {
 import { COLOR, FONT, INK, WEIGHT } from "./theme";
 import { roleColor } from "./roles";
 
+/** Truncate a unit name to fit a rail chip — ellipsised past ~13 chars. */
+function shortName(name: string): string {
+  return name.length > 13 ? name.slice(0, 12) + "…" : name;
+}
+
 /** Short token glyph for a unit: initials of a two-word name, else the first two letters. */
 export function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return (name[0]?.toUpperCase() ?? "") + (name[1]?.toLowerCase() ?? "");
+}
+
+/** One row of the initiative rail — the pooled objects making up a unit's chip. */
+interface CtChip {
+  bg: Phaser.GameObjects.Rectangle;
+  dot: Phaser.GameObjects.Arc;
+  name: Phaser.GameObjects.Text;
+  ct: Phaser.GameObjects.Text;
+  hpBg: Phaser.GameObjects.Rectangle;
+  hpFill: Phaser.GameObjects.Rectangle;
 }
 
 /** The on-board presentation of one unit: a token container and its sub-parts. */
@@ -66,6 +81,8 @@ export class CombatView {
   readonly floaters = new Set<Phaser.GameObjects.Text>();
   /** Attack-forecast labels drawn over foes in the move/attack preview. */
   private readonly forecastLabels = new Set<Phaser.GameObjects.Text>();
+  /** Pooled initiative-rail chips (one per unit row), reused across HUD refreshes. */
+  private readonly ctChips: CtChip[] = [];
   /** The unit taking its turn / under the cursor — both reveal a nameplate. */
   activeUnitId: string | null = null;
   hoveredUnitId: string | null = null;
@@ -234,6 +251,71 @@ export class CombatView {
   clearPreview(g: Phaser.GameObjects.Graphics): void {
     g.clear();
     this.clearForecast();
+  }
+
+  // --- Initiative rail ------------------------------------------------------
+
+  /** Chip geometry — width, height, and the vertical pitch between rows. */
+  private static readonly CHIP_W = 150;
+  private static readonly CHIP_H = 22;
+  private static readonly CHIP_STEP = 25;
+
+  /**
+   * Draw the **initiative rail** anchored at `(x, y)`: one chip per unit, sorted by
+   * charge time (who acts soonest on top), then fallen units trailing dimmed. Each
+   * chip carries the side-tinted, role-ringed dot, the (truncated) name, a compact
+   * HP bar and the CT readout (⏳ while charging) — the active unit's chip lights
+   * up. Pooled across refreshes so the HUD doesn't churn objects. Replaces the old
+   * monospace "CT order" text list, shared so both scenes read identically.
+   */
+  drawInitiative(units: readonly Unit[], x: number, y: number, isCharging: (u: Unit) => boolean): void {
+    const live = units.filter((u) => u.alive && !u.captured && !u.hidden).sort((a, b) => b.ct - a.ct);
+    const fallen = units.filter((u) => !u.alive && !u.captured && !u.hidden);
+    const rows = [...live.map((u) => ({ u, dead: false })), ...fallen.map((u) => ({ u, dead: true }))];
+    rows.forEach((r, i) => {
+      const chip = this.ctChips[i] ?? this.makeCtChip();
+      this.ctChips[i] = chip;
+      const top = y + i * CombatView.CHIP_STEP;
+      const mid = top + CombatView.CHIP_H / 2;
+      const active = !r.dead && r.u.id === this.activeUnitId;
+      const sideFill = r.u.side === "player" ? COLOR.ally : COLOR.foe;
+      const sideEdge = r.u.side === "player" ? COLOR.allyEdge : COLOR.foeEdge;
+      chip.bg.setPosition(x, top).setFillStyle(active ? COLOR.surfaceAlt : COLOR.surface, active ? 0.95 : 0.55).setStrokeStyle(active ? 1.5 : 1, active ? COLOR.accent : COLOR.border).setAlpha(r.dead ? 0.4 : 1).setVisible(true);
+      chip.dot.setPosition(x + 13, mid).setFillStyle(sideFill).setStrokeStyle(2, roleColor(r.u, sideEdge)).setVisible(true);
+      chip.name.setPosition(x + 24, mid - 4).setText(shortName(r.u.name)).setColor(r.dead ? INK.disabled : active ? INK.primary : INK.secondary).setVisible(true);
+      chip.ct.setPosition(x + CombatView.CHIP_W - 7, mid).setText(r.dead ? "✕" : `${Math.round(r.u.ct)}${isCharging(r.u) ? "⏳" : ""}`).setColor(r.dead ? INK.disabled : active ? INK.ember : INK.muted).setVisible(true);
+      const frac = r.u.maxHp > 0 ? Math.max(0, r.u.hp) / r.u.maxHp : 0;
+      const hpW = 88;
+      chip.hpBg.setPosition(x + 24, mid + 6).setSize(hpW, 3).setVisible(!r.dead);
+      chip.hpFill.setPosition(x + 24, mid + 6).setSize(Math.max(0, hpW * frac), 3).setFillStyle(frac > 0.5 ? COLOR.success : frac > 0.25 ? COLOR.gold : COLOR.danger).setVisible(!r.dead);
+    });
+    for (let i = rows.length; i < this.ctChips.length; i++) this.hideCtChip(this.ctChips[i]);
+  }
+
+  /** Hide the whole initiative rail (between encounters / on non-battle beats). */
+  hideInitiative(): void {
+    for (const c of this.ctChips) this.hideCtChip(c);
+  }
+
+  /** Build one pooled chip's objects (depth above the board, below overlays). */
+  private makeCtChip(): CtChip {
+    const s = this.scene;
+    const bg = s.add.rectangle(0, 0, CombatView.CHIP_W, CombatView.CHIP_H, COLOR.surface, 0.55).setOrigin(0, 0).setStrokeStyle(1, COLOR.border).setDepth(9);
+    const dot = s.add.circle(0, 0, 5, COLOR.ally).setDepth(10);
+    const name = s.add.text(0, 0, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(0, 0.5).setDepth(10);
+    const ct = s.add.text(0, 0, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(1, 0.5).setDepth(10);
+    const hpBg = s.add.rectangle(0, 0, 88, 3, COLOR.bg).setOrigin(0, 0.5).setDepth(10);
+    const hpFill = s.add.rectangle(0, 0, 88, 3, COLOR.success).setOrigin(0, 0.5).setDepth(10);
+    return { bg, dot, name, ct, hpBg, hpFill };
+  }
+
+  private hideCtChip(c: CtChip): void {
+    c.bg.setVisible(false);
+    c.dot.setVisible(false);
+    c.name.setVisible(false);
+    c.ct.setVisible(false);
+    c.hpBg.setVisible(false);
+    c.hpFill.setVisible(false);
   }
 
   /** A solid, bordered tile diamond centred at world `(cx, cy)`. */
@@ -479,6 +561,8 @@ export class CombatView {
     this.clearForecast();
     for (const view of this.views.values()) view.container.destroy();
     this.views.clear();
+    for (const c of this.ctChips) { c.bg.destroy(); c.dot.destroy(); c.name.destroy(); c.ct.destroy(); c.hpBg.destroy(); c.hpFill.destroy(); }
+    this.ctChips.length = 0;
     this.deadSeen.clear();
     this.lastHit.clear();
     this.activeUnitId = null;

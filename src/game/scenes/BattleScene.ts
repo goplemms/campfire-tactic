@@ -148,7 +148,7 @@ export class BattleScene extends Phaser.Scene {
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
-    this.orderText = this.add.text(12, 12, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label, lineSpacing: 3 }).setDepth(10);
+    this.orderText = this.add.text(10, 68, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.caption }).setDepth(10);
     this.hintPanel = new HintPanel(this);
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
@@ -821,12 +821,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private refreshHud(): void {
-    const order = [...this.battle.units]
-      .filter((u) => u.alive && !u.captured)
-      .sort((a, b) => b.ct - a.ct)
-      .map((u) => `${u.side === "player" ? "●" : "○"} ${u.name}  CT ${Math.round(u.ct)}`)
-      .join("\n");
-    this.orderText.setText(`CT order\n${order}`);
+    // The shared visual initiative rail (CombatView): chips sorted by charge time,
+    // the acting unit lit, each carrying side/role, HP and the CT readout.
+    this.orderText.setText("Turn order");
+    this.view.drawInitiative(this.battle.units, 8, 84, (u) => this.battle.clock.isCharging(u));
     this.refreshHp();
   }
 
