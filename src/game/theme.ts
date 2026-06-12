@@ -65,28 +65,30 @@ export const COLOR = {
   white: 0xffffff,
   black: 0x000000,
 
-  // Surfaces — canvas up through raised, interactive panels.
+  // Surfaces — canvas up through raised, interactive panels. Warm charcoal: the
+  // game is named for a campfire, so the dark steps carry an ember undertone
+  // rather than the old blue-black, reading as firelit dusk instead of cold steel.
   /** Canvas background and modal backings. */
-  bg: 0x11141b,
+  bg: 0x16110d,
   /** Panel backings, hint-card body, the turn-order rail. */
-  surface: 0x141925,
+  surface: 0x1d1711,
   /** Unselected rows, inputs and disabled fills. */
-  surfaceRaised: 0x1b2030,
+  surfaceRaised: 0x271e16,
   /** Selected / hovered rows, hint-card header. */
-  surfaceAlt: 0x26314a,
+  surfaceAlt: 0x3a2a1c,
 
-  // Structure.
+  // Structure — warm ember-brown strokes (was cold slate-blue).
   /** Default panel, grid and dim-control stroke. */
-  border: 0x3d4b6e,
+  border: 0x5a4630,
   /** Lighter divider, hint-card edge, enabled-control stroke. */
-  borderSoft: 0x4a5d86,
+  borderSoft: 0x76583a,
 
-  // Board tiles — a wider light/dark split than the original near-flat checker,
+  // Board tiles — warm stone/earth lit by firelight, with a wide light/dark split
   // so the grid reads at a glance without turning into a loud chessboard.
-  tileDark: 0x1f2636,
-  tileLight: 0x2e3a58,
+  tileDark: 0x241c15,
+  tileLight: 0x382a1d,
   /** Impassable terrain. */
-  tileBlocked: 0x55304a,
+  tileBlocked: 0x4a2c2c,
 
   // Factions — token body fill / edge ring.
   ally: 0xffcf6b,
@@ -102,24 +104,24 @@ export const COLOR = {
   success: 0x57b07a,
   /** Sage button fill, safe zone, selected row. */
   successDeep: 0x2f6b46,
-  /** Reachable / hover / live-path highlight. */
-  accent: 0x7fe0a0,
+  /** Reachable / hover / live-path highlight — bright firelight (was mint green). */
+  accent: 0xf2b65a,
   /** Failure, enemy-controlled fill, critical HP. */
   danger: 0xb05757,
   /** Enemy attack-range outline. */
   threat: 0xe07b7b,
   /** Economy, caution HP, intel markers. */
   gold: 0xd8b24a,
-  /** Movement-range tile wash. */
-  reach: 0x3a7bd5,
-  /** Intel panels, recruiter / merchant / pinned accents. */
-  info: 0x6f86c0,
+  /** Movement-range tile wash — warm ember glow (was cold steel-blue). */
+  reach: 0xc87a32,
+  /** Intel panels, recruiter / merchant / pinned accents — warm tan (was blue). */
+  info: 0xc09a5a,
   /** Capture-net cage FX. */
   net: 0xe6d8b0,
 
-  // Buttons.
-  btnFill: 0x394063,
-  btnStroke: 0x6f7bb0,
+  // Buttons — warm leather (was cold slate).
+  btnFill: 0x3d3325,
+  btnStroke: 0x97774a,
 } as const;
 
 /**
@@ -127,18 +129,18 @@ export const COLOR = {
  * {@link COLOR}; these stay strings because that's what `TextStyle.color` wants.
  */
 export const INK = {
-  /** Titles and key headings. */
-  primary: "#e8eefc",
+  /** Titles and key headings — warm parchment white (was blue-white). */
+  primary: "#f4ede0",
   /** Body copy — the common case. */
-  secondary: "#cdd7ee",
+  secondary: "#ddd3c2",
   /** Hints and secondary captions. */
-  muted: "#9fb0d0",
+  muted: "#b2a48b",
   /** Greyed / unavailable. */
-  disabled: "#6b7488",
+  disabled: "#80766a",
   /** Enabled list labels. */
-  bright: "#dbe5fb",
+  bright: "#ece3d2",
   /** Text on a light token / map-node glyph. */
-  onLight: "#11141b",
+  onLight: "#1a1410",
   /** Positive numbers and messages. */
   success: "#9ff0bf",
   /** Labels on green buttons. */

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { COLOR, FONT, INK } from "../theme";
 import { roleColor } from "../roles";
 import { CombatView } from "../combat-view";
+import { addVignette } from "../vignette";
 import {
   planMove,
   planAttack,
@@ -141,6 +142,8 @@ export class BattleScene extends Phaser.Scene {
   create(): void {
     this.view = new CombatView(this);
     this.view.reduceMotion = !!(window as Window & { __SHOT__?: boolean }).__SHOT__;
+    // The campfire glow — a warm vignette over the board, beneath the tokens/HUD.
+    addVignette(this);
     // Persistent UI.
     this.titleText = this.add.text(this.scale.width / 2, 16, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.campText = this.add.text(this.scale.width / 2, 40, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);

@@ -34,6 +34,7 @@ import {
 import { Button, ButtonColumn } from "../button";
 import { HintPanel } from "../hint-panel";
 import { CombatView } from "../combat-view";
+import { addVignette } from "../vignette";
 import { dropNet as dropNetCage } from "../deploy-fx";
 
 /**
@@ -111,6 +112,8 @@ export class DemoScene extends Phaser.Scene {
     this.runner = new DemoRunner();
     this.view = new CombatView(this);
     this.view.reduceMotion = this.reduceMotion;
+    // The campfire glow — a warm vignette over the board, beneath the tokens/HUD.
+    addVignette(this);
     this.titleText = this.add.text(this.scale.width / 2, 14, "", { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.title }).setOrigin(0.5).setDepth(10);
     this.subText = this.add.text(this.scale.width / 2, 38, "", { color: INK.secondary, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     // A faint backing groups the turn-order readout; sized to the text each refresh.
