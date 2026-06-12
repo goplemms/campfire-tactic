@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TileGrid } from "./grid";
-import { planMove, planAttack, forecastAttack } from "./planning";
+import { planMove, planAttack, forecastAttack, flankTiles } from "./planning";
 import { createUnit, type Side, type Unit } from "./units";
 
 function at(id: string, side: Side, col: number, row: number, moveRange = 3, attackRange = 1): Unit {
@@ -82,5 +82,27 @@ describe("forecastAttack", () => {
     const f = forecastAttack(a, foe, [a, b, foe], new TileGrid(8, 3));
     expect(f?.flank).toBe(true);
     expect(f!.damage).toBeGreaterThan(5); // base 5 + flank bonus
+  });
+});
+
+describe("flankTiles", () => {
+  it("lists the in-place tile when standing there already flanks", () => {
+    const a = at("a", "player", 0, 0, 0); // no move budget — only the current tile
+    const b = at("b", "player", 2, 0);
+    const foe = at("f", "enemy", 1, 0);
+    expect(flankTiles(a, [a, b, foe], new TileGrid(8, 3))).toContainEqual({ col: 0, row: 0 });
+  });
+
+  it("is empty for a ranged unit (can't flank)", () => {
+    const a = at("a", "player", 0, 0, 3, 2);
+    const b = at("b", "player", 2, 0);
+    const foe = at("f", "enemy", 1, 0);
+    expect(flankTiles(a, [a, b, foe], new TileGrid(8, 3))).toEqual([]);
+  });
+
+  it("is empty with no second blade to gang up", () => {
+    const a = at("a", "player", 0, 0);
+    const foe = at("f", "enemy", 1, 0);
+    expect(flankTiles(a, [a, foe], new TileGrid(8, 3))).toEqual([]);
   });
 });

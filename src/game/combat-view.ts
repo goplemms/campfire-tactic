@@ -8,6 +8,8 @@ import {
   effectiveMove,
   reachableTiles,
   forecastAttack,
+  flankTiles,
+  forecastEnemyAction,
   TILE_WIDTH,
   TILE_HEIGHT,
   type TileGrid,
@@ -166,6 +168,11 @@ export class CombatView {
       if (r.tile.col === actor.pos.col && r.tile.row === actor.pos.row) continue;
       this.fillTile(g, r.tile, COLOR.reach, 0.18);
     }
+    // Flank-tile preview: outline the reachable tiles that would set up a gang-up
+    // on an adjacent foe — "stand here to flank" (the spatial half of the forecast).
+    for (const tile of flankTiles(actor, units, grid)) {
+      this.outlineTile(g, tile, COLOR.gold);
+    }
     // Telegraph each foe the actor could strike this turn: outline it, and float a
     // forecast badge — the best-case damage, a flank tag, and a skull when lethal —
     // so a player reads the consequence before committing the move.
@@ -175,6 +182,32 @@ export class CombatView {
       if (!f) continue;
       this.outlineTile(g, foe.pos, f.lethal ? COLOR.danger : COLOR.threat);
       this.drawForecast(foe, f);
+    }
+    // Enemy intent: for every foe that would act on one of the actor's side next
+    // turn, draw a threat link to its mark and the incoming damage — read the
+    // counter-attack before you commit.
+    this.drawIntents(g, actor, units, grid);
+  }
+
+  /** Threat links from each enemy to the ally it intends to hit next turn (+ incoming damage). */
+  private drawIntents(g: Phaser.GameObjects.Graphics, actor: Unit, units: readonly Unit[], grid: TileGrid): void {
+    for (const foe of units) {
+      if (!foe.alive || foe.hidden || foe.side === actor.side) continue;
+      const intent = forecastEnemyAction(foe, units, grid);
+      if (!intent || intent.target.side !== actor.side) continue;
+      const from = this.tileToWorld(foe.pos);
+      const to = this.tileToWorld(intent.target.pos);
+      // A thin, semi-transparent threat line tipped with a chevron at the mark.
+      g.lineStyle(1.5, COLOR.threat, 0.5);
+      g.lineBetween(from.x, from.y - TILE_HEIGHT / 2, to.x, to.y - TILE_HEIGHT / 2);
+      // Incoming-damage tag over the threatened ally: "↘N" (skull if it would drop them).
+      const tag = intent.ability && intent.damage === 0 ? "snare" : `↘${intent.damage}${intent.lethal ? "☠" : ""}`;
+      const label = this.scene.add
+        .text(to.x, to.y - TILE_HEIGHT / 2 - 18, tag, { color: intent.lethal ? "#ff7a3a" : INK.danger, fontFamily: FONT.family, fontSize: FONT.nameplate, fontStyle: WEIGHT.bold })
+        .setOrigin(0.5)
+        .setDepth(6)
+        .setStroke("#1a0d05", 3);
+      this.forecastLabels.add(label);
     }
   }
 

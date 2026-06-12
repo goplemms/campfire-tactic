@@ -81,3 +81,24 @@ export function forecastAttack(actor: Unit, foe: Unit, units: readonly Unit[], g
   actor.pos = origin;
   return best;
 }
+
+/**
+ * The tiles `actor` could move to this turn (its own included) **from which it
+ * would earn a melee flank** on some adjacent foe — the spatial half of the flank
+ * telegraph: stand here to gang the target. Empty for a ranged unit (can't flank)
+ * or when no reachable tile sets up a flank. Pure (relocates + restores the actor).
+ */
+export function flankTiles(actor: Unit, units: readonly Unit[], grid: TileGrid): GridCoord[] {
+  if (actor.attackRange > 1 || isImmobilized(actor)) return [];
+  const foes = units.filter((u) => u.alive && !u.captured && u.side !== actor.side);
+  if (foes.length === 0) return [];
+  const tiles = [actor.pos, ...reachableTiles(actor, units, grid, effectiveMove(actor)).map((r) => r.tile)];
+  const origin = actor.pos;
+  const out: GridCoord[] = [];
+  for (const tile of tiles) {
+    actor.pos = tile;
+    if (foes.some((f) => manhattan(tile, f.pos) === 1 && computeFlankBonus(actor, f, units) > 0)) out.push(tile);
+  }
+  actor.pos = origin;
+  return out;
+}
