@@ -463,6 +463,7 @@ export class BattleScene extends Phaser.Scene {
       this.view.logHeal(unit, amount, source);
     });
     this.battle.bus.on("unitDefeated", ({ unit }) => this.view.logDefeat(unit));
+    this.battle.bus.on("turnStart", ({ unit }) => this.view.logTurn(unit));
 
     // beginBattle: Chef heal + morale-warmed initiative seed (D8).
     const healed = this.loop.beginBattle();

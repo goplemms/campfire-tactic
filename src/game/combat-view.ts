@@ -409,6 +409,11 @@ export class CombatView {
     this.logEvent(`${shortName(unit.name)} is defeated`, INK.ember);
   }
 
+  /** Log a turn-boundary header — "— Name —" — so the feed reads grouped by whose turn it is. */
+  logTurn(unit: Unit): void {
+    this.logEvent(`— ${shortName(unit.name)} —`, unit.side === "player" ? INK.gold : INK.muted);
+  }
+
   /** Clear the log (between encounters). */
   clearLog(): void {
     this.logBuffer.length = 0;

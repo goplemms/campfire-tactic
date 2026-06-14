@@ -271,6 +271,7 @@ export class DemoScene extends Phaser.Scene {
         this.view.logHeal(unit, amount, source);
       }),
       this.battle.bus.on("unitDefeated", ({ unit }) => this.view.logDefeat(unit)),
+      this.battle.bus.on("turnStart", ({ unit }) => this.view.logTurn(unit)),
     );
     this.ended = false;
     this.busy = false;
