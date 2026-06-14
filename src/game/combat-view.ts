@@ -5,6 +5,7 @@ import {
   statusVisual,
   isValidSkillTarget,
   isImmobilized,
+  isFlanked,
   effectiveMove,
   reachableTiles,
   forecastAttack,
@@ -19,6 +20,31 @@ import {
 } from "../core";
 import { COLOR, FONT, INK, WEIGHT } from "./theme";
 import { roleColor } from "./roles";
+
+/** A numeric `0xRRGGBB` colour as a Phaser/CSS `#rrggbb` string (for Text fills). */
+function hex(n: number): string {
+  return `#${n.toString(16).padStart(6, "0")}`;
+}
+
+/** The flank pseudo-status — computed from board position, shown in the status vocabulary. */
+const FLANK_PIP = { glyph: "⚔", color: INK.danger, label: "Flanked" } as const;
+
+/** One status badge as glyph + (finite) duration + colour — the data a pip renders. */
+interface StatusPip {
+  text: string;
+  color: string;
+}
+
+/** Build a unit's status pips: each real status (glyph + turns left), then the flank pip. */
+function statusPipsFor(unit: Unit, units: readonly Unit[]): StatusPip[] {
+  const pips: StatusPip[] = unit.statuses.map((st) => {
+    const v = statusVisual(st.id);
+    const dur = Number.isFinite(st.duration) ? `${st.duration}` : "";
+    return { text: `${v.glyph}${dur}`, color: hex(v.tint) };
+  });
+  if (unit.alive && !unit.captured && isFlanked(unit, units)) pips.push({ text: FLANK_PIP.glyph, color: FLANK_PIP.color });
+  return pips;
+}
 
 /** Truncate a unit name to fit a rail chip — ellipsised past ~13 chars. */
 function shortName(name: string): string {
@@ -40,7 +66,12 @@ interface CtChip {
   ct: Phaser.GameObjects.Text;
   hpBg: Phaser.GameObjects.Rectangle;
   hpFill: Phaser.GameObjects.Rectangle;
+  /** A compact status summary (glyphs + flank), tinted by severity. */
+  status: Phaser.GameObjects.Text;
 }
+
+/** Up to this many status pips are drawn under a token (real statuses + the flank pip). */
+const MAX_STATUS_PIPS = 5;
 
 /** The on-board presentation of one unit: a token container and its sub-parts. */
 export interface UnitView {
@@ -51,7 +82,8 @@ export interface UnitView {
   /** Floating "Name" / "hp/max" plate — shown only for the active or hovered unit. */
   label: Phaser.GameObjects.Text;
   hp: Phaser.GameObjects.Text;
-  badges: Phaser.GameObjects.Text;
+  /** Per-status badge pool under the token: glyph + turns-left, tinted per status. */
+  statusPips: Phaser.GameObjects.Text[];
   hpBarFill: Phaser.GameObjects.Rectangle;
   hpBarW: number;
 }
@@ -286,11 +318,18 @@ export class CombatView {
       chip.bg.setPosition(x, top).setFillStyle(active ? COLOR.surfaceAlt : COLOR.surface, active ? 0.95 : 0.55).setStrokeStyle(active ? 1.5 : 1, active ? COLOR.accent : COLOR.border).setAlpha(r.dead ? 0.4 : 1).setVisible(true);
       chip.dot.setPosition(x + 13, mid).setFillStyle(sideFill).setStrokeStyle(2, roleColor(r.u, sideEdge)).setVisible(true);
       chip.name.setPosition(x + 24, mid - 4).setText(shortName(r.u.name)).setColor(r.dead ? INK.disabled : active ? INK.primary : INK.secondary).setVisible(true);
-      chip.ct.setPosition(x + CombatView.CHIP_W - 7, mid).setText(r.dead ? "✕" : `${Math.round(r.u.ct)}${isCharging(r.u) ? "⏳" : ""}`).setColor(r.dead ? INK.disabled : active ? INK.ember : INK.muted).setVisible(true);
+      chip.ct.setPosition(x + CombatView.CHIP_W - 7, mid - 4).setText(r.dead ? "✕" : `${Math.round(r.u.ct)}${isCharging(r.u) ? "⏳" : ""}`).setColor(r.dead ? INK.disabled : active ? INK.ember : INK.muted).setVisible(true);
       const frac = r.u.maxHp > 0 ? Math.max(0, r.u.hp) / r.u.maxHp : 0;
       const hpW = 88;
       chip.hpBg.setPosition(x + 24, mid + 6).setSize(hpW, 3).setVisible(!r.dead);
       chip.hpFill.setPosition(x + 24, mid + 6).setSize(Math.max(0, hpW * frac), 3).setFillStyle(frac > 0.5 ? COLOR.success : frac > 0.25 ? COLOR.gold : COLOR.danger).setVisible(!r.dead);
+      // Compact status mirror: the glyphs (+flank), tinted by severity, so you can
+      // scan the rail for who's debuffed without hunting the board for the pips.
+      const flanked = !r.dead && isFlanked(r.u, units);
+      const glyphs = r.u.statuses.map((st) => statusVisual(st.id).glyph).join("") + (flanked ? FLANK_PIP.glyph : "");
+      const harmful = flanked || r.u.statuses.some((st) => st.kind === "debuff");
+      const helpful = r.u.statuses.some((st) => st.kind === "buff");
+      chip.status.setPosition(x + CombatView.CHIP_W - 7, mid + 6).setText(r.dead ? "" : glyphs).setColor(harmful ? INK.danger : helpful ? INK.success : INK.muted).setVisible(!r.dead && glyphs.length > 0);
     });
     for (let i = rows.length; i < this.ctChips.length; i++) this.hideCtChip(this.ctChips[i]);
   }
@@ -309,7 +348,8 @@ export class CombatView {
     const ct = s.add.text(0, 0, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.caption }).setOrigin(1, 0.5).setDepth(10);
     const hpBg = s.add.rectangle(0, 0, 88, 3, COLOR.bg).setOrigin(0, 0.5).setDepth(10);
     const hpFill = s.add.rectangle(0, 0, 88, 3, COLOR.success).setOrigin(0, 0.5).setDepth(10);
-    return { bg, dot, name, ct, hpBg, hpFill };
+    const status = s.add.text(0, 0, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.micro, fontStyle: WEIGHT.bold }).setOrigin(1, 0.5).setDepth(10);
+    return { bg, dot, name, ct, hpBg, hpFill, status };
   }
 
   private hideCtChip(c: CtChip): void {
@@ -319,6 +359,7 @@ export class CombatView {
     c.ct.setVisible(false);
     c.hpBg.setVisible(false);
     c.hpFill.setVisible(false);
+    c.status.setVisible(false);
   }
 
   // --- Combat log -----------------------------------------------------------
@@ -415,15 +456,19 @@ export class CombatView {
     const initials = s.add.text(0, cy, initialsOf(unit.name), { color: INK.onLight, fontFamily: FONT.family, fontSize: FONT.micro, fontStyle: WEIGHT.bold }).setOrigin(0.5);
     const label = s.add.text(0, cy - 36, unit.name, { color: INK.primary, fontFamily: FONT.family, fontSize: FONT.nameplate }).setOrigin(0.5).setVisible(false);
     const hp = s.add.text(0, cy - 24, "", { color: INK.success, fontFamily: FONT.family, fontSize: FONT.nameplate }).setOrigin(0.5).setVisible(false);
-    const badges = s.add.text(0, cy + 10, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.nameplate }).setOrigin(0.5);
+    // A fixed pool of status pips laid out under the token; each shows one status
+    // (glyph + turns left) in its own colour, or the computed flank pip (D36).
+    const statusPips = Array.from({ length: MAX_STATUS_PIPS }, () =>
+      s.add.text(0, cy + 10, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.nameplate, fontStyle: WEIGHT.bold }).setOrigin(0.5).setVisible(false),
+    );
     const hpBarW = 26;
     const hpBarH = 6;
     const hpBarY = cy - 14;
     const hpBarBg = s.add.rectangle(0, hpBarY, hpBarW, hpBarH, COLOR.bg).setStrokeStyle(1, COLOR.black, 0.6);
     const hpBarFill = s.add.rectangle(-hpBarW / 2, hpBarY, hpBarW, hpBarH, COLOR.success).setOrigin(0, 0.5);
     const shadow = s.add.ellipse(0, -2, 24, 9, COLOR.black, 0.28);
-    const container = s.add.container(0, 0, [shadow, hpBarBg, hpBarFill, body, initials, label, hp, badges]).setDepth(1);
-    const view: UnitView = { unit, container, body, label, hp, badges, hpBarFill, hpBarW };
+    const container = s.add.container(0, 0, [shadow, hpBarBg, hpBarFill, body, initials, label, hp, ...statusPips]).setDepth(1);
+    const view: UnitView = { unit, container, body, label, hp, statusPips, hpBarFill, hpBarW };
     this.views.set(unit.id, view);
     // Hovering a token reveals its nameplate (the other half of "active/hover only").
     body.setInteractive({ useHandCursor: false });
@@ -464,8 +509,9 @@ export class CombatView {
     }
   }
 
-  /** Refresh every token's HP bar, status badges, fade state, and death pop. */
+  /** Refresh every token's HP bar, status pips, fade state, and death pop. */
   refreshUnits(): void {
+    const units = [...this.views.values()].map((v) => v.unit);
     for (const view of this.views.values()) {
       const unit = view.unit;
       view.hp.setText(`${Math.max(0, unit.hp)}/${unit.maxHp}`);
@@ -474,10 +520,9 @@ export class CombatView {
       view.hpBarFill.width = Math.max(0, view.hpBarW * frac);
       view.hpBarFill.setFillStyle(frac > 0.5 ? COLOR.success : frac > 0.25 ? COLOR.gold : COLOR.danger);
       view.hpBarFill.setVisible(unit.alive);
-      // Status trackers (D41): one glyph per active status, tinted by the registry.
-      const badges = unit.statuses.map((st) => statusVisual(st.id).glyph).join("");
-      view.badges.setText(badges);
-      if (unit.statuses.length > 0) view.badges.setColor(`#${statusVisual(unit.statuses[0].id).tint.toString(16).padStart(6, "0")}`);
+      // Status pips (D41 + flank, D36): one badge per status — glyph + turns left,
+      // tinted per status — laid out centred under the token; the flank pip trails.
+      this.layoutStatusPips(view, statusPipsFor(unit, units));
       view.container.setAlpha(!unit.alive ? 0.2 : unit.captured ? 0.4 : unit.hidden ? 0.35 : 1);
       // Death pop: the first time a unit reads as dead, collapse its token so the
       // kill registers (it then rests as the faded "downed" marker).
@@ -487,6 +532,16 @@ export class CombatView {
         if (!this.reduceMotion) this.scene.tweens.add({ targets: view.container, scaleX: 0.72, scaleY: 0.72, duration: 260, ease: "Quad.Out" });
       }
     }
+  }
+
+  /** Lay a token's pooled status pips out in a centred row under it; hide the rest. */
+  private layoutStatusPips(view: UnitView, pips: StatusPip[]): void {
+    const cy = -TILE_HEIGHT / 2;
+    const shown = pips.slice(0, MAX_STATUS_PIPS);
+    shown.forEach((pip, i) => {
+      view.statusPips[i].setText(pip.text).setColor(pip.color).setPosition((i - (shown.length - 1) / 2) * 15, cy + 10).setVisible(true);
+    });
+    for (let i = shown.length; i < view.statusPips.length; i++) view.statusPips[i].setVisible(false);
   }
 
   /** A short-lived combat-text pop-up that drifts up off a unit and fades. */
@@ -620,7 +675,7 @@ export class CombatView {
     this.clearForecast();
     for (const view of this.views.values()) view.container.destroy();
     this.views.clear();
-    for (const c of this.ctChips) { c.bg.destroy(); c.dot.destroy(); c.name.destroy(); c.ct.destroy(); c.hpBg.destroy(); c.hpFill.destroy(); }
+    for (const c of this.ctChips) { c.bg.destroy(); c.dot.destroy(); c.name.destroy(); c.ct.destroy(); c.hpBg.destroy(); c.hpFill.destroy(); c.status.destroy(); }
     this.ctChips.length = 0;
     for (const l of this.logLines) l.destroy();
     this.logLines.length = 0;
