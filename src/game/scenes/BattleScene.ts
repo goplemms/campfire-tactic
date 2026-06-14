@@ -86,6 +86,9 @@ export class BattleScene extends Phaser.Scene {
   private highlight!: Phaser.GameObjects.Graphics;
   /** Move-range / attack / valid-target preview, painted on the player's turn. */
   private preview!: Phaser.GameObjects.Graphics;
+  /** The danger-zone overlay (toggle with T) and whether it's on. */
+  private threatGfx!: Phaser.GameObjects.Graphics;
+  private showThreat = false;
   private boardObjects: Phaser.GameObjects.GameObject[] = [];
   private originX = 0;
   private originY = 0;
@@ -150,11 +153,14 @@ export class BattleScene extends Phaser.Scene {
     this.intelText = this.add.text(this.scale.width / 2, 60, "", { color: INK.gold, fontFamily: FONT.family, fontSize: FONT.label }).setOrigin(0.5).setDepth(10);
     this.orderText = this.add.text(10, 68, "", { color: INK.muted, fontFamily: FONT.family, fontSize: FONT.caption }).setDepth(10);
     this.hintPanel = new HintPanel(this);
+    this.threatGfx = this.add.graphics().setDepth(0.36);
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     this.primary = this.makeTextButton(this.scale.width / 2, this.scale.height - 26, 200, 34, "", COLOR.successDeep, COLOR.success, () => this.onPrimary());
     this.primary.setDepth(12);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
+    // T toggles the danger-zone overlay (every tile an enemy could hit this turn).
+    this.input.keyboard?.on("keydown-T", () => { this.showThreat = !this.showThreat; this.drawPreview(); });
 
     this.startCombatNode();
   }
@@ -208,6 +214,7 @@ export class BattleScene extends Phaser.Scene {
     this.safeZoneGfx = undefined;
     this.highlight.clear();
     this.view.clearPreview(this.preview);
+    this.threatGfx.clear();
 
     this.originX = this.scale.width / 2;
     this.originY = this.scale.height / 2 - (this.grid.rows * TILE_HEIGHT) / 2 + 4;
@@ -864,8 +871,11 @@ export class BattleScene extends Phaser.Scene {
     const actor = this.waitingFor;
     if (!actor || this.busy || this.over || this.phase !== "battle") {
       this.view.clearPreview(this.preview);
+      this.threatGfx.clear();
       return;
     }
+    if (this.showThreat) this.view.drawThreatZone(this.threatGfx, this.battle.units, this.grid, "player");
+    else this.threatGfx.clear();
     this.view.drawPreview(this.preview, actor, this.battle.units, this.grid, this.armedSkill ?? undefined);
   }
 

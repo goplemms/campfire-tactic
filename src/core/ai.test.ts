@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planEnemyTurn, reachableTiles, forecastEnemyAction } from "./ai";
+import { planEnemyTurn, reachableTiles, forecastEnemyAction, threatenedTiles } from "./ai";
 import { TileGrid } from "./grid";
 import { isAdjacent } from "./combat";
 import { applyStatus, immobilized } from "./status";
@@ -145,5 +145,21 @@ describe("forecastEnemyAction", () => {
     const player = at("p", "player", 4, 0);
     forecastEnemyAction(enemy, [enemy, player], grid);
     expect(enemy.pos).toEqual({ col: 0, row: 0 });
+  });
+});
+
+describe("threatenedTiles", () => {
+  it("marks every tile a pinned melee enemy could strike", () => {
+    const grid = new TileGrid(8, 3);
+    const enemy = at("e", "enemy", 3, 0, 0); // moveRange 0 → strikes from its own tile only
+    const keys = new Set(threatenedTiles([enemy], grid, "player").map((t) => `${t.col},${t.row}`));
+    // the diamond within attack range 1 of (3,0), clipped to the board
+    expect([...keys].sort()).toEqual(["2,0", "3,0", "3,1", "4,0"]);
+  });
+
+  it("is empty when the victim side has no enemies", () => {
+    const grid = new TileGrid(8, 3);
+    const ally = at("a", "player", 3, 0, 0);
+    expect(threatenedTiles([ally], grid, "player")).toEqual([]);
   });
 });

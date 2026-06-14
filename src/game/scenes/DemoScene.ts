@@ -67,6 +67,9 @@ export class DemoScene extends Phaser.Scene {
   private highlight!: Phaser.GameObjects.Graphics;
   /** Move-range / attack / valid-target preview, painted on the player's turn. */
   private preview!: Phaser.GameObjects.Graphics;
+  /** The danger-zone overlay (toggle with T) and whether it's on. */
+  private threatGfx!: Phaser.GameObjects.Graphics;
+  private showThreat = false;
   /** A bobbing chevron over the unit currently taking its turn. */
   private activeMarker!: Phaser.GameObjects.Triangle;
   private boardObjects: Phaser.GameObjects.GameObject[] = [];
@@ -119,7 +122,8 @@ export class DemoScene extends Phaser.Scene {
     this.timerText = this.add.text(this.scale.width / 2, 58, "", { color: INK.ember, fontFamily: FONT.family, fontSize: FONT.body }).setOrigin(0.5).setDepth(10);
     // A collapsible top-right card consolidates contextual tips and the command
     // keys in one consistent place (hover to peek, click to pin).
-    this.hintPanel = new HintPanel(this, { keys: "Space / Enter = advance · 1–9 = abilities" });
+    this.hintPanel = new HintPanel(this, { keys: "Space / Enter = advance · 1–9 = abilities · T = danger zone" });
+    this.threatGfx = this.add.graphics().setDepth(0.36);
     this.preview = this.add.graphics().setDepth(0.4);
     this.highlight = this.add.graphics().setDepth(0.5);
     // A downward chevron that hovers over the acting unit (the active-unit cue).
@@ -144,6 +148,12 @@ export class DemoScene extends Phaser.Scene {
     kb.on("keydown", (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "Enter") {
         if (this.primary.visible) this.onPrimary();
+        return;
+      }
+      if (e.code === "KeyT") {
+        // Toggle the danger-zone overlay (every tile an enemy could hit this turn).
+        this.showThreat = !this.showThreat;
+        this.drawPreview();
         return;
       }
       const n = Number(e.key);
@@ -721,6 +731,7 @@ export class DemoScene extends Phaser.Scene {
     this.gridGfx = undefined;
     this.highlight.clear();
     this.view.clearPreview(this.preview);
+    this.threatGfx?.clear();
     this.setActiveMarker(null);
   }
 
@@ -817,8 +828,11 @@ export class DemoScene extends Phaser.Scene {
     const actor = this.waitingFor;
     if (!actor || this.busy || this.ended) {
       this.view.clearPreview(this.preview);
+      this.threatGfx.clear();
       return;
     }
+    if (this.showThreat) this.view.drawThreatZone(this.threatGfx, this.battle.units, this.battle.grid, "player");
+    else this.threatGfx.clear();
     this.view.drawPreview(this.preview, actor, this.battle.units, this.battle.grid, this.armed ?? undefined);
   }
 

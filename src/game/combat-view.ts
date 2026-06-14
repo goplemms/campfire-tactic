@@ -11,6 +11,7 @@ import {
   forecastAttack,
   flankTiles,
   forecastEnemyAction,
+  threatenedTiles,
   TILE_WIDTH,
   TILE_HEIGHT,
   type TileGrid,
@@ -286,6 +287,17 @@ export class CombatView {
   clearPreview(g: Phaser.GameObjects.Graphics): void {
     g.clear();
     this.clearForecast();
+  }
+
+  /**
+   * Wash the **danger zone** onto `g` — every tile a `victimSide` unit could be
+   * attacked on this turn (the union of all enemies' reach + attack range) — in
+   * threat-red. The "is it safe to stand here?" overlay; clears `g` first so the
+   * scene just toggles it on/off by calling this or {@link Phaser.GameObjects.Graphics.clear}.
+   */
+  drawThreatZone(g: Phaser.GameObjects.Graphics, units: readonly Unit[], grid: TileGrid, victimSide: Unit["side"]): void {
+    g.clear();
+    for (const t of threatenedTiles(units, grid, victimSide)) this.fillTile(g, t, COLOR.danger, 0.16);
   }
 
   // --- Initiative rail ------------------------------------------------------
